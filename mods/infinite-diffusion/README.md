@@ -1,7 +1,8 @@
 # InfiniteDiffusion (`pwc.infinite-diffusion`)
 
-PWC's world generator: mountain ranges and carved valleys on the surface, caves and abandoned
-mines below, planets in space above. The terrain itself is part of the game's deterministic core
+PWC's world generator: you start on a 50,000,000-block cube planet whose six faces are themed realms
+(mountain ranges, carved valleys and many kinds of country), with caves, abandoned mines and a
+deep interior below, in a universe of round worlds, moons and asteroid swarms. The terrain itself is part of the game's deterministic core
 (it feeds the multiplayer content fingerprint and must be bit-identical everywhere); this mod
 selects it for new worlds and carries its knobs. With the mod disabled, new worlds use the core's
 flat world.
@@ -22,15 +23,20 @@ All knobs apply to **new** worlds.
 | Relief | 25 – 200 % | 25 | 100 % | Mountain height |
 | Caves | 0 – 200 % | 25 | 100 % | Cave density |
 | Mines | 0 – 200 % | 25 | 100 % | Abandoned-mine density |
-| Space | 0 – 200 % | 25 | 100 % | Planet and asteroid density |
+| Space | 0 – 200 % | 25 | 100 % | Asteroid-swarm density |
+| Variety | 0 – 200 % | 25 | 100 % | How much the land changes from place to place |
+| Features | 0 – 200 % | 25 | 100 % | Surface feature density (spires, arches, crystals, …) |
+| Structures | 0 – 200 % | 25 | 100 % | Ruin and structure density |
+| Deep | 0 – 200 % | 25 | 100 % | Deep-interior cavern and strata density |
 
 ## Persisted state
 
 - **World save:** one line under the mod id `diffusion`, payload version 2:
-  `v2;relief=<r>,caves=<c>,mines=<m>,space=<s>`. Which generator a saved world uses is recorded in
+  `v2;relief=<r>,caves=<c>,mines=<m>,space=<s>,variety=<v>,features=<f>,structures=<t>,deep=<d>`
+  (a payload without the last four keys leaves them at 100 %). Which generator a saved world uses is recorded in
   the save header, so turning the mod off never changes an existing world.
 - **`mods.cfg`:** `diffusion=on|off` and
-  `diffusion.state=relief=100,caves=100,mines=100,space=100`. Stray values snap onto the 25 %
+  `diffusion.state=relief=100,caves=100,mines=100,space=100,variety=100,features=100,structures=100,deep=100`. Stray values snap onto the 25 %
   stepper. A `mods.cfg` from before format version 2 (which recorded `diffusion=off` for everyone)
   does not switch the generator off.
 - `WATT_BENCH_WORLDGEN=flat|diffusion` (benchmark runs) pins the generator for that run without

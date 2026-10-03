@@ -1,5 +1,6 @@
-//! InfiniteDiffusion worldgen mod: mountains and valleys on the surface, caves and abandoned mines
-//! below, planets in space above (see [`pwc_mod_api::world::terrain`]). Knobs apply to new worlds.
+//! InfiniteDiffusion worldgen mod: a 50,000,000-block cube planet with themed faces, caves, mines and
+//! a deep interior, in a universe of round worlds, moons and asteroid swarms (see
+//! [`pwc_mod_api::world::terrain`]). Knobs apply to new worlds.
 //!
 //! The terrain itself lives in the game (world generation is part of the deterministic core and
 //! the network fingerprint); this mod selects it and carries its knobs. With the mod disabled, new
@@ -52,7 +53,7 @@ impl Mod for InfiniteDiffusionMod {
     }
 
     fn description(&self) -> &str {
-        "Mountain ranges and carved valleys, caves and abandoned mines below, planets in space above (new worlds)."
+        "A cube planet of themed faces, caves and ruins below; round worlds, moons and asteroids in space (new worlds)."
     }
 
     fn group(&self) -> &'static str {
@@ -70,23 +71,33 @@ impl Mod for InfiniteDiffusionMod {
     fn knobs(&self) -> Vec<Knob> {
         let (rlo, rhi) = TerrainCfg::RELIEF;
         let (dlo, dhi) = TerrainCfg::DENSITY;
+        let density = |label, v: u16| Knob { label, value: format!("{v}%"), hint: format!("{dlo}..{dhi}%") };
         vec![
             Knob { label: "Relief", value: format!("{}%", self.cfg.relief), hint: format!("{rlo}..{rhi}%") },
-            Knob { label: "Caves", value: format!("{}%", self.cfg.caves), hint: format!("{dlo}..{dhi}%") },
-            Knob { label: "Mines", value: format!("{}%", self.cfg.mines), hint: format!("{dlo}..{dhi}%") },
-            Knob { label: "Space", value: format!("{}%", self.cfg.space), hint: format!("{dlo}..{dhi}%") },
+            density("Caves", self.cfg.caves),
+            density("Mines", self.cfg.mines),
+            density("Space", self.cfg.space),
+            density("Variety", self.cfg.variety),
+            density("Features", self.cfg.features),
+            density("Structures", self.cfg.structures),
+            density("Deep", self.cfg.deep),
         ]
     }
 
     fn step_knob(&mut self, index: usize, delta: i32) {
         let step = |v: u16| (v as i32 + delta * TerrainCfg::STEP as i32).max(0) as u16;
-        match index {
-            0 => self.cfg.relief = step(self.cfg.relief),
-            1 => self.cfg.caves = step(self.cfg.caves),
-            2 => self.cfg.mines = step(self.cfg.mines),
-            3 => self.cfg.space = step(self.cfg.space),
-            _ => {}
-        }
+        let slot = match index {
+            0 => &mut self.cfg.relief,
+            1 => &mut self.cfg.caves,
+            2 => &mut self.cfg.mines,
+            3 => &mut self.cfg.space,
+            4 => &mut self.cfg.variety,
+            5 => &mut self.cfg.features,
+            6 => &mut self.cfg.structures,
+            7 => &mut self.cfg.deep,
+            _ => return,
+        };
+        *slot = step(*slot);
         self.cfg = self.cfg.clamp();
     }
 
@@ -139,6 +150,14 @@ mod tests {
         assert_eq!(n.cfg(), m.cfg());
         n.load_choice_state("relief=37,unknown=9");
         assert_eq!(n.cfg().relief, 25, "a stray value snaps onto the stepper");
+        // The v4 knobs step like the others; an old four-knob payload leaves them as they are.
+        let mut v = InfiniteDiffusionMod::new();
+        v.step_knob(7, -2);
+        v.step_knob(4, 1);
+        assert_eq!((v.cfg().deep, v.cfg().variety), (50, 125));
+        assert_eq!(v.knobs().len(), 8);
+        v.load_choice_state("relief=150,caves=100,mines=100,space=100");
+        assert_eq!((v.cfg().relief, v.cfg().deep), (150, 50), "missing keys keep their values");
     }
 
     #[test]
@@ -184,7 +203,12 @@ mod tests {
         let mut mods = build();
         let defaults = mods.choices_text();
         assert!(defaults.contains("diffusion=on"));
-        assert!(defaults.contains("diffusion.state=relief=100,caves=100,mines=100,space=100"), "{defaults}");
+        assert!(
+            defaults.contains(
+                "diffusion.state=relief=100,caves=100,mines=100,space=100,variety=100,features=100,structures=100,deep=100"
+            ),
+            "{defaults}"
+        );
         mods.step_knob(0, 0, 1);
         mods.step_knob(0, 1, -1);
         let cfg = payload_cfg(&mods);

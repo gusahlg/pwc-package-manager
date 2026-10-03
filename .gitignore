@@ -1,0 +1,6 @@
+target/
+dist/
+result
+.direnv/
+*.pwcmod
+!tests/fixtures/**/*.pwcmod

@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2026 Project Watt Cubed contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+version = 1
+
+# The package manager itself: tooling, build metadata, CI, specifications and
+# documentation, including mods/README.md. When several tables match a file,
+# the last one wins, so the package table below overrides this one.
+[[annotations]]
+path = "**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Project Watt Cubed contributors"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+# The first-party mod packages (POLICY.md, section 1): everything in a package
+# directory (code, manifest, README, changelog, assets and the package's own
+# licence texts) is dual licensed Apache-2.0 OR MIT. mods/README.md is not in a
+# package directory, so it stays with the tooling above.
+[[annotations]]
+path = "mods/*/**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Project Watt Cubed contributors"
+SPDX-License-Identifier = "Apache-2.0 OR MIT"

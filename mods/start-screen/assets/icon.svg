@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>Start screen</title>
+  <rect x="2" y="2" width="60" height="60" rx="12" fill="#17243a"/>
+  <circle cx="32" cy="28" r="15" fill="none" stroke="#7fd1ff" stroke-width="3"/>
+  <path d="M27 20 L39 28 L27 36 Z" fill="#7fd1ff"/>
+  <rect x="18" y="48" width="28" height="4" rx="2" fill="#4c6a92"/>
+</svg>

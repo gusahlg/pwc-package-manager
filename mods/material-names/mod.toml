@@ -1,0 +1,17 @@
+format = 1
+
+[package]
+id = "pwc.material-names"
+name = "Material names"
+version = "1.0.0"
+description = "Names every material and tool with words a small language model learned from mineral, rock and element names."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "mod"
+pwc-api = "^1.0"
+readme = "README.md"
+icon = "assets/icon.svg"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["names", "language-model", "markov"]
+categories = ["interface"]

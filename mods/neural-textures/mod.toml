@@ -1,0 +1,17 @@
+format = 1
+
+[package]
+id = "pwc.neural-textures"
+name = "Neural textures"
+version = "1.0.0"
+description = "Every material grows a small pattern network from its own elements and paints a unique 32x32 texture with it."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "mod"
+pwc-api = "^1.0"
+readme = "README.md"
+icon = "assets/icon.svg"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["textures", "procedural", "cppn"]
+categories = ["visuals"]

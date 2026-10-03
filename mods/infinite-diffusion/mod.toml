@@ -1,0 +1,17 @@
+format = 1
+
+[package]
+id = "pwc.infinite-diffusion"
+name = "InfiniteDiffusion"
+version = "1.0.0"
+description = "World generation with mountain ranges and carved valleys, caves and abandoned mines below, and planets in space above."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "mod"
+pwc-api = "^1.0"
+readme = "README.md"
+icon = "assets/icon.svg"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["worldgen", "terrain", "caves", "planets"]
+categories = ["worldgen"]

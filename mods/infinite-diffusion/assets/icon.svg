@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>InfiniteDiffusion</title>
+  <rect x="2" y="2" width="60" height="60" rx="12" fill="#13203a"/>
+  <circle cx="45" cy="17" r="6" fill="#d98c5f"/>
+  <ellipse cx="45" cy="17" rx="10" ry="3" fill="none" stroke="#f0c9a8" stroke-width="1.5"/>
+  <circle cx="16" cy="12" r="1.2" fill="#ffffff"/>
+  <circle cx="27" cy="20" r="1" fill="#ffffff"/>
+  <path d="M2 44 L18 22 L27 34 L36 24 L54 44 L62 40 V48 H2 Z" fill="#8d9bb0"/>
+  <path d="M14 27.5 L18 22 L22 27.5 Z M32.6 28.3 L36 24 L40 28.5 Z" fill="#eef2f8"/>
+  <path d="M2 48 H62 V50 a12 12 0 0 1 -12 12 H14 a12 12 0 0 1 -12 -12 Z" fill="#5a4636"/>
+  <path d="M20 58 a7 5 0 0 1 14 0 Z" fill="#2a1f17"/>
+</svg>

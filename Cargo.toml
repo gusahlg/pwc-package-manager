@@ -1,0 +1,45 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-or-later"
+authors = ["Project Watt Cubed contributors"]
+repository = "https://github.com/gusahlg/pwc-package-manager"
+rust-version = "1.90"
+
+[workspace.dependencies]
+# Internal crates, one responsibility each (see docs/architecture.md).
+pwc-manifest = { path = "crates/pwc-manifest", version = "0.1.0" }
+pwc-package = { path = "crates/pwc-package", version = "0.1.0" }
+pwc-store = { path = "crates/pwc-store", version = "0.1.0" }
+pwc-resolver = { path = "crates/pwc-resolver", version = "0.1.0" }
+pwc-instance = { path = "crates/pwc-instance", version = "0.1.0" }
+pwc-builder = { path = "crates/pwc-builder", version = "0.1.0" }
+
+# External crates. Pure Rust only: no C toolchain is needed to build the tooling.
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+ruzstd = "0.8"
+semver = { version = "1", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+sha2 = "0.10"
+tar = { version = "0.4", default-features = false }
+tempfile = "3"
+thiserror = "2"
+toml = "0.9"
+walkdir = "2"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[profile.release]
+lto = "thin"
+codegen-units = 4
+strip = true

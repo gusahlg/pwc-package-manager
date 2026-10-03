@@ -1,0 +1,26 @@
+format = 1
+
+[package]
+id = "pwc.essentials"
+name = "Essentials"
+version = "1.0.0"
+description = "The first-party essentials of PWC: menus, start screen, hotbar, inventory, visuals, neural textures, material names and InfiniteDiffusion worldgen."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "bundle"
+readme = "README.md"
+icon = "assets/icon.svg"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["essentials", "first-party"]
+categories = ["bundle"]
+
+[dependencies]
+"pwc.menus" = "^1.0"
+"pwc.start-screen" = "^1.0"
+"pwc.hotbar" = "^1.0"
+"pwc.inventory" = "^1.0"
+"pwc.visuals" = "^1.0"
+"pwc.neural-textures" = "^1.0"
+"pwc.material-names" = "^1.0"
+"pwc.infinite-diffusion" = "^1.0"

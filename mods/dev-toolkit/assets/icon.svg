@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>Developer Toolkit</title>
+  <rect x="2" y="2" width="60" height="60" rx="12" fill="#1a1c22"/>
+  <rect x="8" y="12" width="48" height="40" rx="4" fill="#2e323c"/>
+  <rect x="8" y="12" width="48" height="7" rx="3" fill="#5a6070"/>
+  <path d="M15 28 L22 33 L15 38" fill="none" stroke="#fad65c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="26" y="36" width="14" height="3" rx="1.5" fill="#6fb3a0"/>
+  <path d="M44 46 L50 26 M44 46 L41 42 M44 46 L48 43" fill="none" stroke="#87ceeb" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

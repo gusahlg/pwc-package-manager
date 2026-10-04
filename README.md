@@ -139,11 +139,13 @@ policy accepts AGPL-compatible free licences instead, and the game's `MOD_POLICY
 | `pwc.start-screen` | The default start screen: main menu, Worlds page, host and join forms. |
 | `pwc.hotbar` | Nine slots plus the bare hand; the selected slot is the held tool. |
 | `pwc.inventory` | Your held materials as a list (press I); equip any of them into the hotbar. |
+| `pwc.game-ui` | In-world HUD pieces, starting with a facing indicator for the world's X, Y and Z axes. |
 | `pwc.visuals` | The shipped look: atmosphere, post-processing and lighting. |
 | `pwc.neural-textures` | Paints every material with a texture grown from its own elements. |
 | `pwc.material-names` | Names every material and tool with a small model trained on mineral and element names. |
 | `pwc.infinite-diffusion` | InfiniteDiffusion, the world generator: surface, underground and space. |
 | `pwc.essentials` | Bundle of all of the above: the default set of mods. |
+| `pwc.dev-toolkit` | Developer Toolkit: the console commands (`/tp`, `/gfx`, `/time`, `/help`...) and flight on F. Not in the essentials. |
 
 Every first-party package is licensed `Apache-2.0 OR MIT`, at your option: code, manifest,
 documentation and assets alike.

@@ -48,6 +48,8 @@ The first release: local packages, instances and reproducible builds of modded P
   `pwc.neural-textures`, `pwc.material-names` and `pwc.infinite-diffusion`, ported from the mods
   that were previously built into the game.
 - `pwc.essentials`, a bundle of all of them.
+- `pwc.game-ui` (in-world HUD pieces: the facing indicator), added to `pwc.essentials` 1.1.0.
+- `pwc.dev-toolkit`, the console commands and the flight key, moved out of the game core.
 - All first-party packages are licensed `Apache-2.0 OR MIT`.
 - `mods/` serves as the first local package repository.
 

@@ -9,6 +9,7 @@ A bundle: no code of its own, just the first-party packages that make up PWC as 
 | `pwc.start-screen` | `start` | Main menu, saved-worlds page, host and join forms |
 | `pwc.hotbar` | `hotbar` | Nine slots of held materials plus the bare hand |
 | `pwc.inventory` | `inventory` | The held-materials list (press I); equips into the hotbar |
+| `pwc.game-ui` | `game_ui` | In-world HUD pieces: which way you look along X, Y and Z |
 | `pwc.visuals` | `atmosphere`, `post`, `lighting` | Sky, post-processing and lighting on top of the sunlight-only core |
 | `pwc.neural-textures` | `neural_textures` | A unique generated texture per material |
 | `pwc.material-names` | `material_names` | Names for every material and tool |
@@ -23,7 +24,7 @@ See each package's README. The bundle adds none.
 
 ## Dependencies
 
-The eight packages above, each `^1.0`. The resolver picks one version of each; `pwc.hotbar` always
+The nine packages above, each `^1.0`. The resolver picks one version of each; `pwc.hotbar` always
 registers before `pwc.inventory`, which depends on it.
 
 ## Compatibility

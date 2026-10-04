@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>Game UI</title>
+  <rect x="2" y="2" width="60" height="60" rx="12" fill="#1a1c22"/>
+  <path d="M28 38 L48 38" stroke="#fa8072" stroke-width="4" stroke-linecap="round"/>
+  <path d="M28 38 L28 14" stroke="#32cd32" stroke-width="4" stroke-linecap="round"/>
+  <path d="M28 38 L14 50" stroke="#87ceeb" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="28" cy="38" r="3.5" fill="#f5f5f5"/>
+</svg>

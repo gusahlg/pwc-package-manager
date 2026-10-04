@@ -171,7 +171,8 @@ Every other method is an optional hook with a no-op default. The most common one
 | `description`, `group` | Mods screen | Describe the mod; place it in a group. |
 | `update(&mut self, ctx)` | Every mod tick | React to input and change state through `ModContext`. |
 | `hud(&self, world, player, screen, out)` | Every frame | Push `HudElement`s to draw. |
-| `command(&mut self, cmd, args)` | Console line | Handle a `/command`. |
+| `run_command(&mut self, ctx, cmd, args)`, `commands` | Console line | Handle a `/command` with the player, world, settings and sky in `ctx`; list your commands for `/help` and Tab completion (API 1.1). The context-free `command(cmd, args)` of API 1.0 still works: `run_command` falls back to it. |
+| `on_toggle_fly(&mut self, player, world) -> bool` | Flight key (`F`) | Offer flight and return `true`: the core has no flight toggle of its own; the first enabled mod that takes the key wins (API 1.1). |
 | `knobs`, `step_knob` | Mods screen | Offer settings the player can change. |
 | `save_choice_state`, `load_choice_state` | `mods.cfg` | Persist those settings. |
 | `save_state`, `load_state` | World save and load | Persist per-world state, with a payload version. |

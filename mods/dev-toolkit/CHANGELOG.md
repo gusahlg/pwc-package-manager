@@ -1,5 +1,9 @@
 # Changelog — pwc.dev-toolkit
 
+## 1.0.1
+
+- Requires `pwc-api ^2.0`. Behaviour unchanged.
+
 ## 1.0.0 — first release, moved out of the PWC core
 
 - Every console command the base game used to have, with the same behaviour and output: `/tp`

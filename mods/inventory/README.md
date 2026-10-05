@@ -1,13 +1,13 @@
 # Inventory (`pwc.inventory`)
 
-The core stash made visible, and the way to equip what you hold.
+The core inventory made visible, and the way to equip what you hold.
 
-PWC's core inventory is, by design, "merely a list containing all of your items" — no grid, no
-stacking, and unreachable without a mod. This package adds a panel listing every material you
-hold, with its count, its number of elements, its colour swatch and the hotbar slot it sits in.
-Choose a material and put it on the hotbar (`pwc.hotbar`).
+PWC's core inventory is a list of configurations. Counts of one configuration add together. There
+is no grid, and the list is unreachable without a mod. This package adds a panel listing every
+material you hold, with its count, its number of elements, its colour swatch and the hotbar slot
+it sits in. Choose a material and put it on the hotbar (`pwc.hotbar`).
 
-When a break overflows the stash (units are destroyed because it is full), the panel's header —
+When a break overflows the inventory (units are destroyed because it is full), the panel's header —
 or, while the panel is closed, a line at the top of the screen — warns
 "Inventory full - elements lost!" for 2.5 seconds after the last overflowing break.
 
@@ -32,13 +32,14 @@ None.
 
 ## Persisted state
 
-- **World save:** nothing. The counts live on the player (the core stash), which the game saves
+- **World save:** nothing. The counts live on the player (the core inventory), which the game saves
   itself; the hotbar saves its slots.
 - **`mods.cfg`:** only `inventory=on|off`.
 
 ## Dependencies
 
-- `pwc.hotbar ^1.0` — the inventory equips through the hotbar's shared `HotbarHandle` and tells it
+- The PWC mod API (`pwc-api ^2.0`).
+- `pwc.hotbar ^2.0` — the inventory equips through the hotbar's shared `HotbarHandle` and tells it
   that the panel is open through the shared `ItemUiHandle`. The dependency guarantees that the
   hotbar registers (and provides the handles) first; registering the inventory without it panics
   with a message naming the missing handle.

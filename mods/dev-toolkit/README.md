@@ -52,7 +52,7 @@ settings, which the game saves.
 
 ## Dependencies
 
-None besides the PWC mod API (`pwc-api ^1.1`).
+None besides the PWC mod API (`pwc-api ^2.0`).
 
 ## Compatibility
 

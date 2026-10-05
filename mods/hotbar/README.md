@@ -2,7 +2,7 @@
 
 Nine slots of held materials plus the bare hand, along the bottom of the screen.
 
-A slot names a stack in the core stash (the player's held materials, which the game keeps). The
+A slot names a stack in the core inventory (the player's held materials, which the game keeps). The
 selected slot is what the player *holds*: a left click with it runs the law between the held
 material and the targeted block (in PWC a tool is just a block in hand), a right click places one
 unit of it. Slot 0, the bare hand, breaks blocks. Newly gathered materials drop into the first
@@ -37,7 +37,7 @@ None. The hotbar has no knobs on the mods screen.
   spec of every filled slot. Older saves keyed by the display name ("Hotbar") still load.
 - **`mods.cfg`:** only `hotbar=on|off`.
 
-Placed units are spent from the core stash, not from the hotbar, so the stash stays the one record
+Placed units are spent from the core inventory, not from the hotbar, so the inventory stays the one record
 of what the player holds.
 
 ## For mod authors: the shared handles
@@ -64,13 +64,15 @@ Both are cheap `Rc` handles; clones share state. Mod hooks run on the game threa
 
 ## Dependencies
 
-None besides the PWC mod API (`pwc-api ^1.0`).
+None besides the PWC mod API (`pwc-api ^2.0`).
 
 ## Compatibility
 
-- `held` is a first-enabled-wins hook: another enabled mod that reports a held material and
+- `tool` is a first-enabled-wins hook: another enabled mod that reports a tool and
   registers earlier takes precedence over this bar.
-- Disabling the hotbar leaves the bare hand; nothing held is lost (the stash is core state).
+- Disabling the hotbar leaves no tool, so a primary action breaks into the inventory. The number
+  keys are this mod's actions, so they select nothing while it is off. The inventory is core state,
+  so nothing carried is lost.
 - In multiplayer the server evaluates tool use and placements; a rejected placement is refunded
   by the core.
 - Mod ids, the save key and the payload format are unchanged from the hotbar that shipped inside

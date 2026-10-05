@@ -1,5 +1,9 @@
 # Changelog — pwc.menus
 
+## 1.0.1
+
+- Requires `pwc-api ^2.0`. Behaviour unchanged.
+
 ## 1.0.0 — first packaged release, moved out of the PWC source tree
 
 - Mod id `menus`, display name "Menus": the standard menu theme, now the `Menus` mod of this

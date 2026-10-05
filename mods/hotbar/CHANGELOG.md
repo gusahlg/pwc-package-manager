@@ -1,5 +1,11 @@
 # Changelog — pwc.hotbar
 
+## 2.0.0
+
+- Requires `pwc-api ^2.0`. Declares `hotbar.hand`, `hotbar.slot1`…`hotbar.slot9`, `hotbar.next` and `hotbar.prev` on the same default keys (0, 1–9, wheel).
+- Answers `Mod::tool` and shows the tool note above the bar.
+- Save line unchanged: `v1;sel=…`.
+
 ## 1.0.0 — first packaged release, moved out of the PWC source tree
 
 - Mod id `hotbar`; save line `hotbar` (payload v1) unchanged.

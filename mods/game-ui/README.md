@@ -32,7 +32,7 @@ Nothing besides `game_ui=on|off` in `mods.cfg`.
 
 ## Dependencies
 
-None besides the PWC mod API (`pwc-api ^1.1`).
+None besides the PWC mod API (`pwc-api ^2.0`).
 
 ## Performance
 

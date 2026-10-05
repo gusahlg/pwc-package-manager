@@ -3,13 +3,13 @@ format = 1
 [package]
 id = "pwc.hotbar"
 name = "Hotbar"
-version = "1.0.0"
+version = "2.0.0"
 description = "Nine slots of held materials plus the bare hand: pick with 1-9 or the wheel, left click uses the material as a tool, right click places it."
 authors = ["Project Watt Cubed contributors"]
 license = "Apache-2.0 OR MIT"
 license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
 kind = "mod"
-pwc-api = "^1.0"
+pwc-api = "^2.0"
 readme = "README.md"
 icon = "assets/icon.svg"
 repository = "https://github.com/gusahlg/pwc-package-manager"

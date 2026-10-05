@@ -3,13 +3,13 @@ format = 1
 [package]
 id = "pwc.game-ui"
 name = "Game UI"
-version = "1.0.0"
+version = "1.0.1"
 description = "In-world HUD pieces: a facing indicator that shows which way you look along the world's X, Y and Z axes."
 authors = ["Project Watt Cubed contributors"]
 license = "Apache-2.0 OR MIT"
 license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
 kind = "mod"
-pwc-api = "^1.0"
+pwc-api = "^2.0"
 readme = "README.md"
 icon = "assets/icon.svg"
 repository = "https://github.com/gusahlg/pwc-package-manager"

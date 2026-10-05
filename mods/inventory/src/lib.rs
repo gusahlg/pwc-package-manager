@@ -1,25 +1,35 @@
-//! The default inventory mod: the core stash made visible, and the way to equip what you hold.
+//! The default inventory mod: the core inventory made visible, and the way to equip what you hold.
 //!
-//! The core inventory is, by design, "merely a list containing all of your items" — no grid, no
-//! stacking, and unreachable without a mod. Press I to open this panel: ↑/↓ (or the wheel) choose
-//! a material, a number key 1-9 equips it into that hotbar slot, Enter equips it into the slot
-//! currently selected (or the first free one when the hand is selected), Esc or I closes. The
-//! counts live on the player ([`pwc_mod_api::stash::ElementStash`]); switching the mod off makes
-//! the list inaccessible again but keeps every unit on the player.
+//! The core inventory is a list of configurations. Counts of one configuration add together.
+//! Press I to open this panel: ↑/↓ (or the wheel) choose a material, a number key 1-9 equips it
+//! into that hotbar slot, Enter equips it into the slot currently selected (or the first free one
+//! when the hand is selected), Esc or I closes. The counts live on the player
+//! ([`pwc_mod_api::inventory::Inventory`]); switching the mod off makes the list inaccessible
+//! again but keeps every unit on the player.
 //!
 //! The panel equips into the hotbar through the handles the `pwc.hotbar` package provides
 //! ([`pwc_hotbar::HotbarHandle`], [`pwc_hotbar::ItemUiHandle`]).
 use std::cell::{Cell, RefCell};
 use std::time::{Duration, Instant};
 
-use pwc_hotbar::{HotbarHandle, HotbarState, ItemUiHandle, SLOTS};
+use pwc_hotbar::{HotbarHandle, HotbarState, ItemUiHandle, SLOT_IDS};
 use pwc_mod_api::block::BlockId;
 use pwc_mod_api::derived::Memo;
+use pwc_mod_api::engine::Key;
+use pwc_mod_api::input::intent::Chord;
+use pwc_mod_api::inventory::Inventory;
 use pwc_mod_api::player::Player;
-use pwc_mod_api::stash::ElementStash;
 use pwc_mod_api::ui::{visible_window, Anchor, HudElement, Panel, Role, Row, PANEL_FONT};
 use pwc_mod_api::world::World;
-use pwc_mod_api::{Mod, ModContext, ModRegistrar, ESSENTIALS};
+use pwc_mod_api::{Action, Mod, ModContext, ModRegistrar, ESSENTIALS};
+
+const TOGGLE: &[Chord] = &[Chord::key(Key::I)];
+const ACTIONS: &[Action] = &[Action {
+    id: "inventory.toggle",
+    label: "Inventory",
+    default: TOGGLE,
+    repeat: false,
+}];
 
 /// How long the "elements lost" warning stays on screen after the last overflowing break.
 const OVERFLOW_WARNING: Duration = Duration::from_millis(2500);
@@ -47,7 +57,7 @@ pub fn register(registrar: &mut ModRegistrar) {
     registrar.add(InventoryMod::new(ui, bar));
 }
 
-/// The "elements lost" notice: raised by a break the stash could not hold, it lapses
+/// The "elements lost" notice: raised by a break the inventory could not hold, it lapses
 /// [`OVERFLOW_WARNING`] after the most recent such break.
 #[derive(Default)]
 struct LossNotice {
@@ -68,19 +78,19 @@ impl LossNotice {
     }
 }
 
-/// The inventory list over the core stash, with a cursor that equips into the hotbar.
+/// The inventory list over the core inventory, with a cursor that equips into the hotbar.
 pub struct InventoryMod {
     ui: ItemUiHandle,
     bar: HotbarHandle,
-    /// Row under the cursor (index into the stash's first-seen order).
+    /// Row under the cursor (index into the inventory's first-seen order).
     cursor: Cell<usize>,
-    /// Shown while a recent break overflowed the stash (units were destroyed).
+    /// Shown while a recent break overflowed the inventory (units were destroyed).
     loss: LossNotice,
     /// Formatted HUD, rebuilt only when what it shows changes.
     hud_cache: RefCell<Memo<HudKey, Vec<HudElement>>>,
 }
 
-/// What the panel shows: stash revision, screen size, visibility, overflow warning, cursor, slots,
+/// What the panel shows: inventory revision, screen size, visibility, overflow warning, cursor, slots,
 /// registry size.
 type HudKey = (u64, i32, i32, bool, bool, usize, HotbarState, usize);
 
@@ -99,8 +109,8 @@ impl InventoryMod {
     }
 
     /// Equip the material under the cursor into hotbar slot `key` (1..=9).
-    fn equip(&self, stash: &ElementStash, key: usize) {
-        let Some((id, _)) = stash.iter().nth(self.cursor.get()) else { return };
+    fn equip(&self, inventory: &Inventory, key: usize) {
+        let Some((id, _)) = inventory.iter().nth(self.cursor.get()) else { return };
         let mut bar = self.bar.get();
         bar.equip(key, id);
         bar.selected = key;
@@ -115,7 +125,7 @@ fn row_capacity(screen_h: i32) -> usize {
 
 #[allow(clippy::too_many_arguments)]
 fn paint_inventory(
-    stash: &ElementStash,
+    inventory: &Inventory,
     world: &World,
     bar: &HotbarState,
     cursor: usize,
@@ -138,13 +148,13 @@ fn paint_inventory(
         return Vec::new();
     }
     let width = PANEL_WIDTH.min((screen_w - PANEL_X * 2).max(1));
-    let total = stash.total();
-    let items: Vec<(BlockId, u32)> = stash.iter().collect();
+    let total = inventory.total();
+    let items: Vec<(BlockId, u32)> = inventory.iter().collect();
     let header = vec![
         if overflow {
             Row::new(Role::Danger, "Inventory full - elements lost!")
         } else {
-            Row::new(Role::Warning, format!("Inventory · {total}/{} held", stash.capacity()))
+            Row::new(Role::Warning, format!("Inventory · {total}/{} held", inventory.capacity()))
         },
         Row::new(Role::Dim, "↑↓ choose · 1-9 equip · Enter: current slot · I close"),
     ];
@@ -181,13 +191,18 @@ impl Mod for InventoryMod {
         "Your held materials (press I): choose one and press 1-9 to equip it on the hotbar."
     }
 
+    fn actions(&self) -> &[Action] {
+        ACTIONS
+    }
+
     fn group(&self) -> &'static str {
         ESSENTIALS
     }
 
     fn update(&mut self, ctx: &mut ModContext) {
         // The inventory key flips the panel; a lapsed loss notice is dropped every tick.
-        let open = self.visible() != ctx.toggle_inventory;
+        let toggle = ctx.mod_ui && ctx.action("inventory.toggle");
+        let open = self.visible() != toggle;
         self.set_visible(open);
         if !self.loss.showing() {
             self.loss.clear();
@@ -195,7 +210,7 @@ impl Mod for InventoryMod {
         if !open {
             return;
         }
-        let kinds = ctx.player.stash.iter().count();
+        let kinds = ctx.player.inventory.iter().count();
         let mut cursor = self.cursor.get().min(kinds.saturating_sub(1));
         if ctx.nav_up {
             cursor = cursor.saturating_sub(1);
@@ -204,8 +219,14 @@ impl Mod for InventoryMod {
             cursor += 1;
         }
         self.cursor.set(cursor);
-        if let Some(k) = ctx.hotbar_key.filter(|&k| (1..=SLOTS as u8).contains(&k)) {
-            self.equip(&ctx.player.stash, k as usize);
+        let mut key = None;
+        for (i, id) in SLOT_IDS.iter().enumerate() {
+            if ctx.action(id) {
+                key = Some(i + 1);
+            }
+        }
+        if let Some(k) = key {
+            self.equip(&ctx.player.inventory, k);
         }
         if ctx.nav_confirm {
             let bar = self.bar.get();
@@ -214,7 +235,7 @@ impl Mod for InventoryMod {
             } else {
                 bar.slots.iter().position(|s| s.is_none()).map_or(1, |i| i + 1)
             };
-            self.equip(&ctx.player.stash, key);
+            self.equip(&ctx.player.inventory, key);
         }
     }
 
@@ -244,7 +265,7 @@ impl Mod for InventoryMod {
         let bar = self.bar.get();
         let cursor = self.cursor.get();
         let key = (
-            player.stash.rev(),
+            player.inventory.rev(),
             screen_w,
             screen_h,
             visible,
@@ -253,9 +274,9 @@ impl Mod for InventoryMod {
             bar,
             world.registry().block_count(),
         );
-        let stash = &player.stash;
+        let inventory = &player.inventory;
         let mut cache = self.hud_cache.borrow_mut();
-        let cached = cache.get_or(key, || paint_inventory(stash, world, &bar, cursor, screen_w, screen_h, visible, overflow));
+        let cached = cache.get_or(key, || paint_inventory(inventory, world, &bar, cursor, screen_w, screen_h, visible, overflow));
         out.extend(cached.iter().cloned());
     }
 }
@@ -279,31 +300,13 @@ mod tests {
     /// `pwc.hotbar` and this package, registered the way a PWC build registers them.
     fn build() -> Mods {
         GameBuild::new()
-            .with_mod(ModDescriptor { id: "pwc.hotbar", name: "Hotbar", version: "1.0.0", register: pwc_hotbar::register })
-            .with_mod(ModDescriptor { id: "pwc.inventory", name: "Inventory", version: "1.0.0", register })
+            .with_mod(ModDescriptor { id: "pwc.hotbar", name: "Hotbar", version: "2.0.0", register: pwc_hotbar::register })
+            .with_mod(ModDescriptor { id: "pwc.inventory", name: "Inventory", version: "2.0.0", register })
             .mods()
     }
 
     fn ctx<'a>(player: &'a mut Player, world: &'a mut World) -> ModContext<'a> {
-        ModContext {
-            player,
-            world,
-            screen_w: 800,
-            screen_h: 600,
-            place: false,
-            place_target: None,
-            toggle_inventory: false,
-            nav_up: false,
-            nav_down: false,
-            nav_left: false,
-            nav_right: false,
-            nav_tab: false,
-            nav_confirm: false,
-            hotbar_key: None,
-            hotbar_cycle: 0,
-            networked: false,
-            placements: Vec::new(),
-        }
+        ModContext::new(player, world)
     }
 
     /// Flatten HUD labels and panel rows to text.
@@ -366,13 +369,13 @@ mod tests {
         let inv_ui = ItemUiHandle::new();
         let mut inv = InventoryMod::new(inv_ui.clone(), HotbarHandle::new());
         let mut c = ctx(&mut player, &mut world);
-        c.toggle_inventory = true;
+        c.set_action("inventory.toggle");
         inv.update(&mut c);
         assert!(inv_ui.inventory_visible(), "I opens the panel, and the shared handle says so");
         inv.update(&mut ctx(&mut player, &mut world));
         assert!(inv_ui.inventory_visible(), "no key, no change");
         let mut c = ctx(&mut player, &mut world);
-        c.toggle_inventory = true;
+        c.set_action("inventory.toggle");
         inv.update(&mut c);
         assert!(!inv_ui.inventory_visible(), "I again closes it");
         assert!(!inv.close_overlay(), "nothing to close");
@@ -384,13 +387,13 @@ mod tests {
         let mut player = Player::new(DVec3::new(0.0, 70.0, 0.0));
         let rock = world.registry().id_by_label("rock").unwrap();
         let soil = world.registry().id_by_label("soil").unwrap();
-        player.stash.add(rock, 2);
-        player.stash.add(soil, 1);
+        player.inventory.add(rock, 2);
+        player.inventory.add(soil, 1);
         let mut inv = inventory();
         inv.set_visible(true);
         let mut c = ctx(&mut player, &mut world);
         c.nav_down = true;
-        c.hotbar_key = Some(4);
+        c.set_action(SLOT_IDS[3]);
         inv.update(&mut c);
         let bar = inv.bar.get();
         assert_eq!(bar.slots[3], Some(soil), "cursor moved to the second row, key 4 equipped it");
@@ -404,7 +407,7 @@ mod tests {
         let mut world = world();
         let mut player = Player::new(DVec3::new(0.0, 70.0, 0.0));
         let rock = world.registry().id_by_label("rock").unwrap();
-        player.stash.add(rock, 1);
+        player.inventory.add(rock, 1);
         let mut inv = inventory();
         inv.set_visible(true);
         inv.bar.update(|s| s.slots[0] = Some(world.registry().id_by_label("soil").unwrap()));
@@ -426,43 +429,43 @@ mod tests {
         let mut world = world();
         let mut player = Player::new(DVec3::new(0.0, 70.0, 0.0));
         let rock = world.registry().id_by_label("rock").unwrap();
-        player.stash.add(rock, 1);
+        player.inventory.add(rock, 1);
         let mut mods = build();
         let ids: Vec<&str> = (0..mods.len()).map(|i| mods.id(i)).collect();
         assert_eq!(ids, ["hotbar", "inventory"], "dependency order: the hotbar registers first");
         assert_eq!(mods.package(1), Some("pwc.inventory"));
         assert_eq!(mods.group(1), ESSENTIALS);
         let mut c = ctx(&mut player, &mut world);
-        c.toggle_inventory = true;
+        c.set_action("inventory.toggle");
         mods.update(&mut c);
         let mut c = ctx(&mut player, &mut world);
-        c.hotbar_key = Some(3);
+        c.set_action(SLOT_IDS[2]);
         mods.update(&mut c);
-        assert_eq!(mods.held(&player), Some(rock), "the inventory equipped into the hotbar's own state");
+        assert_eq!(mods.tool(&player), Some(rock), "the inventory equipped into the hotbar's own state");
         assert!(mods.close_overlay(), "Esc closes the inventory first");
         let mut c = ctx(&mut player, &mut world);
-        c.hotbar_key = Some(3);
+        c.set_action(SLOT_IDS[2]);
         mods.update(&mut c);
-        assert_eq!(mods.held(&player), None, "once closed, the number keys belong to the hotbar again");
+        assert_eq!(mods.tool(&player), None, "once closed, the number keys belong to the hotbar again");
     }
 
     #[test]
     #[should_panic(expected = "pwc.inventory needs the item UI handle from pwc.hotbar")]
     fn register_without_the_hotbar_names_the_missing_dependency() {
         let _ = GameBuild::new()
-            .with_mod(ModDescriptor { id: "pwc.inventory", name: "Inventory", version: "1.0.0", register })
+            .with_mod(ModDescriptor { id: "pwc.inventory", name: "Inventory", version: "2.0.0", register })
             .mods();
     }
 
     #[test]
-    fn the_stash_is_core_state_not_an_inventory_save_line() {
+    fn the_inventory_is_core_state_not_an_inventory_save_line() {
         let mut world = World::new(1);
         let mut mods = build();
         let rock = world.registry().id_by_label("rock").unwrap();
         let spec = world.registry().spec(rock);
         mods.load_state("hotbar", &format!("v1;sel=1;1={spec}"), &mut world);
         let saved = mods.save_states(&world);
-        assert!(saved.iter().all(|(k, _)| k != "inventory"), "the stash is core state, not an inventory save line");
+        assert!(saved.iter().all(|(k, _)| k != "inventory"), "the inventory is core state, not an inventory save line");
         assert!(saved.iter().any(|(k, _)| k == "hotbar"));
         let text = mods.choices_text();
         assert!(text.contains("inventory=on") && !text.contains("inventory.state"), "{text}");
@@ -477,10 +480,10 @@ mod tests {
         let mut player = Player::new(DVec3::new(0.0, 70.0, 0.0));
         let mut mods = build();
         let rock = world.registry().id_by_label("rock").unwrap();
-        assert!(player.stash.add(rock, 2));
+        assert!(player.inventory.add(rock, 2));
         mods.set_enabled("inventory", false);
         mods.on_block_break(rock, &world, false);
-        assert_eq!(player.stash.count(rock), 2, "core keeps the configurations");
+        assert_eq!(player.inventory.count(rock), 2, "core keeps the configurations");
         mods.set_enabled("inventory", true);
         let inv = inventory();
         inv.set_visible(true);

@@ -10,7 +10,7 @@ use pwc_store::Store;
 
 /// The command context.
 pub(crate) struct Ctx {
-    /// XDG (or `PWC_HOME`) directories.
+    /// Platform state (or `PWC_HOME`) directories.
     pub dirs: Dirs,
     /// `config.toml` (defaults when it does not exist yet).
     pub config: Config,

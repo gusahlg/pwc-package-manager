@@ -118,7 +118,6 @@ impl<'a> Pkg<'a> {
 /// Restore owner write permission under `root` (store entries are read-only), so a temp dir holding
 /// a store can be deleted when the test ends.
 pub(crate) fn make_writable(root: &Path) {
-    use std::os::unix::fs::PermissionsExt;
     let Ok(entries) = std::fs::read_dir(root) else {
         return;
     };
@@ -126,7 +125,13 @@ pub(crate) fn make_writable(root: &Path) {
         && meta.is_dir()
     {
         let mut perms = meta.permissions();
-        perms.set_mode(perms.mode() | 0o700);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            perms.set_mode(perms.mode() | 0o700);
+        }
+        #[cfg(not(unix))]
+        perms.set_readonly(false);
         let _ = std::fs::set_permissions(root, perms);
     }
     for entry in entries.flatten() {
@@ -138,7 +143,13 @@ pub(crate) fn make_writable(root: &Path) {
             make_writable(&path);
         } else if meta.is_file() {
             let mut perms = meta.permissions();
-            perms.set_mode(perms.mode() | 0o600);
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt as _;
+                perms.set_mode(perms.mode() | 0o600);
+            }
+            #[cfg(not(unix))]
+            perms.set_readonly(false);
             let _ = std::fs::set_permissions(&path, perms);
         }
     }

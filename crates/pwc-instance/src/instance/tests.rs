@@ -226,7 +226,8 @@ fn resolve_path_is_relative_to_the_instance() {
     let e = env();
     let i = e.instance("dev", &[]);
     assert_eq!(i.resolve_path(Path::new("../x")), i.dir.join("../x"));
-    assert_eq!(i.resolve_path(Path::new("/abs/x")), Path::new("/abs/x"));
+    let absolute = e.root.join("abs/x");
+    assert_eq!(i.resolve_path(&absolute), absolute);
 }
 
 // ---------------------------------------------------------------------------------------------

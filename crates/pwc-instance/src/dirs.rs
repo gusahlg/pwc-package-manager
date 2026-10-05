@@ -1,4 +1,4 @@
-//! XDG directories (docs/spec/filesystem.md).
+//! Platform state directories (docs/spec/filesystem.md).
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -15,7 +15,8 @@ pub struct Dirs {
 }
 
 impl Dirs {
-    /// From the environment: `PWC_HOME`, else `XDG_*_HOME`, else `~/.local/share`, `~/.cache`, `~/.config`.
+    /// From the environment: `PWC_HOME`, else XDG directories, else the native Windows local-app
+    /// data directory or the conventional directories below `HOME`.
     pub fn from_env() -> Result<Self, crate::InstanceError> {
         Self::from_vars(|name| std::env::var_os(name))
     }
@@ -25,6 +26,13 @@ impl Dirs {
     /// Empty variables count as unset. A relative `PWC_HOME` is taken relative to the current
     /// directory; relative `XDG_*_HOME` values are ignored, as the XDG specification requires.
     pub fn from_vars(var: impl Fn(&str) -> Option<OsString>) -> Result<Self, crate::InstanceError> {
+        Self::from_vars_for_platform(var, cfg!(windows))
+    }
+
+    fn from_vars_for_platform(
+        var: impl Fn(&str) -> Option<OsString>,
+        windows: bool,
+    ) -> Result<Self, crate::InstanceError> {
         let get = |name: &str| var(name).filter(|v| !v.is_empty()).map(PathBuf::from);
         if let Some(home) = get("PWC_HOME") {
             let home = std::path::absolute(&home)
@@ -32,20 +40,39 @@ impl Dirs {
             return Ok(Self::under(&home));
         }
         let home = get("HOME");
-        let base = |xdg: &str, default: &str| -> Result<PathBuf, crate::InstanceError> {
+        let windows_root = windows
+            .then(|| {
+                get("LOCALAPPDATA")
+                    .filter(|p| p.is_absolute())
+                    .or_else(|| {
+                        get("USERPROFILE")
+                            .filter(|p| p.is_absolute())
+                            .map(|p| p.join("AppData").join("Local"))
+                    })
+                    .map(|p| p.join("pwc"))
+            })
+            .flatten();
+        let base = |xdg: &str,
+                    default: &str,
+                    windows_dir: &str|
+         -> Result<PathBuf, crate::InstanceError> {
             match get(xdg).filter(|p| p.is_absolute()) {
-                Some(dir) => Ok(dir),
-                None => home.as_ref().map(|h| h.join(default)).ok_or_else(|| {
-                    crate::InstanceError::Config(format!(
-                        "cannot locate the PWC directories: neither PWC_HOME, {xdg} nor HOME is set"
-                    ))
-                }),
+                Some(dir) => Ok(dir.join("pwc")),
+                None => home
+                    .as_ref()
+                    .map(|h| h.join(default).join("pwc"))
+                    .or_else(|| windows_root.as_ref().map(|p| p.join(windows_dir)))
+                    .ok_or_else(|| {
+                        crate::InstanceError::Config(format!(
+                            "cannot locate the PWC directories: neither PWC_HOME, {xdg}, HOME nor a Windows profile directory is set"
+                        ))
+                    }),
             }
         };
         Ok(Self {
-            data: base("XDG_DATA_HOME", ".local/share")?.join("pwc"),
-            cache: base("XDG_CACHE_HOME", ".cache")?.join("pwc"),
-            config: base("XDG_CONFIG_HOME", ".config")?.join("pwc"),
+            data: base("XDG_DATA_HOME", ".local/share", "data")?,
+            cache: base("XDG_CACHE_HOME", ".cache", "cache")?,
+            config: base("XDG_CONFIG_HOME", ".config", "config")?,
         })
     }
 
@@ -101,54 +128,66 @@ mod tests {
         }
     }
 
+    fn absolute(name: &str) -> PathBuf {
+        std::env::current_dir().unwrap().join("target").join(name)
+    }
+
     #[test]
     fn defaults_under_home() {
-        let d = Dirs::from_vars(vars(&[("HOME", "/home/u")])).unwrap();
-        assert_eq!(d.data, Path::new("/home/u/.local/share/pwc"));
-        assert_eq!(d.cache, Path::new("/home/u/.cache/pwc"));
-        assert_eq!(d.config, Path::new("/home/u/.config/pwc"));
-        assert_eq!(d.store(), Path::new("/home/u/.local/share/pwc/store"));
-        assert_eq!(
-            d.instances(),
-            Path::new("/home/u/.local/share/pwc/instances")
-        );
-        assert_eq!(d.builds(), Path::new("/home/u/.cache/pwc/builds"));
-        assert_eq!(d.target(), Path::new("/home/u/.cache/pwc/target"));
-        assert_eq!(
-            d.config_file(),
-            Path::new("/home/u/.config/pwc/config.toml")
-        );
+        let home = absolute("home");
+        let home_text = home.to_string_lossy();
+        let d = Dirs::from_vars(vars(&[("HOME", &home_text)])).unwrap();
+        assert_eq!(d.data, home.join(".local/share/pwc"));
+        assert_eq!(d.cache, home.join(".cache/pwc"));
+        assert_eq!(d.config, home.join(".config/pwc"));
+        assert_eq!(d.store(), home.join(".local/share/pwc/store"));
+        assert_eq!(d.instances(), home.join(".local/share/pwc/instances"));
+        assert_eq!(d.builds(), home.join(".cache/pwc/builds"));
+        assert_eq!(d.target(), home.join(".cache/pwc/target"));
+        assert_eq!(d.config_file(), home.join(".config/pwc/config.toml"));
     }
 
     #[test]
     fn xdg_variables_win_over_home() {
+        let home = absolute("home");
+        let data = absolute("data");
+        let cache = absolute("cache");
+        let home_text = home.to_string_lossy();
+        let data_text = data.to_string_lossy();
+        let cache_text = cache.to_string_lossy();
         let d = Dirs::from_vars(vars(&[
-            ("HOME", "/home/u"),
-            ("XDG_DATA_HOME", "/data"),
-            ("XDG_CACHE_HOME", "/cache"),
+            ("HOME", &home_text),
+            ("XDG_DATA_HOME", &data_text),
+            ("XDG_CACHE_HOME", &cache_text),
             ("XDG_CONFIG_HOME", ""), // empty = unset
         ]))
         .unwrap();
-        assert_eq!(d.data, Path::new("/data/pwc"));
-        assert_eq!(d.cache, Path::new("/cache/pwc"));
-        assert_eq!(d.config, Path::new("/home/u/.config/pwc"));
+        assert_eq!(d.data, data.join("pwc"));
+        assert_eq!(d.cache, cache.join("pwc"));
+        assert_eq!(d.config, home.join(".config/pwc"));
 
         // Relative XDG values are ignored.
         let d =
-            Dirs::from_vars(vars(&[("HOME", "/home/u"), ("XDG_DATA_HOME", "relative")])).unwrap();
-        assert_eq!(d.data, Path::new("/home/u/.local/share/pwc"));
+            Dirs::from_vars(vars(&[("HOME", &home_text), ("XDG_DATA_HOME", "relative")])).unwrap();
+        assert_eq!(d.data, home.join(".local/share/pwc"));
     }
 
     #[test]
     fn pwc_home_overrides_everything() {
+        let home = absolute("home");
+        let data = absolute("data");
+        let portable = absolute("portable");
+        let home_text = home.to_string_lossy();
+        let data_text = data.to_string_lossy();
+        let portable_text = portable.to_string_lossy();
         let d = Dirs::from_vars(vars(&[
-            ("HOME", "/home/u"),
-            ("XDG_DATA_HOME", "/data"),
-            ("PWC_HOME", "/portable"),
+            ("HOME", &home_text),
+            ("XDG_DATA_HOME", &data_text),
+            ("PWC_HOME", &portable_text),
         ]))
         .unwrap();
-        assert_eq!(d, Dirs::under(Path::new("/portable")));
-        assert_eq!(d.data, Path::new("/portable/data"));
+        assert_eq!(d, Dirs::under(&portable));
+        assert_eq!(d.data, portable.join("data"));
 
         let d = Dirs::from_vars(vars(&[("PWC_HOME", "rel")])).unwrap();
         assert!(d.data.is_absolute());
@@ -157,20 +196,43 @@ mod tests {
 
     #[test]
     fn no_home_is_an_error() {
-        assert!(Dirs::from_vars(vars(&[])).is_err());
+        assert!(Dirs::from_vars_for_platform(vars(&[]), false).is_err());
         // Fine when every XDG variable is set.
-        let d = Dirs::from_vars(vars(&[
-            ("XDG_DATA_HOME", "/d"),
-            ("XDG_CACHE_HOME", "/c"),
-            ("XDG_CONFIG_HOME", "/f"),
-        ]))
+        let data = absolute("d");
+        let cache = absolute("c");
+        let config = absolute("f");
+        let data_text = data.to_string_lossy();
+        let cache_text = cache.to_string_lossy();
+        let config_text = config.to_string_lossy();
+        let d = Dirs::from_vars_for_platform(
+            vars(&[
+                ("XDG_DATA_HOME", &data_text),
+                ("XDG_CACHE_HOME", &cache_text),
+                ("XDG_CONFIG_HOME", &config_text),
+            ]),
+            false,
+        )
         .unwrap();
-        assert_eq!(d.config, Path::new("/f/pwc"));
+        assert_eq!(d.config, config.join("pwc"));
+    }
+
+    #[test]
+    fn windows_defaults_under_local_app_data() {
+        let local = absolute("local-app-data");
+        let local_text = local.to_string_lossy();
+        let d = Dirs::from_vars_for_platform(vars(&[("LOCALAPPDATA", &local_text)]), true).unwrap();
+        assert_eq!(d, Dirs::under(&local.join("pwc")));
+
+        let profile = absolute("profile");
+        let profile_text = profile.to_string_lossy();
+        let d =
+            Dirs::from_vars_for_platform(vars(&[("USERPROFILE", &profile_text)]), true).unwrap();
+        assert_eq!(d, Dirs::under(&profile.join("AppData/Local/pwc")));
     }
 
     #[test]
     fn from_env_works() {
-        // Whatever the test environment is, it has HOME or PWC_HOME.
+        // Supported environments provide HOME/PWC_HOME or a Windows profile directory.
         let d = Dirs::from_env().unwrap();
         assert!(d.data.is_absolute());
     }

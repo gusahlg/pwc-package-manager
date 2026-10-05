@@ -35,6 +35,10 @@ What each step does:
 4. `pwc run` generates a small Cargo workspace for the lock under `~/.cache/pwc/builds/`, builds
    it and runs the game with the instance's own data directory (worlds, settings).
 
+On Windows, the equivalent state root is `%LOCALAPPDATA%\pwc`; no `HOME` or XDG environment
+variables are required. The game build still needs the Rust GNU toolchain and Vulkan SDK available
+to Cargo.
+
 The first build compiles the whole game and takes as long as a normal release build of PWC.
 Later builds share one Cargo target directory, so only changed crates are recompiled, and an
 unchanged lock reuses the finished executable without invoking Cargo. When `nix` is installed and

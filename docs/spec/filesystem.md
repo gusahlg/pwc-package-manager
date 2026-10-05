@@ -1,8 +1,11 @@
 # Filesystem layout, configuration, store and repositories
 
-Installed PWC state lives outside every source repository, following the XDG base directory
-conventions (environment variable, else the default below). `PWC_HOME=<dir>` overrides all three
-roots at once (`<dir>/data`, `<dir>/cache`, `<dir>/config`) — used by tests and portable setups.
+Installed PWC state lives outside every source repository. On Unix it follows the XDG base
+directory conventions (environment variable, else the default below). On Windows, when neither
+`HOME` nor the corresponding absolute XDG variable is set, it uses
+`%LOCALAPPDATA%\pwc\{data,cache,config}`; `%USERPROFILE%\AppData\Local` is the fallback when
+`LOCALAPPDATA` is unavailable. `PWC_HOME=<dir>` overrides all three roots on every platform
+(`<dir>/data`, `<dir>/cache`, `<dir>/config`) — used by tests and portable setups.
 
 ```text
 $XDG_DATA_HOME/pwc/          ~/.local/share/pwc/   persistent: survives cache deletion

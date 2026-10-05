@@ -7,7 +7,7 @@
 //! this mod and the core fallback (New world / Load / Settings / Mods / Quit)
 //! takes over.
 
-use pwc_mod_api::menu::start::{HostInfo, JoinInfo, MenuModel, StartAction, StartFacts, StartScreen};
+use pwc_mod_api::menu::start::{HostInfo, JoinInfo, MenuModel, SlotId, StartAction, StartFacts, StartScreen};
 use pwc_mod_api::menu::{
     apply_text_op, drive, parse_port, AppEffect, Command, Ctx, Cursor, Framed, Intent, Menu, Msg,
     Notice, Row, Screen, Style, View, PORT_ERROR,
@@ -103,6 +103,7 @@ impl StartScreen for DefaultStart {
                 let (view, sel) = frame.view_sel(&ctx);
                 MenuModel::from_view(view, sel, |a| match a {
                     WorldsAction::Load(i) => facts.saves.get(*i).map(|slot| StartAction::Load(slot.id.clone())),
+                    WorldsAction::Delete(i) => facts.saves.get(*i).map(|slot| StartAction::Delete(slot.id.clone())),
                     WorldsAction::Back => None,
                 })
             }
@@ -137,6 +138,7 @@ impl StartScreen for DefaultStart {
                     None
                 }
                 Command::Effect(AppEffect::Load(id)) => Some(StartAction::Load(id)),
+                Command::Effect(AppEffect::DeleteWorld(id)) => Some(StartAction::Delete(id)),
                 Command::Effect(AppEffect::Host(info)) => Some(StartAction::Host(info)),
                 Command::Effect(AppEffect::Join(info)) => Some(StartAction::Join(info)),
                 _ => None,
@@ -152,7 +154,7 @@ impl StartScreen for DefaultStart {
                 self.main.notice = None;
                 match action {
                     MainAction::Worlds => {
-                        self.overlay = Some(Overlay::Worlds(Framed::new(WorldsMenu)));
+                        self.overlay = Some(Overlay::Worlds(Framed::new(WorldsMenu::default())));
                         None
                     }
                     MainAction::Host => {
@@ -240,12 +242,20 @@ impl MainMenu {
 #[derive(Clone, Copy)]
 enum WorldsAction {
     Load(usize),
+    /// The confirm row of a world D was pressed on.
+    Delete(usize),
     Back,
 }
 
 /// The worlds page: one row per saved world (newest first, as the save store
-/// lists them), then Back. Enter loads; Esc goes back to the main menu.
-struct WorldsMenu;
+/// lists them), then Back. Enter loads; Esc goes back to the main menu. D on a
+/// world asks to delete it: a short confirm line appears on that row, Enter
+/// moves the world to the trash, and any other key cancels.
+#[derive(Default)]
+struct WorldsMenu {
+    /// The world D was pressed on, awaiting Enter.
+    confirm: Option<SlotId>,
+}
 
 impl Menu for WorldsMenu {
     type Action = WorldsAction;
@@ -256,6 +266,10 @@ impl Menu for WorldsMenu {
             rows.push(Row::heading("No saved worlds yet — pick New World on the main menu"));
         }
         for (i, slot) in ctx.saves.iter().enumerate() {
+            if self.confirm.as_ref() == Some(&slot.id) {
+                rows.push(Row::action(format!("Delete {}?", slot.id), WorldsAction::Delete(i)).detail("Enter to delete · any other key cancels"));
+                continue;
+            }
             let row = match &slot.meta {
                 Ok(meta) => Row::action(format!("Load: {}", meta.name), WorldsAction::Load(i))
                     .detail(format!(
@@ -274,17 +288,28 @@ impl Menu for WorldsMenu {
             style: Style::Panel,
             rows,
             default: None,
-            hint: "Up/Down select   Enter load   Esc back".to_string(),
+            hint: "Up/Down select   Enter load   D delete   Esc back".to_string(),
             notice: None,
         }
     }
 
     fn update(&mut self, msg: Msg<WorldsAction>, ctx: &mut Ctx) -> Command {
+        let confirm = self.confirm.take();
         match msg {
+            Msg::Key(WorldsAction::Load(i) | WorldsAction::Delete(i), 'd' | 'D') => {
+                self.confirm = ctx.saves.get(i).map(|slot| slot.id.clone());
+                Command::Stay
+            }
+            Msg::Pick(WorldsAction::Delete(i)) => match ctx.saves.get(i) {
+                Some(slot) => Command::Effect(AppEffect::DeleteWorld(slot.id.clone())),
+                None => Command::Stay,
+            },
             Msg::Pick(WorldsAction::Load(i)) => match ctx.saves.get(i) {
                 Some(slot) => Command::Effect(AppEffect::Load(slot.id.clone())),
                 None => Command::Stay,
             },
+            // Esc first cancels a pending delete, then leaves the page.
+            Msg::Back if confirm.is_some() => Command::Stay,
             Msg::Pick(WorldsAction::Back) | Msg::Back => Command::Pop,
             _ => Command::Stay,
         }
@@ -551,6 +576,47 @@ mod tests {
         assert_eq!(open(&f1).view(&f1).rows[1].detail.as_deref(), Some("1 saved"));
         let none = facts(&[], &session, None);
         assert_eq!(open(&none).view(&none).rows[1].detail.as_deref(), Some("none saved yet"));
+    }
+
+    #[test]
+    fn worlds_page_deletes_on_d_then_enter_and_any_other_key_cancels() {
+        let session = Session::default();
+        let saves = [slot("alpha", 60, 1), slot("beta", 60, 1)];
+        let f = facts(&saves, &session, None);
+        let worlds = |screen: &mut Box<dyn StartScreen>| {
+            screen.update(&[Intent::Nav(Dir::Next)], &f);
+            screen.update(&[Intent::Confirm], &f);
+            assert_eq!(screen.view(&f).title, "WORLDS");
+        };
+        let d = || Intent::Edit(TextOp::Char('d'));
+
+        // D asks, a short confirm line takes the row, Enter deletes that world.
+        let mut screen = open(&f);
+        worlds(&mut screen);
+        assert_eq!(screen.update(&[d()], &f), None);
+        let page = screen.view(&f);
+        assert_eq!(page.labels(), ["Delete alpha?", "Load: beta", "Back"]);
+        assert_eq!(page.rows[0].detail.as_deref(), Some("Enter to delete · any other key cancels"));
+        assert_eq!(page.actions()[0], StartAction::Delete(saves[0].id.clone()), "a click on the confirm row deletes too");
+        assert_eq!(screen.update(&[Intent::Confirm], &f), Some(StartAction::Delete(saves[0].id.clone())));
+
+        // Esc cancels the question and stays on the page; Enter then loads.
+        let mut screen = open(&f);
+        worlds(&mut screen);
+        screen.update(&[d()], &f);
+        assert_eq!(screen.update(&[Intent::Cancel], &f), None);
+        assert_eq!(screen.view(&f).labels(), ["Load: alpha", "Load: beta", "Back"]);
+        assert_eq!(screen.update(&[Intent::Confirm], &f), Some(StartAction::Load(saves[0].id.clone())));
+
+        // Moving away cancels; another letter cancels.
+        let mut screen = open(&f);
+        worlds(&mut screen);
+        screen.update(&[d()], &f);
+        screen.update(&[Intent::Nav(Dir::Next)], &f);
+        assert_eq!(screen.view(&f).labels(), ["Load: alpha", "Load: beta", "Back"]);
+        screen.update(&[d()], &f);
+        screen.update(&[Intent::Edit(TextOp::Char('x'))], &f);
+        assert_eq!(screen.update(&[Intent::Confirm], &f), Some(StartAction::Load(saves[1].id.clone())));
     }
 
     #[test]

@@ -61,7 +61,18 @@ cargo install --path crates/pwc-cli   # install the `pwc` binary
 cargo run -p pwc-cli -- <command>     # or run it from the checkout without installing
 ```
 
-With Nix, `nix develop` provides the toolchain (see [CONTRIBUTING.md](CONTRIBUTING.md)). The
+With Nix, install the flake's package into your profile instead:
+
+```sh
+nix profile add .                     # or github:gusahlg/pwc-package-manager
+nix profile upgrade pwc-package-manager   # after pulling a new version
+```
+
+A profile is a garbage-collection root. A `pwc` built inside `nix develop` and copied onto your
+`PATH` links against store paths nothing keeps alive, and stops starting after the next garbage
+collection ("Failed to execute process … Check the interpreter or linker").
+
+For development, `nix develop` provides the toolchain (see [CONTRIBUTING.md](CONTRIBUTING.md)). The
 tooling itself is pure Rust and needs no C compiler or system libraries; building a game instance
 needs whatever the game needs (see the game's README).
 
@@ -76,7 +87,7 @@ docs/spec/              normative specifications of the formats and behaviour (f
 POLICY.md               which packages are accepted
 LICENSE                 the tooling's licence, AGPL-3.0-or-later
 LICENSES/, REUSE.toml   licence texts and per-file licensing (REUSE)
-flake.nix               Nix development shell
+flake.nix               Nix development shell and the `pwc` package
 ```
 
 ## Crates

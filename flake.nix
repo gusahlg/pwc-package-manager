@@ -20,5 +20,24 @@
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [ rustc cargo rustfmt clippy git reuse ];
         };
+
+        # The `pwc` binary as a Nix package. Install it with `nix profile install <this flake>`:
+        # a profile is a garbage-collection root, so the C library it links against stays alive.
+        # (A binary built in the dev shell and copied onto PATH points at a store path nothing
+        # roots; the next garbage collection removes it and the binary stops starting.)
+        packages.default = pkgs.rustPlatform.buildRustPackage {
+          pname = "pwc";
+          version = (builtins.fromTOML (builtins.readFile ./Cargo.toml)).workspace.package.version;
+          src = pkgs.lib.cleanSource ./.;
+          cargoLock.lockFile = ./Cargo.lock;
+          cargoBuildFlags = [ "-p" "pwc-cli" ];
+          # The workspace tests run in CI and the dev shell; the package only builds the tool.
+          doCheck = false;
+          meta = {
+            description = "The Project Watt Cubed package manager and mod builder";
+            license = pkgs.lib.licenses.agpl3Plus;
+            mainProgram = "pwc";
+          };
+        };
       });
 }

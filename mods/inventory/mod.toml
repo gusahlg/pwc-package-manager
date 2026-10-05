@@ -3,13 +3,13 @@ format = 1
 [package]
 id = "pwc.inventory"
 name = "Inventory"
-version = "1.0.0"
+version = "2.0.0"
 description = "Your held materials as a list (press I); equip any of them into the hotbar."
 authors = ["Project Watt Cubed contributors"]
 license = "Apache-2.0 OR MIT"
 license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
 kind = "mod"
-pwc-api = "^1.0"
+pwc-api = "^2.0"
 readme = "README.md"
 icon = "assets/icon.svg"
 repository = "https://github.com/gusahlg/pwc-package-manager"
@@ -17,4 +17,4 @@ keywords = ["inventory", "ui"]
 categories = ["interface"]
 
 [dependencies]
-"pwc.hotbar" = "^1.0"
+"pwc.hotbar" = "^2.0"

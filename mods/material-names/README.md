@@ -39,7 +39,7 @@ Switching the style renames everything at once (the namer's revision changes).
 
 ## Dependencies
 
-None besides the PWC mod API (`pwc-api ^1.0`).
+None besides the PWC mod API (`pwc-api ^2.0`).
 
 ## Compatibility
 

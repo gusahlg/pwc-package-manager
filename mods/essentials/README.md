@@ -24,8 +24,8 @@ See each package's README. The bundle adds none.
 
 ## Dependencies
 
-The nine packages above, each `^1.0`. The resolver picks one version of each; `pwc.hotbar` always
-registers before `pwc.inventory`, which depends on it.
+`pwc.hotbar` and `pwc.inventory` at `^2.0`, and the other seven packages at `^1.0`. The resolver
+picks one version of each; `pwc.hotbar` always registers before `pwc.inventory`, which depends on it.
 
 ## Compatibility
 

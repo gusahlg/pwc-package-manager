@@ -1,6 +1,6 @@
 //! The hotbar: nine slots of held materials plus the bare hand, along the bottom of the screen.
 //!
-//! A slot names a stack in the core stash. The selected slot is what the player *holds*: a left
+//! A slot names a stack in the core inventory. The selected slot is what the player *holds*: a left
 //! click with it runs the law between it and the targeted block (a tool is just a block in hand),
 //! a right click places one unit of it. The bare hand (slot 0) breaks blocks. Keys 1-9 select a
 //! slot (pressing the selected one again returns to the hand), 0 selects the hand, the wheel
@@ -17,17 +17,65 @@
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
+use std::time::Instant;
 
 use pwc_mod_api::block::{BlockId, AIR};
 use pwc_mod_api::derived::Memo;
-use pwc_mod_api::engine::Color;
+use pwc_mod_api::engine::{Color, Key};
+use pwc_mod_api::input::intent::{Chord, Source};
 use pwc_mod_api::player::Player;
 use pwc_mod_api::ui::{Anchor, HudElement, Role};
 use pwc_mod_api::world::World;
-use pwc_mod_api::{Mod, ModContext, ModRegistrar, ESSENTIALS};
+use pwc_mod_api::{Action, Mod, ModContext, ModRegistrar, ToolUse, ESSENTIALS};
 
 /// Material slots (keys 1-9); slot 0 is the bare hand.
 pub const SLOTS: usize = 9;
+
+/// Action ids. The inventory equip path uses [`SLOT_IDS`].
+pub const HAND_ID: &str = "hotbar.hand";
+pub const SLOT_IDS: [&str; SLOTS] = [
+    "hotbar.slot1",
+    "hotbar.slot2",
+    "hotbar.slot3",
+    "hotbar.slot4",
+    "hotbar.slot5",
+    "hotbar.slot6",
+    "hotbar.slot7",
+    "hotbar.slot8",
+    "hotbar.slot9",
+];
+pub const NEXT_ID: &str = "hotbar.next";
+pub const PREV_ID: &str = "hotbar.prev";
+
+const HAND_CHORD: &[Chord] = &[Chord::key(Key::Num0)];
+const SLOT_CHORDS: [&[Chord]; SLOTS] = [
+    &[Chord::key(Key::Num1)],
+    &[Chord::key(Key::Num2)],
+    &[Chord::key(Key::Num3)],
+    &[Chord::key(Key::Num4)],
+    &[Chord::key(Key::Num5)],
+    &[Chord::key(Key::Num6)],
+    &[Chord::key(Key::Num7)],
+    &[Chord::key(Key::Num8)],
+    &[Chord::key(Key::Num9)],
+];
+const NEXT_CHORD: &[Chord] = &[Chord::bare(Source::WheelDown)];
+const PREV_CHORD: &[Chord] = &[Chord::bare(Source::WheelUp)];
+
+const ACTIONS: &[Action] = &[
+    Action { id: HAND_ID, label: "Hand", default: HAND_CHORD, repeat: false },
+    Action { id: SLOT_IDS[0], label: "Slot 1", default: SLOT_CHORDS[0], repeat: false },
+    Action { id: SLOT_IDS[1], label: "Slot 2", default: SLOT_CHORDS[1], repeat: false },
+    Action { id: SLOT_IDS[2], label: "Slot 3", default: SLOT_CHORDS[2], repeat: false },
+    Action { id: SLOT_IDS[3], label: "Slot 4", default: SLOT_CHORDS[3], repeat: false },
+    Action { id: SLOT_IDS[4], label: "Slot 5", default: SLOT_CHORDS[4], repeat: false },
+    Action { id: SLOT_IDS[5], label: "Slot 6", default: SLOT_CHORDS[5], repeat: false },
+    Action { id: SLOT_IDS[6], label: "Slot 7", default: SLOT_CHORDS[6], repeat: false },
+    Action { id: SLOT_IDS[7], label: "Slot 8", default: SLOT_CHORDS[7], repeat: false },
+    Action { id: SLOT_IDS[8], label: "Slot 9", default: SLOT_CHORDS[8], repeat: false },
+    Action { id: NEXT_ID, label: "Next", default: NEXT_CHORD, repeat: false },
+    Action { id: PREV_ID, label: "Previous", default: PREV_CHORD, repeat: false },
+];
 
 /// The hotbar's state, shared with the inventory (which equips into it).
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
@@ -75,7 +123,7 @@ impl HotbarState {
     /// Clear slots whose stack is gone.
     fn prune(&mut self, player: &Player) {
         for s in self.slots.iter_mut() {
-            if s.is_some_and(|id| player.stash.count(id) == 0) {
+            if s.is_some_and(|id| player.inventory.count(id) == 0) {
                 *s = None;
             }
         }
@@ -167,20 +215,60 @@ const BOTTOM: i32 = -14;
 const FRAME: Color = Color::new(10, 12, 16, 210);
 const SELECTED: Color = Color::new(250, 214, 92, 255);
 
-/// What the hotbar HUD shows: stash revision, slots, screen size, registry names revision.
-type HudKey = (u64, HotbarState, i32, i32, u64);
+/// What the hotbar HUD shows: inventory revision, slots, screen size, registry size, tool-note generation.
+type HudKey = (u64, HotbarState, i32, i32, u64, u64);
+
+struct ToolNote {
+    outcome: ToolUse,
+    at: Instant,
+    seq: u64,
+}
 
 /// The hotbar mod (id `hotbar`).
 pub struct HotbarMod {
     ui: ItemUiHandle,
     bar: HotbarHandle,
     hud_cache: RefCell<Memo<HudKey, Vec<HudElement>>>,
+    /// Last painted key, so a quiet frame does not format the tool line.
+    hud_seen: Cell<Option<HudKey>>,
+    note: Option<ToolNote>,
+    note_seq: u64,
 }
 
 impl HotbarMod {
     /// A hotbar over shared handles (the same ones an inventory equips through).
     pub fn new(ui: ItemUiHandle, bar: HotbarHandle) -> Self {
-        Self { ui, bar, hud_cache: RefCell::new(Memo::new()) }
+        Self {
+            ui,
+            bar,
+            hud_cache: RefCell::new(Memo::new()),
+            hud_seen: Cell::new(None),
+            note: None,
+            note_seq: 0,
+        }
+    }
+
+    fn live_note_gen(&self) -> u64 {
+        match &self.note {
+            Some(n) if n.at.elapsed().as_secs_f32() < 1.6 => n.seq,
+            _ => 0,
+        }
+    }
+
+    fn format_note(&self, world: &World) -> String {
+        let Some(n) = &self.note else { return String::new() };
+        if n.at.elapsed().as_secs_f32() >= 1.6 {
+            return String::new();
+        }
+        let reg = world.registry();
+        match n.outcome {
+            ToolUse::NoReaction => "no reaction".to_string(),
+            ToolUse::CellDissolved { cell } => format!("{} dissolved into the tool", reg.display_name(cell)),
+            ToolUse::ToolDissolved { .. } => "the tool dissolved into the block".to_string(),
+            ToolUse::Drew { cell } => format!("drew an element from {}", reg.display_name(cell)),
+            ToolUse::Gave { cell } => format!("gave an element to {}", reg.display_name(cell)),
+            ToolUse::Exchanged { cell } => format!("exchanged elements with {}", reg.display_name(cell)),
+        }
     }
 
     fn with(&self, f: impl FnOnce(&mut HotbarState)) {
@@ -246,7 +334,7 @@ fn paint(state: &HotbarState, player: &Player, world: &World, screen_h: i32) -> 
                     size: (slot - l.px(26), l.px(6)),
                     color: Color::new(v.rgb2[0], v.rgb2[1], v.rgb2[2], 255),
                 });
-                let n = player.stash.count(id);
+                let n = player.inventory.count(id);
                 out.push(HudElement::Label {
                     at: Anchor::Bottom,
                     off: (x + slot / 2 - l.px(10), bottom - l.px(3)),
@@ -290,8 +378,13 @@ impl Mod for HotbarMod {
         ESSENTIALS
     }
 
+    fn actions(&self) -> &[Action] {
+        ACTIONS
+    }
+
     fn reset(&mut self) {
         self.bar.set(HotbarState::default());
+        self.note = None;
     }
 
     fn update(&mut self, ctx: &mut ModContext) {
@@ -299,16 +392,25 @@ impl Mod for HotbarMod {
         self.with(|s| s.prune(player));
         // While the inventory is open it owns the number keys and the wheel (to equip).
         if !self.ui.inventory_visible() {
-            if let Some(k) = ctx.hotbar_key {
+            let mut key = None;
+            if ctx.action(HAND_ID) {
+                key = Some(0);
+            }
+            for (i, id) in SLOT_IDS.iter().enumerate() {
+                if ctx.action(id) {
+                    key = Some(i + 1);
+                }
+            }
+            if let Some(k) = key {
                 self.with(|s| {
-                    let k = k as usize;
-                    s.selected = if k != 0 && s.selected == k { 0 } else { k.min(SLOTS) };
+                    s.selected = if k != 0 && s.selected == k { 0 } else { k };
                 });
             }
-            if ctx.hotbar_cycle != 0 {
+            let cycle = i32::from(ctx.action(NEXT_ID)) - i32::from(ctx.action(PREV_ID));
+            if cycle != 0 {
                 self.with(|s| {
                     let n = SLOTS as i32 + 1;
-                    s.selected = (s.selected as i32 + ctx.hotbar_cycle as i32).rem_euclid(n) as usize;
+                    s.selected = (s.selected as i32 + cycle).rem_euclid(n) as usize;
                 });
             }
         }
@@ -319,7 +421,7 @@ impl Mod for HotbarMod {
                 return;
             }
             // The core re-checks the cell and the player's body, refunding the unit if it refuses.
-            if ctx.player.stash.consume(id, 1) {
+            if ctx.player.inventory.consume(id, 1) {
                 ctx.placements.push((x, y, z, id));
             }
         }
@@ -331,8 +433,13 @@ impl Mod for HotbarMod {
         }
     }
 
-    fn held(&self, player: &Player) -> Option<BlockId> {
-        self.bar.get().selected_id().filter(|&id| player.stash.count(id) > 0)
+    fn tool(&self, player: &Player) -> Option<BlockId> {
+        self.bar.get().selected_id().filter(|&id| player.inventory.count(id) > 0)
+    }
+
+    fn on_tool_used(&mut self, outcome: ToolUse) {
+        self.note_seq += 1;
+        self.note = Some(ToolNote { outcome, at: Instant::now(), seq: self.note_seq });
     }
 
     fn on_tool_changed(&mut self, old: BlockId, new: BlockId) {
@@ -350,10 +457,27 @@ impl Mod for HotbarMod {
 
     fn hud(&self, world: &World, player: &Player, screen: (i32, i32), out: &mut Vec<HudElement>) {
         let state = self.bar.get();
+        let note_gen = self.live_note_gen();
         // Names arrive a frame after a configuration is interned: key on the table size too.
-        let key = (player.stash.rev(), state, screen.0, screen.1, world.registry().block_count() as u64);
-        let mut cache = self.hud_cache.borrow_mut();
-        out.extend(cache.get_or(key, || paint(&state, player, world, screen.1)).iter().cloned());
+        let key = (player.inventory.rev(), state, screen.0, screen.1, world.registry().block_count() as u64, note_gen);
+        if self.hud_seen.get() != Some(key) {
+            let mut els = paint(&state, player, world, screen.1);
+            if note_gen != 0 {
+                let text = self.format_note(world);
+                if !text.is_empty() {
+                    els.push(HudElement::Label {
+                        at: Anchor::Bottom,
+                        off: (0, -112),
+                        base_fs: 18,
+                        role: Role::Muted,
+                        text: text.into(),
+                    });
+                }
+            }
+            let _ = self.hud_cache.borrow_mut().get_or(key, || els);
+            self.hud_seen.set(Some(key));
+        }
+        out.extend(self.hud_cache.borrow_mut().get_or(key, || paint(&state, player, world, screen.1)).iter().cloned());
     }
 
     fn save_state(&self, world: &World) -> Option<(u16, String)> {
@@ -404,28 +528,10 @@ mod tests {
     }
 
     fn ctx<'a>(player: &'a mut Player, world: &'a mut World) -> ModContext<'a> {
-        ModContext {
-            player,
-            world,
-            screen_w: 800,
-            screen_h: 600,
-            place: false,
-            place_target: None,
-            toggle_inventory: false,
-            nav_up: false,
-            nav_down: false,
-            nav_left: false,
-            nav_right: false,
-            nav_tab: false,
-            nav_confirm: false,
-            hotbar_key: None,
-            hotbar_cycle: 0,
-            networked: false,
-            placements: Vec::new(),
-        }
+        ModContext::new(player, world)
     }
 
-    const PACKAGE: ModDescriptor = ModDescriptor { id: "pwc.hotbar", name: "Hotbar", version: "1.0.0", register };
+    const PACKAGE: ModDescriptor = ModDescriptor { id: "pwc.hotbar", name: "Hotbar", version: "2.0.0", register };
 
     /// This package alone, registered the way a PWC build registers it.
     fn build() -> Mods {
@@ -435,23 +541,23 @@ mod tests {
     #[test]
     fn gathered_materials_fill_empty_slots_and_keys_select_them() {
         let (mut m, _ui, mut world, mut player, a, b) = setup();
-        player.stash.add(a, 3);
-        player.stash.add(b, 1);
+        player.inventory.add(a, 3);
+        player.inventory.add(b, 1);
         m.on_block_break(a, &world, false);
         m.on_block_break(b, &world, false);
         m.on_block_break(a, &world, false);
         assert_eq!(m.bar.get().slots[..2], [Some(a), Some(b)]);
-        assert_eq!(m.held(&player), None, "the hand is selected until a key says otherwise");
+        assert_eq!(m.tool(&player), None, "the hand is selected until a key says otherwise");
         let mut c = ctx(&mut player, &mut world);
-        c.hotbar_key = Some(2);
+        c.set_action(SLOT_IDS[1]);
         m.update(&mut c);
-        assert_eq!(m.held(&player), Some(b));
+        assert_eq!(m.tool(&player), Some(b));
         let mut c = ctx(&mut player, &mut world);
-        c.hotbar_key = Some(2);
+        c.set_action(SLOT_IDS[1]);
         m.update(&mut c);
-        assert_eq!(m.held(&player), None, "pressing the selected slot again returns to the hand");
+        assert_eq!(m.tool(&player), None, "pressing the selected slot again returns to the hand");
         let mut c = ctx(&mut player, &mut world);
-        c.hotbar_cycle = -1;
+        c.set_action(PREV_ID);
         m.update(&mut c);
         assert_eq!(m.bar.get().selected, 9, "the wheel wraps from the hand to slot 9");
     }
@@ -459,25 +565,25 @@ mod tests {
     #[test]
     fn an_open_inventory_owns_the_number_keys_and_the_wheel() {
         let (mut m, ui, mut world, mut player, a, _) = setup();
-        player.stash.add(a, 1);
+        player.inventory.add(a, 1);
         m.on_block_break(a, &world, false);
         ui.set_inventory_visible(true);
         let mut c = ctx(&mut player, &mut world);
-        c.hotbar_key = Some(1);
-        c.hotbar_cycle = 1;
+        c.set_action(SLOT_IDS[0]);
+        c.set_action(NEXT_ID);
         m.update(&mut c);
         assert_eq!(m.bar.get().selected, 0, "keys and wheel go to the panel while it is open");
         ui.set_inventory_visible(false);
         let mut c = ctx(&mut player, &mut world);
-        c.hotbar_key = Some(1);
+        c.set_action(SLOT_IDS[0]);
         m.update(&mut c);
-        assert_eq!(m.held(&player), Some(a));
+        assert_eq!(m.tool(&player), Some(a));
     }
 
     #[test]
     fn a_changed_tool_moves_its_slot_and_a_spent_one_clears_it() {
         let (mut m, _ui, _world, mut player, a, b) = setup();
-        player.stash.add(a, 1);
+        player.inventory.add(a, 1);
         m.with(|s| {
             s.equip(1, a);
             s.selected = 1;
@@ -491,7 +597,7 @@ mod tests {
     #[test]
     fn placing_spends_one_unit_of_the_selected_slot() {
         let (mut m, _ui, mut world, mut player, a, _) = setup();
-        player.stash.add(a, 2);
+        player.inventory.add(a, 2);
         m.with(|s| {
             s.equip(3, a);
             s.selected = 3;
@@ -501,7 +607,7 @@ mod tests {
         c.place_target = Some((10, 64, 10));
         m.update(&mut c);
         assert_eq!(c.placements, vec![(10, 64, 10, a)]);
-        assert_eq!(player.stash.count(a), 1);
+        assert_eq!(player.inventory.count(a), 1);
     }
 
     #[test]
@@ -576,6 +682,36 @@ mod tests {
             fresh.load_state(k, v, &mut world);
         }
         assert_eq!(fresh.save_states(&world), saved);
+    }
+
+    #[test]
+    fn an_old_save_loads_the_same_slots_and_selection() {
+        let mut world = World::new(1);
+        let mut mods = build();
+        let a = world.registry_mut().intern(&Configuration::single(Element::new([1, 2, 3, 4]))).unwrap();
+        let b = world.registry_mut().intern(&Configuration::single(Element::new([9, 2, 3, 4]))).unwrap();
+        let spec_a = world.registry().spec(a);
+        let spec_b = world.registry().spec(b);
+        mods.load_state("hotbar", &format!("v1;sel=3;1={spec_a};3={spec_b}"), &mut world);
+        let saved = mods.save_states(&world);
+        let line = saved.iter().find(|(k, _)| k == "hotbar").map(|(_, d)| d.clone()).expect("hotbar");
+        assert_eq!(line, format!("v1;sel=3;1={spec_a};3={spec_b}"));
+        let mut player = Player::new(DVec3::new(0.5, 70.0, 0.5));
+        player.inventory.add(a, 1);
+        player.inventory.add(b, 1);
+        assert_eq!(mods.tool(&player), Some(b), "selection 3 is the second saved slot");
+    }
+
+    #[test]
+    fn a_tool_note_is_a_label_above_the_bar() {
+        let (mut m, _ui, world, player, _, _) = setup();
+        m.on_tool_used(ToolUse::NoReaction);
+        let mut out = Vec::new();
+        m.hud(&world, &player, (1280, 720), &mut out);
+        assert!(out.iter().any(|el| matches!(
+            el,
+            HudElement::Label { text, at: Anchor::Bottom, off: (0, -112), base_fs: 18, role: Role::Muted, .. } if &**text == "no reaction"
+        )));
     }
 
     #[test]

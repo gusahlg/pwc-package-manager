@@ -1,5 +1,9 @@
 # Changelog — pwc.start-screen
 
+## 1.1.1
+
+- Requires `pwc-api ^2.0`. Behaviour unchanged.
+
 ## 1.0.0 — first packaged release, moved out of the PWC source tree
 
 - Mod id `start`; behaviour, pages and texts unchanged.

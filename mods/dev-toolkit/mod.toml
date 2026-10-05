@@ -3,13 +3,13 @@ format = 1
 [package]
 id = "pwc.dev-toolkit"
 name = "Developer Toolkit"
-version = "1.0.0"
+version = "1.0.1"
 description = "Console commands (teleport, bodies, noclip, cruise, speeds, graphics, time, audio, gravity, help) and flight on F."
 authors = ["Project Watt Cubed contributors"]
 license = "Apache-2.0 OR MIT"
 license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
 kind = "mod"
-pwc-api = "^1.1"
+pwc-api = "^2.0"
 readme = "README.md"
 icon = "assets/icon.svg"
 repository = "https://github.com/gusahlg/pwc-package-manager"

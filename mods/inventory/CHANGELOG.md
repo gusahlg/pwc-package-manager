@@ -1,5 +1,11 @@
 # Changelog — pwc.inventory
 
+## 2.0.0
+
+- Requires `pwc-api ^2.0` and `pwc.hotbar ^2.0`. Opens on `inventory.toggle` (`I`).
+- Equips through the hotbar's slot actions while the panel is open.
+- The panel lists the core inventory. Counts of one configuration add together.
+
 ## 1.0.0 — first packaged release, moved out of the PWC source tree
 
 - Mod id `inventory`; behaviour unchanged. The panel header is reworded ("Inventory · N/M held")

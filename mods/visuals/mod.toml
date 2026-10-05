@@ -3,13 +3,13 @@ format = 1
 [package]
 id = "pwc.visuals"
 name = "Visuals"
-version = "1.0.0"
+version = "1.0.1"
 description = "Atmosphere, post-processing and lighting on top of the sunlight-only core renderer: sky, clouds, bloom, shadows and block light."
 authors = ["Project Watt Cubed contributors"]
 license = "Apache-2.0 OR MIT"
 license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
 kind = "mod"
-pwc-api = "^1.0"
+pwc-api = "^2.0"
 readme = "README.md"
 icon = "assets/icon.svg"
 repository = "https://github.com/gusahlg/pwc-package-manager"

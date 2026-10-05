@@ -1,5 +1,9 @@
 # Changelog — pwc.game-ui
 
+## 1.0.1
+
+- Requires `pwc-api ^2.0`. Behaviour unchanged.
+
 ## 1.0.0 — first release
 
 - The facing indicator: an axis gizmo in the top-right corner, under the minimap, the facing in words

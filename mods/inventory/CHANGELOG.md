@@ -1,5 +1,9 @@
 # Changelog — pwc.inventory
 
+## 2.0.1
+
+- Requires `pwc-api ^2.1`. `inventory.toggle` names `held: false`. Behaviour unchanged.
+
 ## 2.0.0
 
 - Requires `pwc-api ^2.0` and `pwc.hotbar ^2.0`. Opens on `inventory.toggle` (`I`).

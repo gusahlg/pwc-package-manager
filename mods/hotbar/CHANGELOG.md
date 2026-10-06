@@ -1,5 +1,9 @@
 # Changelog — pwc.hotbar
 
+## 2.0.1
+
+- Requires `pwc-api ^2.1`. Each action names `held: false`. Behaviour unchanged.
+
 ## 2.0.0
 
 - Requires `pwc-api ^2.0`. Declares `hotbar.hand`, `hotbar.slot1`…`hotbar.slot9`, `hotbar.next` and `hotbar.prev` on the same default keys (0, 1–9, wheel).

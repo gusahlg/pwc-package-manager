@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>Proximity chat</title>
+  <rect x="2" y="2" width="60" height="60" rx="12" fill="#1a1c22"/>
+  <rect x="28" y="16" width="8" height="18" rx="4" fill="#c8d0dc"/>
+  <path d="M22 30 q10 16 20 0" fill="none" stroke="#c8d0dc" stroke-width="3" stroke-linecap="round"/>
+  <path d="M32 40 v8" stroke="#7eb6ff" stroke-width="3" stroke-linecap="round"/>
+</svg>

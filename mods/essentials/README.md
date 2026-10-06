@@ -14,6 +14,8 @@ A bundle: no code of its own, just the first-party packages that make up PWC as 
 | `pwc.neural-textures` | `neural_textures` | A unique generated texture per material |
 | `pwc.material-names` | `material_names` | Names for every material and tool |
 | `pwc.infinite-diffusion` | `diffusion` | Mountains, caves, mines and planets (world generation) |
+| `pwc.sounds` | `sounds` | Footsteps, blocks, tools, swings and menu clicks |
+| `pwc.proximity-chat` | `proximity_chat` | Push-to-talk voice for people you can see |
 
 Every mod is in the Essentials group on the mods screen, where the whole group can be switched on
 or off at once (each member's choice is saved as its own `mods.cfg` line).
@@ -24,14 +26,16 @@ See each package's README. The bundle adds none.
 
 ## Dependencies
 
-`pwc.hotbar` and `pwc.inventory` at `^2.0`, and the other seven packages at `^1.0`. The resolver
-picks one version of each; `pwc.hotbar` always registers before `pwc.inventory`, which depends on it.
+`pwc.hotbar` and `pwc.inventory` at `^2.0`, `pwc.sounds` and `pwc.proximity-chat` at `^1.0`, and the
+other seven packages at `^1.0`. The resolver picks one version of each; `pwc.hotbar` always
+registers before `pwc.inventory`, which depends on it.
 
 ## Compatibility
 
 Without the bundle (or with every Essential switched off) PWC still runs: the core keeps the
 world, the law, the player's held materials, the Settings and Mods screens, a plain start menu, a
-built-in menu theme, flat block colours and a flat world.
+built-in menu theme, flat block colours and a flat world. Without `pwc.sounds` it plays no cues.
+Without `pwc.proximity-chat` the microphone stays closed and voice is neither sent nor played.
 
 ## Licence
 

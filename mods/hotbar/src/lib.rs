@@ -63,18 +63,18 @@ const NEXT_CHORD: &[Chord] = &[Chord::bare(Source::WheelDown)];
 const PREV_CHORD: &[Chord] = &[Chord::bare(Source::WheelUp)];
 
 const ACTIONS: &[Action] = &[
-    Action { id: HAND_ID, label: "Hand", default: HAND_CHORD, repeat: false },
-    Action { id: SLOT_IDS[0], label: "Slot 1", default: SLOT_CHORDS[0], repeat: false },
-    Action { id: SLOT_IDS[1], label: "Slot 2", default: SLOT_CHORDS[1], repeat: false },
-    Action { id: SLOT_IDS[2], label: "Slot 3", default: SLOT_CHORDS[2], repeat: false },
-    Action { id: SLOT_IDS[3], label: "Slot 4", default: SLOT_CHORDS[3], repeat: false },
-    Action { id: SLOT_IDS[4], label: "Slot 5", default: SLOT_CHORDS[4], repeat: false },
-    Action { id: SLOT_IDS[5], label: "Slot 6", default: SLOT_CHORDS[5], repeat: false },
-    Action { id: SLOT_IDS[6], label: "Slot 7", default: SLOT_CHORDS[6], repeat: false },
-    Action { id: SLOT_IDS[7], label: "Slot 8", default: SLOT_CHORDS[7], repeat: false },
-    Action { id: SLOT_IDS[8], label: "Slot 9", default: SLOT_CHORDS[8], repeat: false },
-    Action { id: NEXT_ID, label: "Next", default: NEXT_CHORD, repeat: false },
-    Action { id: PREV_ID, label: "Previous", default: PREV_CHORD, repeat: false },
+    Action { id: HAND_ID, label: "Hand", default: HAND_CHORD, repeat: false, held: false },
+    Action { id: SLOT_IDS[0], label: "Slot 1", default: SLOT_CHORDS[0], repeat: false, held: false },
+    Action { id: SLOT_IDS[1], label: "Slot 2", default: SLOT_CHORDS[1], repeat: false, held: false },
+    Action { id: SLOT_IDS[2], label: "Slot 3", default: SLOT_CHORDS[2], repeat: false, held: false },
+    Action { id: SLOT_IDS[3], label: "Slot 4", default: SLOT_CHORDS[3], repeat: false, held: false },
+    Action { id: SLOT_IDS[4], label: "Slot 5", default: SLOT_CHORDS[4], repeat: false, held: false },
+    Action { id: SLOT_IDS[5], label: "Slot 6", default: SLOT_CHORDS[5], repeat: false, held: false },
+    Action { id: SLOT_IDS[6], label: "Slot 7", default: SLOT_CHORDS[6], repeat: false, held: false },
+    Action { id: SLOT_IDS[7], label: "Slot 8", default: SLOT_CHORDS[7], repeat: false, held: false },
+    Action { id: SLOT_IDS[8], label: "Slot 9", default: SLOT_CHORDS[8], repeat: false, held: false },
+    Action { id: NEXT_ID, label: "Next", default: NEXT_CHORD, repeat: false, held: false },
+    Action { id: PREV_ID, label: "Previous", default: PREV_CHORD, repeat: false, held: false },
 ];
 
 /// The hotbar's state, shared with the inventory (which equips into it).

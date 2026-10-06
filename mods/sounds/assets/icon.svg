@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>Sounds</title>
+  <rect x="2" y="2" width="60" height="60" rx="12" fill="#1a1c22"/>
+  <path d="M18 28 h8 l10-8 v24 l-10-8 h-8 z" fill="#c8d0dc"/>
+  <path d="M42 24 q6 8 0 16" fill="none" stroke="#7eb6ff" stroke-width="3" stroke-linecap="round"/>
+  <path d="M46 20 q10 12 0 24" fill="none" stroke="#7eb6ff" stroke-width="3" stroke-linecap="round"/>
+</svg>

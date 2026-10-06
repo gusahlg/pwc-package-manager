@@ -29,6 +29,7 @@ const ACTIONS: &[Action] = &[Action {
     label: "Inventory",
     default: TOGGLE,
     repeat: false,
+    held: false,
 }];
 
 /// How long the "elements lost" warning stays on screen after the last overflowing break.

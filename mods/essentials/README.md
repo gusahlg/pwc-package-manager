@@ -11,7 +11,8 @@ A bundle: no code of its own, just the first-party packages that make up PWC as 
 | `pwc.pause-menu` | `pause_menu` | What Esc opens in a world: Resume, Settings, Mods, Leave World |
 | `pwc.hotbar` | `hotbar` | Nine slots of held materials plus the bare hand |
 | `pwc.inventory` | `inventory` | The held-materials list (press I); equips into the hotbar |
-| `pwc.game-ui` | `game_ui` | In-world HUD pieces: which way you look along X, Y and Z |
+| `pwc.game-ui` | `game_ui` | The in-world HUD: reticle, coordinates, frame rate, player count, loading lines, facing indicator |
+| `pwc.chat-commands` | `chat`, `commands` | The text chat on § and its slash commands (a bundle of `pwc.chat` and `pwc.commands`) |
 | `pwc.visuals` | `atmosphere`, `post`, `lighting` | Sky, post-processing and lighting on top of the sunlight-only core |
 | `pwc.neural-textures` | `neural_textures` | A unique generated texture per material |
 | `pwc.material-names` | `material_names` | Names for every material and tool |
@@ -29,9 +30,9 @@ See each package's README. The bundle adds none.
 
 ## Dependencies
 
-`pwc.start-screen ^2.0`, the three new menus at `^1.0`, `pwc.hotbar` and `pwc.inventory` at `^2.1`,
-`pwc.game-ui ^2.0`, and the other six packages at `^1.1`. The resolver picks one version of each;
-`pwc.hotbar` always registers before `pwc.inventory`, which depends on it.
+`pwc.start-screen ^2.0`, the three new menus and `pwc.chat-commands` at `^1.0`, `pwc.hotbar` and
+`pwc.inventory` at `^2.1`, `pwc.game-ui ^2.0`, and the other six packages at `^1.1`. The resolver
+picks one version of each; `pwc.hotbar` always registers before `pwc.inventory`, which depends on it.
 
 ## Compatibility
 
@@ -39,7 +40,9 @@ Without the bundle PWC still runs: the core keeps the world, the law, the player
 flat block colours and a flat world, and with no start screen it enters the most recent world (or
 a new one) and Esc saves and quits. Settings then live only in `settings.cfg`. Without
 `pwc.pause-menu`, Esc leaves the world at once. Without `pwc.sounds` it plays no cues. Without
-`pwc.proximity-chat` the microphone stays closed and voice is neither sent nor played.
+`pwc.chat-commands` there is no chat line and no commands (chat from other players still arrives,
+unshown), and without `pwc.game-ui` no reticle or readouts. Without `pwc.proximity-chat` the
+microphone stays closed and voice is neither sent nor played.
 
 ## Licence
 

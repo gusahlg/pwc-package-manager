@@ -157,7 +157,10 @@ policy accepts AGPL-compatible free licences instead, and the game's `MOD_POLICY
 | `pwc.pause-menu` | What Esc opens in a world: Resume, Settings, Mods, Leave World. |
 | `pwc.hotbar` | Nine slots plus the bare hand; the selected slot is the held tool. |
 | `pwc.inventory` | Your held materials as a list (press I); equip any of them into the hotbar. |
-| `pwc.game-ui` | In-world HUD pieces, starting with a facing indicator for the world's X, Y and Z axes. |
+| `pwc.game-ui` | The in-world HUD: reticle, coordinates, frame rate, player count, loading lines and a facing indicator. |
+| `pwc.chat` | The text chat on § (the key left of 1) and the scrollback of the game's messages. |
+| `pwc.commands` | Slash commands in the chat (`/help`, `/gfx`, `/time`, the audio commands, `/op`) and a registry for other mods' commands. |
+| `pwc.chat-commands` | Bundle of the chat and its commands. |
 | `pwc.visuals` | The shipped look: atmosphere, post-processing and lighting. |
 | `pwc.neural-textures` | Paints every material with a texture grown from its own elements. |
 | `pwc.material-names` | Names every material and tool with a small model trained on mineral and element names. |
@@ -165,7 +168,7 @@ policy accepts AGPL-compatible free licences instead, and the game's `MOD_POLICY
 | `pwc.sounds` | Footsteps, blocks, tools, swings and menu clicks. |
 | `pwc.proximity-chat` | Push-to-talk voice for people you can see. |
 | `pwc.essentials` | Bundle of all of the above: the default set of mods. |
-| `pwc.dev-toolkit` | Developer Toolkit: the console commands (`/tp`, `/gfx`, `/time`, `/help`...) and flight on F. Not in the essentials. |
+| `pwc.dev-toolkit` | Developer Toolkit: travel and inspection commands (`/tp`, `/cruise`, `/inspect`...) through `pwc.commands`, and flight on F. Not in the essentials. |
 
 Every first-party package is licensed `Apache-2.0 OR MIT`, at your option: code, manifest,
 documentation and assets alike.

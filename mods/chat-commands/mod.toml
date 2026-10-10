@@ -1,20 +1,20 @@
 format = 1
 
 [package]
-id = "pwc.inventory"
-name = "Inventory"
-version = "2.1.0"
-description = "Your held materials as a list (press I); equip any of them into the hotbar."
+id = "pwc.chat-commands"
+name = "Chat and Commands"
+version = "1.0.0"
+description = "The text chat and its slash commands: pwc.chat and pwc.commands."
 authors = ["Project Watt Cubed contributors"]
 license = "Apache-2.0 OR MIT"
 license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
-kind = "mod"
-pwc-api = "^2.2"
+kind = "bundle"
 readme = "README.md"
 icon = "assets/icon.svg"
 repository = "https://github.com/gusahlg/pwc-package-manager"
-keywords = ["inventory", "ui"]
-categories = ["interface"]
+keywords = ["chat", "commands", "first-party"]
+categories = ["bundle"]
 
 [dependencies]
-"pwc.hotbar" = "^2.0"
+"pwc.chat" = "^1.0"
+"pwc.commands" = "^1.0"

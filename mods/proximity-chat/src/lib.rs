@@ -150,6 +150,7 @@ impl Mod for ProximityChat {
             default: CHORDS,
             repeat: false,
             held: true,
+            immediate: false,
         }];
         ACTIONS
     }

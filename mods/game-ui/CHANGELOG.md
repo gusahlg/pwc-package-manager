@@ -2,8 +2,14 @@
 
 ## 2.0.0 (unreleased)
 
+- The information HUD the core used to draw: the reticle, "Loading world…"/"Loading terrain…", the
+  coordinates (with the cruise speed), the frame rate, the player count and ping on a server, and
+  the "connection interrupted" banner, with the same layout, text and HUD modes. The core draws no
+  HUD text any more.
+- Requires `pwc-api ^2.2` (`HudFacts`). The facing indicator is unchanged and hides with the HUD off.
 - No description or group of its own: the package manifest is what menus show. Mods are no longer
   switched in the game; the build decides what is in.
+
 
 ## 1.0.1
 

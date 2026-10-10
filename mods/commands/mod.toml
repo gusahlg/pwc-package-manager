@@ -1,10 +1,10 @@
 format = 1
 
 [package]
-id = "pwc.game-ui"
-name = "Game UI"
-version = "2.0.0"
-description = "The in-world HUD: reticle, coordinates, frame rate, player count, loading and connection notices, and a facing indicator for the X, Y and Z axes."
+id = "pwc.commands"
+name = "Commands"
+version = "1.0.0"
+description = "Slash commands in the chat (/help, /gfx, /time, /mute, /deafen, /audio, /voicetest, /op) and a registry other mods add commands to."
 authors = ["Project Watt Cubed contributors"]
 license = "Apache-2.0 OR MIT"
 license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
@@ -13,5 +13,8 @@ pwc-api = "^2.2"
 readme = "README.md"
 icon = "assets/icon.svg"
 repository = "https://github.com/gusahlg/pwc-package-manager"
-keywords = ["hud", "compass", "axes", "ui"]
+keywords = ["commands", "chat", "settings", "time"]
 categories = ["interface"]
+
+[dependencies]
+"pwc.chat" = "^1.0"

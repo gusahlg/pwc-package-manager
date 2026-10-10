@@ -1,32 +1,55 @@
-//! The Developer Toolkit: the console commands and the flight key, which the base game leaves to
-//! mods.
+//! The Developer Toolkit: travel and inspection commands, registered with `pwc.commands`, and the
+//! flight key.
 //!
-//! Every command the game used to ship moved here with its behaviour and output unchanged: travel
-//! (`/tp`, `/bodies`, `/noclip`, `/cruise`, `/walkspeed`, `/flyspeed`, `/pos`), looking at the
-//! world (`/inspect`, `/reactions`, `/gravity`), options (`/gfx`, `/time`, `/mute`, `/deafen`,
-//! `/audio`, `/voicetest`) and `/help`, which lists the commands of every active mod. `F` toggles
-//! walking and flying. A command only edits the game state it is handed; the core follows up
-//! (applies and saves changed settings, streams a teleport's destination, tells a server).
+//! The commands keep their behaviour and output: travel (`/tp`, `/bodies`, `/noclip`, `/cruise`,
+//! `/walkspeed`, `/flyspeed`, `/pos`) and looking at the world (`/inspect`, `/reactions`,
+//! `/gravity`). The options commands (`/gfx`, `/time`, the audio commands) and `/help` moved to
+//! `pwc.commands`. `F` toggles walking and flying, as this mod's own immediate action. A command
+//! only edits the game state it is handed; the core follows up (streams a teleport's destination,
+//! tells a server).
 
-use pwc_mod_api::engine::DVec3;
+use pwc_commands::{Command, CommandFn, CommandsHandle};
+use pwc_mod_api::engine::{DVec3, Key};
+use pwc_mod_api::input::intent::Chord;
 use pwc_mod_api::ui::{Line, Role};
-use pwc_mod_api::player::Player;
-use pwc_mod_api::world::World;
-use pwc_mod_api::{Command, CommandContext, Mod, ModRegistrar};
+use pwc_mod_api::{Action, FrameContext, GameContext, Mod, ModRegistrar};
 
 mod inspect;
-mod options;
 mod travel;
 
 #[cfg(test)]
 mod tests;
 
-/// The package entry point: installs the toolkit.
+/// The id of the flight action.
+pub const FLY: &str = "toolkit.fly";
+const FLY_CHORDS: &[Chord] = &[Chord::key(Key::F)];
+const ACTIONS: &[Action] = &[Action {
+    id: FLY,
+    label: "Fly (toggle)",
+    default: FLY_CHORDS,
+    repeat: false,
+    held: false,
+    immediate: true,
+}];
+
+/// The package entry point: adds the toolkit's commands to `pwc.commands` and installs the
+/// toolkit.
 pub fn register(registrar: &mut ModRegistrar) {
+    let commands = registrar
+        .get::<CommandsHandle>()
+        .expect("pwc.dev-toolkit needs the commands handle from pwc.commands (a declared dependency registered first)");
+    add_commands(&commands);
     registrar.add(DevToolkit);
 }
 
-/// The toolkit mod (id `dev_toolkit`).
+/// Add every toolkit command to `commands`, in the order `/help` lists them.
+pub fn add_commands(commands: &CommandsHandle) {
+    for (command, handler) in COMMANDS {
+        commands.add(*command, *handler);
+    }
+}
+
+/// The toolkit mod (id `dev_toolkit`): the flight key.
 pub struct DevToolkit;
 
 impl Mod for DevToolkit {
@@ -38,17 +61,16 @@ impl Mod for DevToolkit {
         "dev_toolkit"
     }
 
-    fn commands(&self) -> &[Command] {
-        COMMANDS
+    fn actions(&self) -> &[Action] {
+        ACTIONS
     }
 
-    fn run_command(&mut self, ctx: &mut CommandContext<'_>, cmd: &str, args: &[&str]) -> Option<Vec<Line>> {
-        dispatch(ctx, cmd, args)
-    }
-
-    fn on_toggle_fly(&mut self, player: &mut Player, _world: &World) -> bool {
-        player.toggle_fly();
-        true
+    /// `F` toggles walking and flying (never noclip), on the frame of the press whatever the mod
+    /// cadence, but never while a detached camera holds the player.
+    fn on_frame(&mut self, ctx: &mut FrameContext) {
+        if ctx.action(FLY) && !ctx.game.detached {
+            ctx.game.player.toggle_fly();
+        }
     }
 }
 
@@ -60,22 +82,23 @@ fn rejected(lines: Vec<String>) -> Vec<Line> {
     lines.into_iter().map(|l| Line::of(Role::Danger, l)).collect()
 }
 
-/// The command table and its dispatch from one list, so a command is added in one place.
+/// The command table from one list, so a command is added in one place.
 macro_rules! commands {
     (
         $ctx:ident, $args:ident;
         $($name:literal $(| $alias:literal)* , $usage:literal, $help:literal => $body:expr);+ $(;)?
     ) => {
-        /// Every command, in the order `/help` lists them.
-        pub const COMMANDS: &[Command] = &[$(Command { name: $name, args: $usage, help: $help }),+];
-
-        /// Run `cmd` (a name or an alias); `None` leaves it to the other mods.
-        fn dispatch($ctx: &mut CommandContext<'_>, cmd: &str, $args: &[&str]) -> Option<Vec<Line>> {
-            Some(match cmd {
-                $($name $(| $alias)* => $body,)+
-                _ => return None,
-            })
-        }
+        /// Every toolkit command with its handler, in the order `/help` lists them.
+        pub const COMMANDS: &[(Command, CommandFn)] = &[$((
+            Command { name: $name, aliases: &[$($alias),*], args: $usage, help: $help },
+            {
+                #[allow(unused_variables)]
+                fn run($ctx: &mut GameContext, $args: &[&str]) -> Vec<Line> {
+                    $body
+                }
+                run
+            },
+        )),+];
     };
 }
 
@@ -87,27 +110,10 @@ commands! {
     "pos" | "where", "", "show current coordinates" => shown(vec![format!("position: {}", fmt_pos(ctx.player.position))]);
     "inspect" | "look", "[x y z]", "describe a block's elements & properties" => inspect::inspect(args, ctx.player, ctx.world);
     "reactions", "", "show pending reaction events" => inspect::reactions(ctx.world);
-    "gfx" | "graphics", "[setting value]", "show or change graphics settings" => options::gfx(args, ctx.settings, ctx.visuals);
-    "time", "[set|length]", "show or set the day/night clock" => options::time(args, ctx.sky);
     "walkspeed", "[n]", "show or set ground walk speed" => travel::walkspeed(args, ctx.player);
     "flyspeed", "[n]", "show or set flying speed" => travel::flyspeed(args, ctx.player);
     "cruise", "[km/s|off]", "space travel (default 100000 km/s) with the world held still" => travel::cruise(args, ctx.player, ctx.world);
-    "mute", "", "toggle master mute (this session)" => options::mute(ctx.settings);
-    "deafen", "", "toggle hearing incoming voice" => options::deafen(ctx.settings);
-    "audio" | "volume", "<chan> <0-100>", "set master/effects/voice volume" => options::audio(args, ctx.settings);
-    "voicetest", "", "play a local voice test cue" => options::voicetest(ctx);
     "gravity" | "g", "", "show the local pull of the matter around you" => inspect::gravity(ctx.player, ctx.world);
-    "help" | "?", "", "show this list" => help(ctx.commands);
-}
-
-/// `/help` — every enabled mod's commands, in install order.
-fn help(commands: &[Command]) -> Vec<Line> {
-    let mut lines = vec!["commands (a leading '/' is optional):".to_string()];
-    lines.extend(commands.iter().map(|c| {
-        let usage = if c.args.is_empty() { c.name.to_string() } else { format!("{} {}", c.name, c.args) };
-        format!("  /{usage:<20} {}", c.help)
-    }));
-    shown(lines)
 }
 
 /// Format a position the same way the on-screen coordinate readout does.

@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
-use pwc_manifest::{LockedPackage, Lockfile, ModKind, PackageId};
+use pwc_manifest::{LockedPackage, Lockfile, ModKind, PackageId, Version};
 use toml::{Table, Value};
 
 use crate::source::{API_DIR, PwcSourceInfo, RUNTIME_PACKAGE};
@@ -26,6 +26,10 @@ const RESERVED_CRATE_NAMES: &[&str] = &[
 
 /// The lock file name inside the generated workspace; written only when absent (Cargo owns it).
 pub(crate) const CARGO_LOCK: &str = "Cargo.lock";
+
+/// The first `pwc-mod-api` with `PackageInfo` and `GameBuild::from_static`. Older PWC sources
+/// get the 2.x bundle, which lists only the mods (`GameBuild::with_mod`).
+pub(crate) const PACKAGE_INFO_API: Version = Version::new(2, 2, 0);
 
 /// One package that gets a crate (`kind = "mod"` or `"library"`).
 struct CratePlan<'a> {
@@ -135,7 +139,8 @@ pub(crate) fn generate(request: &BuildRequest) -> Result<GeneratedWorkspace, Bui
     }
 
     let mods: Vec<&LockedPackage> = order
-        .into_iter()
+        .iter()
+        .copied()
         .filter(|p| p.kind == ModKind::Mod)
         .collect();
     let mod_crates: Vec<&str> = mods.iter().map(|p| crate_names[&p.id].as_str()).collect();
@@ -143,15 +148,30 @@ pub(crate) fn generate(request: &BuildRequest) -> Result<GeneratedWorkspace, Bui
         "bundle/Cargo.toml".to_owned(),
         bundle_manifest(api_path, &mod_crates),
     );
-    let mut descriptors = Vec::new();
-    for &package in &mods {
-        let name = &request.packages[&package.id].1.package.name;
-        descriptors.push((package, name.as_str(), crate_names[&package.id].as_str()));
-    }
-    files.insert(
-        "bundle/src/lib.rs".to_owned(),
-        bundle_lib(&lock.environment, &descriptors),
-    );
+    let lib = if lock.pwc.api >= PACKAGE_INFO_API {
+        let entries: Vec<PackageEntry<'_>> = order
+            .iter()
+            .map(|&package| {
+                let meta = &request.packages[&package.id].1.package;
+                PackageEntry {
+                    package,
+                    name: &meta.name,
+                    description: &meta.description,
+                    entry: (package.kind == ModKind::Mod)
+                        .then(|| crate_names[&package.id].as_str()),
+                }
+            })
+            .collect();
+        bundle_lib(&lock.environment, &entries)
+    } else {
+        let mut descriptors = Vec::new();
+        for &package in &mods {
+            let name = &request.packages[&package.id].1.package.name;
+            descriptors.push((package, name.as_str(), crate_names[&package.id].as_str()));
+        }
+        bundle_lib_2x(&lock.environment, &descriptors)
+    };
+    files.insert("bundle/src/lib.rs".to_owned(), lib);
     files.insert(
         "instance/Cargo.toml".to_owned(),
         instance_manifest(pwc_path),
@@ -345,7 +365,61 @@ fn bundle_manifest(api_path: &str, mod_crates: &[&str]) -> String {
     s
 }
 
-fn bundle_lib(environment: &str, mods: &[(&LockedPackage, &str, &str)]) -> String {
+/// One `PackageInfo` of the generated bundle.
+struct PackageEntry<'a> {
+    package: &'a LockedPackage,
+    /// `name` from the package's `mod.toml`.
+    name: &'a str,
+    /// `description` from the package's `mod.toml`.
+    description: &'a str,
+    /// The crate whose `register` is the entry point: `kind = "mod"` packages only.
+    entry: Option<&'a str>,
+}
+
+/// `bundle/src/lib.rs`: one `PackageInfo` per lock package of every kind, in registration order.
+fn bundle_lib(environment: &str, packages: &[PackageEntry<'_>]) -> String {
+    let mut s = format!(
+        "//! {HEADER}\n\n/// The environment hash of the lock this bundle was generated from.\npub const ENVIRONMENT: &str = {};\n\n/// Every package of the lock, of every kind: dependencies before dependents, ties by id.\npub static PACKAGES: &[pwc_mod_api::PackageInfo] = &[",
+        rust_str(environment)
+    );
+    for entry in packages {
+        let p = entry.package;
+        let deps: BTreeSet<&str> = p.dependencies.iter().map(PackageId::as_str).collect();
+        let deps: Vec<String> = deps.into_iter().map(rust_str).collect();
+        let register = match entry.entry {
+            Some(crate_name) => format!("Some({crate_name}::register)"),
+            None => "None".to_owned(),
+        };
+        let _ = write!(
+            s,
+            "\n    pwc_mod_api::PackageInfo {{\n        id: {}, name: {}, version: {},\n        description: {},\n        kind: pwc_mod_api::PackageKind::{},\n        dependencies: &[{}],\n        register: {register},\n    }},",
+            rust_str(p.id.as_str()),
+            rust_str(entry.name),
+            rust_str(&p.version.to_string()),
+            rust_str(entry.description),
+            kind_variant(p.kind),
+            deps.join(", "),
+        );
+    }
+    if !packages.is_empty() {
+        s.push('\n');
+    }
+    s.push_str("];\n\n/// The game build: [`PACKAGES`] and [`ENVIRONMENT`].\npub fn game_build() -> pwc_mod_api::GameBuild {\n    pwc_mod_api::GameBuild::from_static(ENVIRONMENT, PACKAGES)\n}\n");
+    s
+}
+
+/// The `pwc_mod_api::PackageKind` variant for a manifest kind.
+fn kind_variant(kind: ModKind) -> &'static str {
+    match kind {
+        ModKind::Mod => "Mod",
+        ModKind::Library => "Library",
+        ModKind::Bundle => "Bundle",
+    }
+}
+
+/// `bundle/src/lib.rs` for a PWC source older than [`PACKAGE_INFO_API`]: only the
+/// `kind = "mod"` packages, as `ModDescriptor`s.
+fn bundle_lib_2x(environment: &str, mods: &[(&LockedPackage, &str, &str)]) -> String {
     let mut s = format!(
         "//! {HEADER}\n\n/// The environment hash of the lock this bundle was generated from.\npub const ENVIRONMENT: &str = {};\n\n/// The game build: every `kind = \"mod\"` package, dependencies before dependents, ties by id.\npub fn game_build() -> pwc_mod_api::GameBuild {{\n    pwc_mod_api::GameBuild::new()\n        .with_environment(ENVIRONMENT)",
         rust_str(environment)

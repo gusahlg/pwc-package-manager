@@ -21,7 +21,7 @@ use pwc_mod_api::inventory::Inventory;
 use pwc_mod_api::player::Player;
 use pwc_mod_api::ui::{visible_window, Anchor, HudElement, Panel, Role, Row, PANEL_FONT};
 use pwc_mod_api::world::World;
-use pwc_mod_api::{Action, Mod, ModContext, ModRegistrar, ESSENTIALS};
+use pwc_mod_api::{Action, HudFacts, Mod, ModContext, ModRegistrar, ESSENTIALS};
 
 const TOGGLE: &[Chord] = &[Chord::key(Key::I)];
 const ACTIONS: &[Action] = &[Action {
@@ -30,6 +30,7 @@ const ACTIONS: &[Action] = &[Action {
     default: TOGGLE,
     repeat: false,
     held: false,
+    immediate: false,
 }];
 
 /// How long the "elements lost" warning stays on screen after the last overflowing break.
@@ -43,7 +44,7 @@ const PANEL_WIDTH: i32 = 420;
 const PANEL_PAD: i32 = 8;
 const FONT_SIZE: i32 = 18;
 const LINE_HEIGHT: i32 = FONT_SIZE + 4;
-/// The console scrollback and the hotbar occupy the bottom of the screen.
+/// The chat scrollback and the hotbar occupy the bottom of the screen.
 const BOTTOM_RESERVE: i32 = 260;
 
 /// The package entry point: installs the inventory over the hotbar's shared handles. `pwc.hotbar`
@@ -260,7 +261,12 @@ impl Mod for InventoryMod {
         }
     }
 
-    fn hud(&self, world: &World, player: &Player, (screen_w, screen_h): (i32, i32), out: &mut Vec<HudElement>) {
+    fn hud(&self, facts: &HudFacts, world: &World, player: &Player, out: &mut Vec<HudElement>) {
+        // Gameplay UI: every HUD mode but Off.
+        if !facts.hud_mode.shows_mod_hud() {
+            return;
+        }
+        let (screen_w, screen_h) = facts.screen;
         let overflow = self.loss.showing();
         let visible = self.visible();
         let bar = self.bar.get();
@@ -343,8 +349,13 @@ mod tests {
         assert!(armed.elapsed() <= OVERFLOW_WARNING);
         assert!(inventory.loss.showing());
         let mut shown = Vec::new();
-        inventory.hud(&world, &Player::new(DVec3::new(0.0, 70.0, 0.0)), (800, 600), &mut shown);
+        inventory.hud(&HudFacts::new((800, 600)), &world, &Player::new(DVec3::new(0.0, 70.0, 0.0)), &mut shown);
         assert_eq!(hud_text(&shown), "Inventory full - elements lost!\n", "the closed panel still warns");
+        let mut off = HudFacts::new((800, 600));
+        off.hud_mode = pwc_mod_api::ui::HudMode::Off;
+        let mut hidden = Vec::new();
+        inventory.hud(&off, &world, &Player::new(DVec3::new(0.0, 70.0, 0.0)), &mut hidden);
+        assert!(hidden.is_empty(), "the HUD off hides the warning too");
         inventory.reset();
         assert!(inventory.loss.raised.is_none(), "reset must clear the warning");
     }
@@ -489,7 +500,7 @@ mod tests {
         let inv = inventory();
         inv.set_visible(true);
         let mut shown = Vec::new();
-        inv.hud(&world, &player, (800, 600), &mut shown);
+        inv.hud(&HudFacts::new((800, 600)), &world, &player, &mut shown);
         let text = hud_text(&shown);
         assert!(text.contains(&format!("2x {}", world.registry().display_name(rock))), "{text}");
         assert!(!text.contains("rock"), "labels never reach the player: {text}");

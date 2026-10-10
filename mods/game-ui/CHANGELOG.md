@@ -1,5 +1,13 @@
 # Changelog — pwc.game-ui
 
+## 2.0.0
+
+- The information HUD the core used to draw: the reticle, "Loading world…"/"Loading terrain…", the
+  coordinates (with the cruise speed), the frame rate, the player count and ping on a server, and
+  the "connection interrupted" banner, with the same layout, text and HUD modes. The core draws no
+  HUD text any more.
+- Requires `pwc-api ^2.2` (`HudFacts`). The facing indicator is unchanged and hides with the HUD off.
+
 ## 1.0.1
 
 - Requires `pwc-api ^2.0`. Behaviour unchanged.

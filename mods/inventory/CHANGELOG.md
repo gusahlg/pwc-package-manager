@@ -1,5 +1,11 @@
 # Changelog — pwc.inventory
 
+## 2.1.0
+
+- Requires `pwc-api ^2.2`. `hud` takes the core's `HudFacts`: the panel and the warning hide with
+  the HUD off (the core now asks every mod in every HUD mode). `inventory.toggle` names
+  `immediate: false`.
+
 ## 2.0.1
 
 - Requires `pwc-api ^2.1`. `inventory.toggle` names `held: false`. Behaviour unchanged.

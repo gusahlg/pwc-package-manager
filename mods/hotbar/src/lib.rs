@@ -26,7 +26,7 @@ use pwc_mod_api::input::intent::{Chord, Source};
 use pwc_mod_api::player::Player;
 use pwc_mod_api::ui::{Anchor, HudElement, Role};
 use pwc_mod_api::world::World;
-use pwc_mod_api::{Action, Mod, ModContext, ModRegistrar, ToolUse, ESSENTIALS};
+use pwc_mod_api::{Action, HudFacts, Mod, ModContext, ModRegistrar, ToolUse, ESSENTIALS};
 
 /// Material slots (keys 1-9); slot 0 is the bare hand.
 pub const SLOTS: usize = 9;
@@ -63,18 +63,18 @@ const NEXT_CHORD: &[Chord] = &[Chord::bare(Source::WheelDown)];
 const PREV_CHORD: &[Chord] = &[Chord::bare(Source::WheelUp)];
 
 const ACTIONS: &[Action] = &[
-    Action { id: HAND_ID, label: "Hand", default: HAND_CHORD, repeat: false, held: false },
-    Action { id: SLOT_IDS[0], label: "Slot 1", default: SLOT_CHORDS[0], repeat: false, held: false },
-    Action { id: SLOT_IDS[1], label: "Slot 2", default: SLOT_CHORDS[1], repeat: false, held: false },
-    Action { id: SLOT_IDS[2], label: "Slot 3", default: SLOT_CHORDS[2], repeat: false, held: false },
-    Action { id: SLOT_IDS[3], label: "Slot 4", default: SLOT_CHORDS[3], repeat: false, held: false },
-    Action { id: SLOT_IDS[4], label: "Slot 5", default: SLOT_CHORDS[4], repeat: false, held: false },
-    Action { id: SLOT_IDS[5], label: "Slot 6", default: SLOT_CHORDS[5], repeat: false, held: false },
-    Action { id: SLOT_IDS[6], label: "Slot 7", default: SLOT_CHORDS[6], repeat: false, held: false },
-    Action { id: SLOT_IDS[7], label: "Slot 8", default: SLOT_CHORDS[7], repeat: false, held: false },
-    Action { id: SLOT_IDS[8], label: "Slot 9", default: SLOT_CHORDS[8], repeat: false, held: false },
-    Action { id: NEXT_ID, label: "Next", default: NEXT_CHORD, repeat: false, held: false },
-    Action { id: PREV_ID, label: "Previous", default: PREV_CHORD, repeat: false, held: false },
+    Action { id: HAND_ID, label: "Hand", default: HAND_CHORD, repeat: false, held: false, immediate: false },
+    Action { id: SLOT_IDS[0], label: "Slot 1", default: SLOT_CHORDS[0], repeat: false, held: false, immediate: false },
+    Action { id: SLOT_IDS[1], label: "Slot 2", default: SLOT_CHORDS[1], repeat: false, held: false, immediate: false },
+    Action { id: SLOT_IDS[2], label: "Slot 3", default: SLOT_CHORDS[2], repeat: false, held: false, immediate: false },
+    Action { id: SLOT_IDS[3], label: "Slot 4", default: SLOT_CHORDS[3], repeat: false, held: false, immediate: false },
+    Action { id: SLOT_IDS[4], label: "Slot 5", default: SLOT_CHORDS[4], repeat: false, held: false, immediate: false },
+    Action { id: SLOT_IDS[5], label: "Slot 6", default: SLOT_CHORDS[5], repeat: false, held: false, immediate: false },
+    Action { id: SLOT_IDS[6], label: "Slot 7", default: SLOT_CHORDS[6], repeat: false, held: false, immediate: false },
+    Action { id: SLOT_IDS[7], label: "Slot 8", default: SLOT_CHORDS[7], repeat: false, held: false, immediate: false },
+    Action { id: SLOT_IDS[8], label: "Slot 9", default: SLOT_CHORDS[8], repeat: false, held: false, immediate: false },
+    Action { id: NEXT_ID, label: "Next", default: NEXT_CHORD, repeat: false, held: false, immediate: false },
+    Action { id: PREV_ID, label: "Previous", default: PREV_CHORD, repeat: false, held: false, immediate: false },
 ];
 
 /// The hotbar's state, shared with the inventory (which equips into it).
@@ -455,7 +455,12 @@ impl Mod for HotbarMod {
         });
     }
 
-    fn hud(&self, world: &World, player: &Player, screen: (i32, i32), out: &mut Vec<HudElement>) {
+    fn hud(&self, facts: &HudFacts, world: &World, player: &Player, out: &mut Vec<HudElement>) {
+        // Gameplay UI: every HUD mode but Off.
+        if !facts.hud_mode.shows_mod_hud() {
+            return;
+        }
+        let screen = facts.screen;
         let state = self.bar.get();
         let note_gen = self.live_note_gen();
         // Names arrive a frame after a configuration is interned: key on the table size too.
@@ -702,12 +707,28 @@ mod tests {
         assert_eq!(mods.tool(&player), Some(b), "selection 3 is the second saved slot");
     }
 
+    /// The core asks every mod in every HUD mode: the bar shows in Full and Minimal, not Off.
+    #[test]
+    fn the_bar_hides_with_the_hud_off() {
+        let (m, _ui, world, player, _, _) = setup();
+        let shown = |mode| {
+            let mut facts = HudFacts::new((1280, 720));
+            facts.hud_mode = mode;
+            let mut out = Vec::new();
+            m.hud(&facts, &world, &player, &mut out);
+            out.len()
+        };
+        use pwc_mod_api::ui::HudMode;
+        assert!(shown(HudMode::Full) > 0 && shown(HudMode::Minimal) > 0);
+        assert_eq!(shown(HudMode::Off), 0);
+    }
+
     #[test]
     fn a_tool_note_is_a_label_above_the_bar() {
         let (mut m, _ui, world, player, _, _) = setup();
         m.on_tool_used(ToolUse::NoReaction);
         let mut out = Vec::new();
-        m.hud(&world, &player, (1280, 720), &mut out);
+        m.hud(&HudFacts::new((1280, 720)), &world, &player, &mut out);
         assert!(out.iter().any(|el| matches!(
             el,
             HudElement::Label { text, at: Anchor::Bottom, off: (0, -112), base_fs: 18, role: Role::Muted, .. } if &**text == "no reaction"

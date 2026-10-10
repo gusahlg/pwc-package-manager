@@ -1,5 +1,9 @@
 # Changelog — pwc.proximity-chat
 
+## 1.1.0
+
+- Requires `pwc-api ^2.2`. `voice.talk` names `immediate: false`. Behaviour unchanged.
+
 ## 1.0.0
 
 - Mod id `proximity_chat`, in the Essentials group, enabled by default. Requires `pwc-api ^2.1`.

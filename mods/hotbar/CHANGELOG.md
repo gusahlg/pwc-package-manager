@@ -1,5 +1,10 @@
 # Changelog — pwc.hotbar
 
+## 2.1.0
+
+- Requires `pwc-api ^2.2`. `hud` takes the core's `HudFacts`: the bar hides with the HUD off (the
+  core now asks every mod in every HUD mode). Each action names `immediate: false`.
+
 ## 2.0.1
 
 - Requires `pwc-api ^2.1`. Each action names `held: false`. Behaviour unchanged.

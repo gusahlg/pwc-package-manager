@@ -508,11 +508,12 @@ impl Mod for HotbarMod {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pwc_mod_api::testing::Harness;
     use pwc_mod_api::engine::DVec3;
     use pwc_mod_api::material::{Configuration, Element};
     use pwc_mod_api::render_config::RenderConfig;
     use pwc_mod_api::world::generation::WorldgenKind;
-    use pwc_mod_api::{GameBuild, ModDescriptor, Mods};
+    use pwc_mod_api::{GameBuild, ModDescriptor};
 
     fn setup() -> (HotbarMod, ItemUiHandle, World, Player, BlockId, BlockId) {
         let ui = ItemUiHandle::new();
@@ -531,8 +532,8 @@ mod tests {
     const PACKAGE: ModDescriptor = ModDescriptor { id: "pwc.hotbar", name: "Hotbar", version: "2.0.0", register };
 
     /// This package alone, registered the way a PWC build registers it.
-    fn build() -> Mods {
-        GameBuild::new().with_mod(PACKAGE).mods()
+    fn build() -> Harness {
+        Harness::new(GameBuild::new().with_mod(PACKAGE))
     }
 
     #[test]
@@ -630,10 +631,9 @@ mod tests {
             ui.set_inventory_visible(true);
             bar.update(|s| s.selected = 4);
         }
-        let mods = GameBuild::new()
+        let mods = Harness::new(GameBuild::new()
             .with_mod(PACKAGE)
-            .with_mod(ModDescriptor { id: "test.consumer", name: "Consumer", version: "1.0.0", register: consumer })
-            .mods();
+            .with_mod(ModDescriptor { id: "test.consumer", name: "Consumer", version: "1.0.0", register: consumer }));
         assert_eq!(mods.len(), 1);
         assert_eq!((mods.id(0), mods.name(0)), ("hotbar", "Hotbar"), "the name old saves used");
         assert_eq!(mods.package(0), Some("pwc.hotbar"));

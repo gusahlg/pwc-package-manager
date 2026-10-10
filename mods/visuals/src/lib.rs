@@ -60,13 +60,13 @@ visual_mod!(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pwc_mod_api::testing::Harness;
     use pwc_mod_api::settings::Settings;
-    use pwc_mod_api::{GameBuild, ModDescriptor, Mods, VisualMask};
+    use pwc_mod_api::{GameBuild, ModDescriptor, VisualMask};
 
-    fn build() -> Mods {
-        GameBuild::new()
-            .with_mod(ModDescriptor { id: "pwc.visuals", name: "Visuals", version: "1.0.0", register })
-            .mods()
+    fn build() -> Harness {
+        Harness::new(GameBuild::new()
+            .with_mod(ModDescriptor { id: "pwc.visuals", name: "Visuals", version: "1.0.0", register }))
     }
 
     #[test]
@@ -87,7 +87,7 @@ mod tests {
     #[test]
     fn a_suspended_package_strips_every_group_it_provides() {
         let mut mods = build();
-        mods.suspend_packages(&["pwc.visuals".to_string()]);
+        mods.suspend(&["pwc.visuals"]);
         let settings = Settings::default();
         let stripped = mods.effective_render(&settings);
         assert!(!stripped.clouds && !stripped.bloom && !stripped.shadows);
@@ -95,7 +95,7 @@ mod tests {
         assert!(mods.visual_mask().strips("bloom") && !mods.visual_mask().strips("sunlight"));
         let full = build().effective_render(&settings);
         assert_eq!((full.clouds, full.bloom, full.shadows), (settings.clouds, settings.bloom, settings.shadows));
-        mods.resume_packages();
+        mods.resume();
         assert_eq!(mods.visual_mask(), VisualMask::ALL);
     }
 }

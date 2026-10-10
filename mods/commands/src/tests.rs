@@ -10,6 +10,7 @@ use pwc_mod_api::render_config::VrsChoice;
 use pwc_mod_api::settings::{Settings, DEFAULT_AUTO_RENDER_SCALE};
 use pwc_mod_api::sky::Sky;
 use pwc_mod_api::world::World;
+use pwc_mod_api::testing::Harness;
 use pwc_mod_api::{GameBuild, PackageInfo, PackageKind, TextFrame, VisualMask};
 
 use crate::options::time;
@@ -72,7 +73,7 @@ fn offered(commands: &CommandsHandle, env: &mut Env, networked: bool, line: &str
 }
 
 const HELP_TEXT: &str = "commands (a leading '/' is optional):\n  \
-     /gfx [setting value]  show or change graphics settings\n  \
+     /set [key [value]]    show or change settings and options\n  \
      /time [set|length]    show or set the day/night clock\n  \
      /mute                 toggle master mute (this session)\n  \
      /deafen               toggle hearing incoming voice\n  \
@@ -165,82 +166,112 @@ fn tab_completes_command_names() {
     assert!(matches!(commands.complete("/zzz"), Completion::None));
     assert!(matches!(commands.complete("/tp 1"), Completion::None), "no completion after a space");
     assert!(matches!(commands.complete("/graph"), Completion::None), "aliases are not completed");
+    match commands.complete("/s") {
+        Completion::Full(s) => assert_eq!(s, "/set "),
+        _ => panic!("one match"),
+    }
 }
 
 #[test]
-fn gfx_updates_settings_with_clamping() {
+fn set_updates_core_settings_with_clamping_by_key_or_alias() {
     let mut s = Settings::default();
-    for line in ["gfx msaa 4", "gfx fps 144"] {
+    for line in ["set msaa 4", "set fps 144"] {
         run_settings(line, &mut s);
     }
     assert_eq!((s.msaa, s.max_fps), (4, 144));
-    run_settings("gfx fps off", &mut s);
+    run_settings("set fps off", &mut s);
     assert_eq!(s.max_fps, 0);
-    run_settings("gfx renderdist 99", &mut s);
+    assert_eq!(joined(&run_settings("set renderdist 99", &mut s)), "render_distance = 20", "clamped, shown by its key");
     assert_eq!(s.render_distance, 20);
-    run_settings("gfx fullscreen on", &mut s);
+    run_settings("set fullscreen on", &mut s);
     assert!(s.fullscreen);
-    run_settings("gfx lighting off", &mut s);
+    run_settings("set lighting off", &mut s);
     assert!(!s.lighting);
-    run_settings("gfx vrs on", &mut s);
+    run_settings("set vrs on", &mut s);
     assert_eq!(s.vrs, VrsChoice::On);
-    run_settings("graphics vrs auto", &mut s);
-    assert_eq!(s.vrs, VrsChoice::Auto);
-    let text = joined(&run_settings("gfx", &mut s));
-    assert!(text.contains("fullscreen on"));
-    assert!(text.contains("lighting off"));
-    assert!(text.contains("vrs auto"));
-    assert!(text.contains("ui scale"));
+    run_settings("gfx vrs auto", &mut s);
+    assert_eq!(s.vrs, VrsChoice::Auto, "/gfx is an alias");
+    assert_eq!(joined(&run_settings("set fov", &mut s)), "fov = 90", "one key, shown");
+    let text = joined(&run_settings("set", &mut s));
+    assert!(text.starts_with("settings (/set <key> <value>):"), "{text}");
+    assert!(text.contains("  fullscreen = On") && text.contains("  lighting = Off") && text.contains("  vrs = Auto"), "{text}");
+    assert!(text.contains("  ui_scale = 100%"), "{text}");
+}
+
+/// Package options sit beside the core's settings, by `<package>.<key>`, with their range in the
+/// usage line; a change reaches the options the core keeps.
+#[test]
+fn set_reaches_package_options_through_the_same_view() {
+    use pwc_mod_api::settings::{Category, OptionSpec, Options};
+    let mut options = Options::new();
+    let relief = options.declare(
+        "pwc.infinite-diffusion",
+        OptionSpec::percent("relief", "Terrain Relief", Category::World, (25, 200, 25), 100).next_world(),
+    );
+    let style = options.declare("pwc.material-names", OptionSpec::choice("style", "Material Names", Category::Interface, &["Mineral", "Arcane"], 0));
+    let commands = builtins();
+    let mut env = Env::new();
+    let mut game = env.game().with_options(&mut options);
+    let list = joined(&commands.run("set", &mut game).unwrap());
+    assert!(list.contains("  pwc.infinite-diffusion.relief = 100% (next new world)"), "{list}");
+    assert!(list.find("  msaa = ").unwrap() < list.find("  pwc.infinite-diffusion.relief").unwrap(), "core settings first");
+    assert_eq!(joined(&commands.run("set pwc.infinite-diffusion.relief 150", &mut game).unwrap()), "pwc.infinite-diffusion.relief = 150% (next new world)");
+    assert!(game.settings_changed(), "the core applies and saves it");
+    assert_eq!(joined(&commands.run("set pwc.material-names.style arcane", &mut game).unwrap()), "pwc.material-names.style = Arcane");
+    let bad = commands.run("set pwc.infinite-diffusion.relief lots", &mut game).unwrap();
+    assert_eq!((joined(&bad), role(&bad)), ("usage: /set pwc.infinite-diffusion.relief 25-200% (steps of 25)".to_string(), Role::Danger));
+    drop(game);
+    assert_eq!((options.int(relief), options.choice(style)), (150, 1));
 }
 
 /// A changed value marks the settings for the core to apply and save; a listing does not.
 #[test]
-fn gfx_marks_the_settings_only_when_a_value_changes() {
+fn set_marks_the_settings_only_when_a_value_changes() {
     let commands = builtins();
     let mut env = Env::new();
     let mut game = env.game();
-    commands.run("gfx", &mut game);
+    commands.run("set", &mut game);
+    commands.run("set msaa", &mut game);
     assert!(!game.settings_changed());
-    commands.run("gfx msaa lots", &mut game);
+    commands.run("set msaa lots", &mut game);
     assert!(!game.settings_changed(), "a bad value changes nothing");
-    commands.run("gfx msaa 4", &mut game);
+    commands.run("set msaa 4", &mut game);
     assert!(game.settings_changed());
 }
 
 #[test]
-fn gfx_lists_default_auto_render_scale() {
+fn set_lists_default_auto_render_scale() {
     let mut s = Settings::default();
     s.note_render_extent(1920, 1080, 1.0);
-    let text = joined(&run_settings("gfx", &mut s));
+    let text = joined(&run_settings("set", &mut s));
     assert!(
-        text.contains(&format!("render scale Auto ({:.1})", DEFAULT_AUTO_RENDER_SCALE)),
-        "Default /gfx prints the effective Auto scale: {text}"
+        text.contains(&format!("render_scale = Auto ({:.1})", DEFAULT_AUTO_RENDER_SCALE)),
+        "Default /set prints the effective Auto scale: {text}"
     );
 }
 
 #[test]
-fn gfx_lists_effective_visual_lanes_when_a_mod_strips_them() {
+fn set_marks_the_lanes_no_installed_package_provides() {
     let commands = builtins();
     let mut env = Env::new();
     let mut game = env.game();
     game.visuals = VisualMask { atmosphere: true, post: false, lighting: true };
-    let text = joined(&commands.run("gfx", &mut game).unwrap());
-    assert!(text.contains(&format!("bloom on {UNAVAILABLE}")), "effective /gfx must mark the stripped lane: {text}");
+    let text = joined(&commands.run("set", &mut game).unwrap());
+    assert!(text.contains(&format!("bloom = On {UNAVAILABLE}")), "the listing marks the stripped lane: {text}");
     assert_eq!(UNAVAILABLE, "(unavailable in this build)", "the marker names no package");
-    assert!(!text.contains(&format!("shadows on {UNAVAILABLE}")), "Lighting is still provided: {text}");
-    let set = joined(&commands.run("gfx bloom off", &mut game).unwrap());
-    assert!(set.contains(&format!("bloom off {UNAVAILABLE}")), "a set confirmation must also show the strip: {set}");
+    assert!(!text.contains(&format!("shadows = Off {UNAVAILABLE}")), "Lighting is still provided: {text}");
+    let set = joined(&commands.run("set bloom off", &mut game).unwrap());
+    assert_eq!(set, format!("bloom = Off {UNAVAILABLE}"), "a change shows the strip too");
 }
 
 #[test]
-fn gfx_bad_input_prints_usage_and_changes_nothing() {
+fn set_bad_input_prints_usage_or_the_unknown_hint_and_changes_nothing() {
     let mut s = Settings::default();
     let before = s.clone();
-    let out = run_settings("gfx msaa lots", &mut s);
-    assert!(out[0].text().contains("usage"));
-    let text = joined(&out);
-    assert!(text.contains("lighting on|off"));
-    assert!(text.contains("uiscale <50-200>"));
+    let out = run_settings("set msaa lots", &mut s);
+    assert_eq!((joined(&out), role(&out)), ("usage: /set msaa 1|2|4|8".to_string(), Role::Danger));
+    let out = run_settings("set wobble 3", &mut s);
+    assert_eq!(joined(&out), "unknown setting 'wobble' - type '/set' to list them");
     assert_eq!(role(&out), Role::Danger);
     assert_eq!(s, before);
 }
@@ -327,10 +358,10 @@ fn slash_opens_the_chat_and_a_command_runs_through_it() {
         PackageInfo { id: "pwc.chat", name: "Chat", version: "1.0.0", description: "", kind: PackageKind::Mod, dependencies: &[], register: Some(pwc_chat::register) },
         PackageInfo { id: "pwc.commands", name: "Commands", version: "1.0.0", description: "", kind: PackageKind::Mod, dependencies: &["pwc.chat"], register: Some(register) },
     ];
-    let mut mods = GameBuild::from_static("sha256:00", PACKAGES).mods();
+    let mut mods = Harness::new(GameBuild::from_static("sha256:00", PACKAGES));
     assert_eq!((mods.len(), mods.id(0), mods.id(1)), (2, "chat", "commands"));
     let mut env = Env::new();
-    let mut frame = |mods: &mut pwc_mod_api::Mods, action: Option<&'static str>, text: Option<TextFrame<'_>>| {
+    let mut frame = |mods: &mut Harness, action: Option<&'static str>, text: Option<TextFrame<'_>>| {
         let mut ctx = FrameContext::new(env.game());
         if let Some(action) = action {
             ctx.set_action(action);
@@ -338,7 +369,7 @@ fn slash_opens_the_chat_and_a_command_runs_through_it() {
         if let Some(text) = text {
             ctx.set_text(text);
         }
-        mods.on_frame(&mut ctx);
+        mods.frame(&mut ctx);
     };
     frame(&mut mods, Some(OPEN), None);
     assert!(!mods.text_captured(), "the chat opens on its next frame");

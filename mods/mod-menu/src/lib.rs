@@ -128,6 +128,7 @@ impl Menu for ModsMenu {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pwc_mod_api::testing::Harness;
     use pwc_mod_api::{GameBuild, ModDescriptor};
     use pwc_ui_kit::testing::Fixture;
     use pwc_ui_kit::RowKind;
@@ -165,9 +166,8 @@ mod tests {
 
     #[test]
     fn the_package_offers_mods_on_the_main_menu_and_the_pause_screen() {
-        let mods = GameBuild::new()
-            .with_mod(ModDescriptor { id: "pwc.mod-menu", name: "Mod menu", version: "1.0.0", register })
-            .mods();
+        let mods = Harness::new(GameBuild::new()
+            .with_mod(ModDescriptor { id: "pwc.mod-menu", name: "Mod menu", version: "1.0.0", register }));
         let entries = mods.screen_entries();
         assert_eq!((entries.len(), entries[0].label, entries[0].places), (1, "Mods", Places::BOTH));
     }

@@ -1,13 +1,12 @@
 # Changelog — pwc.inventory
 
-## 2.1.0 (unreleased)
+## 2.1.0
 
-- Requires `pwc-api ^2.2`. `hud` takes the core's `HudFacts`: the panel and the warning hide with
+- Requires `pwc-api ^3.0`. `hud` takes the core's `HudFacts`: the panel and the warning hide with
   the HUD off (the core now asks every mod in every HUD mode). `inventory.toggle` names
   `immediate: false`.
 - No description or group of its own: the package manifest is what menus show. Mods are no longer
   switched in the game; the build decides what is in.
-
 
 ## 2.0.1
 

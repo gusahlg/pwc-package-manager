@@ -276,10 +276,13 @@ impl<M: Menu> Framed<M> {
         }
     }
 
-    /// Draw with `theme` (what [`Screen::draw`] does with the default theme).
+    /// Draw with `theme` (what [`Screen::draw`] does with the default theme). In a world the page
+    /// dims the world behind it instead of hiding it.
     pub fn draw_with(&self, theme: &dyn MenuTheme, ctx: &ScreenContext, out: &mut Vec<UiElement>, size: (i32, i32)) {
         let (view, sel) = self.view_sel(ctx);
-        theme.draw(out, present(view, ctx.settings().menu_scale), sel, size.0, size.1);
+        let mut page = present(view, ctx.settings().menu_scale);
+        page.over_world = ctx.facts.in_world;
+        theme.draw(out, page, sel, size.0, size.1);
     }
 }
 

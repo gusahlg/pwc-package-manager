@@ -23,10 +23,7 @@ use pwc_mod_api::input::intent::{Chord, EditKey};
 use pwc_mod_api::player::Player;
 use pwc_mod_api::ui::{Anchor, HudElement, HudMode, Line, Role};
 use pwc_mod_api::world::World;
-use pwc_mod_api::{
-    Action, Channel, FrameContext, GameContext, HudFacts, Message, Mod, ModRegistrar, NoticeLevel,
-};
-
+use pwc_mod_api::{Action, Channel, FrameContext, GameContext, HudFacts, Message, Mod, ModRegistrar, NoticeLevel};
 
 pub use pwc_ui_kit::{common_prefix, Completion};
 use pwc_ui_kit::{Ring, TextInput};

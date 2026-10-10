@@ -4,6 +4,7 @@ use super::*;
 use pwc_mod_api::engine::DVec3;
 use pwc_mod_api::settings::Settings;
 use pwc_mod_api::sky::Sky;
+use pwc_mod_api::testing::Harness;
 use pwc_mod_api::{GameBuild, Notice, PackageInfo, PackageKind, TextFrame};
 
 /// The game state a frame hook gets.
@@ -278,20 +279,20 @@ fn register_installs_the_chat_and_provides_its_handle() {
         PackageInfo { id: "pwc.chat", name: "Chat", version: "1.0.0", description: "", kind: PackageKind::Mod, dependencies: &[], register: Some(register) },
         PackageInfo { id: "test.user", name: "User", version: "1.0.0", description: "", kind: PackageKind::Mod, dependencies: &["pwc.chat"], register: Some(keep_handle) },
     ];
-    let mut mods = GameBuild::from_static("sha256:00", PACKAGES).mods();
+    let mut mods = Harness::new(GameBuild::from_static("sha256:00", PACKAGES));
     assert_eq!((mods.len(), mods.id(0)), (1, "chat"));
     let handle = HANDLE.with(|h| h.borrow_mut().take()).expect("the dependent got the handle");
     let mut env = Env::new();
     env.frame(false, |ctx| {
         ctx.set_action(OPEN);
-        mods.on_frame(ctx);
+        mods.frame(ctx);
     });
     assert!(mods.text_captured(), "the chat holds the keyboard");
     env.frame(false, |ctx| {
         ctx.set_text(TextFrame { chars: &[], edit: None, escape: true });
-        mods.on_frame(ctx);
+        mods.frame(ctx);
     });
     assert!(!mods.text_captured(), "Escape gave it back");
     handle.print(Line::of(Role::Dim, "printed"));
-    assert!(mods.on_message(&Message::Joined { name: "ada" }), "the chat shows messages");
+    assert!(mods.message(&Message::Joined { name: "ada" }), "the chat shows messages");
 }

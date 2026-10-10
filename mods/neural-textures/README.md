@@ -37,7 +37,7 @@ Changing one repaints every texture (the appearance revision changes).
 
 ## Dependencies
 
-None besides the PWC mod API (`pwc-api ^2.0`).
+None besides the PWC mod API (`pwc-api ^3.0`).
 
 ## Compatibility
 
@@ -46,8 +46,8 @@ None besides the PWC mod API (`pwc-api ^2.0`).
 - Presentation only: textures never feed back into the law, world generation, saves or the network.
 - The game paints a texture once per configuration (and again only when an option changes), never
   per frame.
-- The mod id is unchanged from the mod that shipped inside PWC 2.0. Values saved in `mods.cfg` are
-  not carried over: both options start at 1.0.
+- The mod id is unchanged from the mod that shipped inside PWC 2.0. The values an older game saved
+  in `mods.cfg` are read once, the first time this game loads its settings.
 
 ## Licence
 

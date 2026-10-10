@@ -1,16 +1,16 @@
 //! The start screen's pages, forms and requests, driven the way the core drives a root screen.
 
 use super::*;
+use pwc_mod_api::testing::Harness;
 use pwc_mod_api::screen::{SaveError, SaveMeta, ScreenEntry, Slot};
-use pwc_mod_api::{GameBuild, ModDescriptor, Mods};
+use pwc_mod_api::{GameBuild, ModDescriptor};
 use pwc_ui_kit::testing::Fixture;
 use pwc_ui_kit::{Dir, RowKind, TextOp};
 
 /// This package alone, registered the way a PWC build registers it.
-fn build() -> Mods {
-    GameBuild::new()
-        .with_mod(ModDescriptor { id: "pwc.start-screen", name: "Start screen", version: "2.0.0", register })
-        .mods()
+fn build() -> Harness {
+    Harness::new(GameBuild::new()
+        .with_mod(ModDescriptor { id: "pwc.start-screen", name: "Start screen", version: "2.0.0", register }))
 }
 
 fn nothing(_facts: &ScreenFacts) -> Box<dyn Screen> {
@@ -314,6 +314,6 @@ fn the_package_answers_the_root_slot_and_a_suspended_one_does_not() {
     assert_eq!(mods.package(0), Some("pwc.start-screen"));
     assert!(mods.root_screen(&f.facts()).is_some());
     assert!(mods.pause_screen(&f.facts()).is_none(), "the start screen is not a pause screen");
-    mods.suspend_packages(&["pwc.start-screen".to_string()]);
+    mods.suspend(&["pwc.start-screen"]);
     assert!(mods.root_screen(&f.facts()).is_none());
 }

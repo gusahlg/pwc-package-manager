@@ -2,6 +2,7 @@
 //! package's registration with `pwc.commands` and the flight key.
 
 use super::*;
+use pwc_mod_api::testing::Harness;
 use std::cell::RefCell;
 
 use pwc_mod_api::player::{Motion, Player, CRUISE_DEFAULT, CRUISE_MAX, MAX_SPEED};
@@ -28,12 +29,12 @@ fn provide_commands(r: &mut ModRegistrar) {
 }
 
 /// This package registered the way a PWC build registers it, after a registry it fills.
-fn build() -> (pwc_mod_api::Mods, CommandsHandle) {
+fn build() -> (Harness, CommandsHandle) {
     static PACKAGES: &[PackageInfo] = &[
         PackageInfo { id: "pwc.commands", name: "Commands", version: "1.0.0", description: "", kind: PackageKind::Mod, dependencies: &[], register: Some(provide_commands) },
         PackageInfo { id: "pwc.dev-toolkit", name: "Developer Toolkit", version: "2.0.0", description: "", kind: PackageKind::Mod, dependencies: &["pwc.commands"], register: Some(register) },
     ];
-    let mods = GameBuild::from_static("sha256:00", PACKAGES).mods();
+    let mods = Harness::new(GameBuild::from_static("sha256:00", PACKAGES));
     (mods, PROVIDED.with(|p| p.borrow_mut().take()).expect("the registry was provided"))
 }
 

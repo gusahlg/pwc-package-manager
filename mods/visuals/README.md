@@ -28,7 +28,7 @@ that refuses it suspends it for the session; neither is saved.
 
 ## Dependencies
 
-None besides the PWC mod API (`pwc-api ^2.0`).
+None besides the PWC mod API (`pwc-api ^3.0`).
 
 ## Compatibility
 

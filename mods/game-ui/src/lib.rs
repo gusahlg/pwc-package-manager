@@ -197,6 +197,7 @@ impl Facing {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pwc_mod_api::testing::Harness;
     use pwc_mod_api::engine::DVec3;
     use pwc_mod_api::ui::HudMode;
     use pwc_mod_api::{GameBuild, ModDescriptor};
@@ -384,7 +385,7 @@ mod tests {
     #[test]
     fn register_installs_game_ui() {
         let package = ModDescriptor { id: "pwc.game-ui", name: "Game UI", version: "1.0.0", register };
-        let mods = GameBuild::new().with_mod(package).mods();
+        let mods = Harness::new(GameBuild::new().with_mod(package));
         assert_eq!((mods.len(), mods.id(0), mods.package(0)), (1, "game_ui", Some("pwc.game-ui")));
         assert!(mods.is_active(0));
     }

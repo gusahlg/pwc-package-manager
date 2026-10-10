@@ -35,7 +35,7 @@ apply to **new** worlds.
 
 ## Dependencies
 
-None besides the PWC mod API (`pwc-api ^2.0`).
+None besides the PWC mod API (`pwc-api ^3.0`).
 
 ## Compatibility
 
@@ -44,7 +44,8 @@ None besides the PWC mod API (`pwc-api ^2.0`).
 - In multiplayer the server's generator and settings decide; they are part of the content
   fingerprint a client must match to join.
 - The mod id is unchanged from the mod that shipped inside PWC 2.0, so existing worlds keep
-  working. Knob values from `mods.cfg` are not carried over: the options start at 100 %.
+  working. The knob values an older game saved in `mods.cfg` are read once, the first time this
+  game loads its settings.
 
 ## Licence
 

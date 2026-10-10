@@ -1,6 +1,6 @@
 # Changelog — pwc.start-screen
 
-## 2.0.0 (unreleased)
+## 2.0.0
 
 - The root screen of the game's screen host (`Mod::root_screen`) instead of a start screen beside a
   core fallback. It asks the core with `AppRequest`s and draws into the core's `UiElement`s with
@@ -10,6 +10,7 @@
 - Draws the waiting page ("Connecting…" / "Loading…", "Cancel") the game used to draw itself.
 - No description or group of its own: the package manifest is what menus show. A server can
   suspend the package for a session; mods are no longer switched in the game.
+- Requires `pwc-api ^3.0`.
 
 ## 1.1.1
 

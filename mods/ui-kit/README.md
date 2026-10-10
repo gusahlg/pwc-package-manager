@@ -24,7 +24,7 @@ None of its own.
 
 ## Dependencies
 
-None besides the PWC mod API (`pwc-api ^2.2`, with the core screen host).
+None besides the PWC mod API (`pwc-api ^3.0`).
 
 ## Licence
 

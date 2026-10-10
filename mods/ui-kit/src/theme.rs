@@ -14,6 +14,9 @@ use crate::menu::{Level, Notice, RowKind, Style, ValueView, View};
 
 /// Background of every screen outside a world.
 pub const MENU_BG: Color = Color::new(18, 20, 28, 255);
+/// Backdrop of a screen over a running world (the pause screen and what it opens): the world
+/// shows through, dimmed.
+pub const MENU_DIM: Color = Color::new(10, 12, 18, 190);
 
 /// Untyped row for rendering; type tag dropped.
 #[derive(Clone, Debug)]
@@ -34,6 +37,8 @@ pub struct PresentedView {
     pub scale: f32,
     pub hint: String,
     pub notice: Option<Notice>,
+    /// The screen is drawn over a running world: the backdrop dims it instead of hiding it.
+    pub over_world: bool,
 }
 
 /// The untyped screen at `scale`. A view passed by value moves its strings; a borrowed one is
@@ -50,7 +55,7 @@ impl<A: Copy> From<View<A>> for PresentedView {
             .into_iter()
             .map(|r| PresentedRow { label: r.label, detail: r.detail, kind: r.kind, selectable: r.tag.is_some() })
             .collect();
-        Self { title: view.title, style: view.style, rows, scale: 1.0, hint: view.hint, notice: view.notice }
+        Self { title: view.title, style: view.style, rows, scale: 1.0, hint: view.hint, notice: view.notice, over_world: false }
     }
 }
 
@@ -176,7 +181,7 @@ pub fn label(
 // Drawing.
 
 fn default_draw(out: &mut Vec<UiElement>, mut v: PresentedView, sel: usize, w: i32, h: i32) {
-    out.push(UiElement::Rect { x: 0, y: 0, w, h, color: MENU_BG });
+    out.push(UiElement::Rect { x: 0, y: 0, w, h, color: if v.over_world { MENU_DIM } else { MENU_BG } });
     let m = metrics(&v, w, h);
     let notice = v.notice.take();
     let hint = std::mem::take(&mut v.hint);
@@ -375,6 +380,15 @@ mod tests {
         let rects = DefaultTheme.layout(&present(sample_view(), 1.0), 1280, 720);
         assert_eq!(rects.len(), 3, "one rectangle per row");
         assert!(rects.windows(2).all(|w| w[0].y < w[1].y), "rows stack top to bottom: {rects:?}");
+    }
+
+    #[test]
+    fn a_screen_over_the_world_dims_it_instead_of_hiding_it() {
+        let mut page = present(sample_view(), 1.0);
+        page.over_world = true;
+        let mut out = Vec::new();
+        DefaultTheme.draw(&mut out, page, 0, 1280, 720);
+        assert!(matches!(out[0], UiElement::Rect { color, .. } if color == MENU_DIM && color.a < 255));
     }
 
     #[test]

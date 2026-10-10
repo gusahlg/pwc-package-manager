@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 license = "AGPL-3.0-or-later"
 authors = ["Project Watt Cubed contributors"]
@@ -12,12 +12,12 @@ rust-version = "1.90"
 
 [workspace.dependencies]
 # Internal crates, one responsibility each (see docs/architecture.md).
-pwc-manifest = { path = "crates/pwc-manifest", version = "0.1.0" }
-pwc-package = { path = "crates/pwc-package", version = "0.1.0" }
-pwc-store = { path = "crates/pwc-store", version = "0.1.0" }
-pwc-resolver = { path = "crates/pwc-resolver", version = "0.1.0" }
-pwc-instance = { path = "crates/pwc-instance", version = "0.1.0" }
-pwc-builder = { path = "crates/pwc-builder", version = "0.1.0" }
+pwc-manifest = { path = "crates/pwc-manifest", version = "0.2.0" }
+pwc-package = { path = "crates/pwc-package", version = "0.2.0" }
+pwc-store = { path = "crates/pwc-store", version = "0.2.0" }
+pwc-resolver = { path = "crates/pwc-resolver", version = "0.2.0" }
+pwc-instance = { path = "crates/pwc-instance", version = "0.2.0" }
+pwc-builder = { path = "crates/pwc-builder", version = "0.2.0" }
 
 # External crates. Pure Rust only: no C toolchain is needed to build the tooling.
 anyhow = "1"

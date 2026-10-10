@@ -73,6 +73,7 @@ impl Menu for PauseMenu {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pwc_mod_api::testing::Harness;
     use pwc_mod_api::screen::ScreenEntry;
     use pwc_mod_api::{GameBuild, ModDescriptor};
     use pwc_ui_kit::testing::Fixture;
@@ -113,12 +114,11 @@ mod tests {
     #[test]
     fn the_package_answers_the_pause_slot() {
         let f = Fixture::new();
-        let mut mods = GameBuild::new()
-            .with_mod(ModDescriptor { id: "pwc.pause-menu", name: "Pause menu", version: "1.0.0", register })
-            .mods();
+        let mut mods = Harness::new(GameBuild::new()
+            .with_mod(ModDescriptor { id: "pwc.pause-menu", name: "Pause menu", version: "1.0.0", register }));
         assert!(mods.pause_screen(&f.facts()).is_some());
         assert!(mods.root_screen(&f.facts()).is_none());
-        mods.suspend_packages(&["pwc.pause-menu".to_string()]);
+        mods.suspend(&["pwc.pause-menu"]);
         assert!(mods.pause_screen(&f.facts()).is_none(), "suspended: Esc leaves the world as before");
     }
 }

@@ -24,7 +24,7 @@ None of its own. The values live in the game's `settings.cfg`.
 
 ## Dependencies
 
-`pwc.ui-kit ^1.0` and the PWC mod API (`pwc-api ^2.2`, with the core screen host).
+`pwc.ui-kit ^1.0` and the PWC mod API (`pwc-api ^3.0`).
 
 ## Licence
 

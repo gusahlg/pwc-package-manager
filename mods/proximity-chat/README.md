@@ -42,7 +42,7 @@ cue through the sounds mod; it does not open the microphone.
 
 ## Dependencies
 
-The PWC mod API (`pwc-api ^2.1`).
+The PWC mod API (`pwc-api ^3.0`).
 
 ## Licence
 

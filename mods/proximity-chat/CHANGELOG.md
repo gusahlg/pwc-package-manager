@@ -1,12 +1,11 @@
 # Changelog — pwc.proximity-chat
 
-## 1.1.0 (unreleased)
+## 1.1.0
 
-- Requires `pwc-api ^2.2`. `voice.talk` names `immediate: false`. Behaviour unchanged.
+- Requires `pwc-api ^3.0`. `voice.talk` names `immediate: false`. Behaviour unchanged.
 - Voice Chat is this package's option (the Audio page; `pwc.proximity-chat.voice_enabled`): the
   core no longer has a voice_enabled setting, and its old line is read once. No description or group
   of its own.
-
 
 ## 1.0.0
 

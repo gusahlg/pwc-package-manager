@@ -23,7 +23,7 @@ there. The command is echoed (`> /time set noon`) before its output. An unknown 
 | Command | Does |
 |---|---|
 | `/help` | List every command, from every mod. Also `/?`. |
-| `/gfx [setting value]` | Show every graphics setting, or change one (`/gfx msaa 4`). A lane whose visual group no installed package provides is marked "(unavailable in this build)". Also `/graphics`. |
+| `/set [key [value]]` | Every tunable, through the game's options registry: `/set` lists every key with its value, `/set <key>` shows one, `/set <key> <value>` changes one. Core settings go by key or alias (`/set msaa 4`, `/set fps off`); package options by `<package>.<key>` (`/set pwc.infinite-diffusion.relief 150`). A bad value prints the values the key takes and changes nothing. A lane whose visual group no installed package provides is marked "(unavailable in this build)"; an option that applies to new worlds says so. Also `/gfx` and `/graphics`. |
 | `/time [set <when> \| length <secs>]` | Show or set the day/night clock (`0..1`, `0..24` or `dawn`, `noon`, `dusk`, `night`...), or the length of a day. |
 | `/mute` | Toggle the master mute for this session. |
 | `/deafen` | Toggle hearing incoming voice. |
@@ -45,11 +45,12 @@ to that one. `/help` and Tab list every added command in registration order.
 
 ## Settings and persisted state
 
-None. The graphics and audio commands edit the game's own settings, which the game saves.
+None. `/set` and the audio commands edit the game's own settings and options, which the game
+saves (in `settings.cfg`).
 
 ## Dependencies
 
-`pwc.chat` (`^1.0`) and the PWC mod API (`pwc-api ^2.2`).
+`pwc.chat` (`^1.0`) and the PWC mod API (`pwc-api ^3.0`).
 
 ## Credits
 

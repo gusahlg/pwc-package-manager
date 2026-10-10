@@ -40,8 +40,7 @@ None.
 
 ## Dependencies
 
-`pwc.ui-kit ^1.0` (the menu framework and look) and the PWC mod API (`pwc-api ^2.0`, with the
-core screen host).
+`pwc.ui-kit ^1.0` (the menu framework and look) and the PWC mod API (`pwc-api ^3.0`,).
 
 ## Compatibility
 

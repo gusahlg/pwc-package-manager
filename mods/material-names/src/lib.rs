@@ -336,8 +336,9 @@ fn name(src: &NamingSource, vocab: &Vocabulary) -> MaterialNames {
 pub const STYLES: &[&str] = &["Mineral", "Arcane"];
 
 /// The Style option: which vocabulary names materials. Persisted as
-/// `pwc.material-names.style=mineral|arcane`.
-pub const STYLE: OptionSpec = OptionSpec::choice("style", "Material Names", Category::Interface, STYLES, 0);
+/// `pwc.material-names.style=mineral|arcane`; reads an older game's `mods.cfg` knob once.
+pub const STYLE: OptionSpec =
+    OptionSpec::choice("style", "Material Names", Category::Interface, STYLES, 0).legacy_key("material_names.state.style");
 
 /// The package entry point: declares the Style option and installs [`NamingMod`].
 pub fn register(registrar: &mut ModRegistrar) {
@@ -408,6 +409,7 @@ impl Mod for NamingMod {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pwc_mod_api::testing::Harness;
     use pwc_mod_api::material::{observe, Block, Law};
 
     fn names_of(elems: &[[u8; 4]]) -> MaterialNames {
@@ -427,10 +429,9 @@ mod tests {
         }
     }
 
-    fn build() -> pwc_mod_api::Mods {
-        pwc_mod_api::GameBuild::new()
-            .with_mod(pwc_mod_api::ModDescriptor { id: "pwc.material-names", name: "Material names", version: "1.0.0", register })
-            .mods()
+    fn build() -> Harness {
+        Harness::new(pwc_mod_api::GameBuild::new()
+            .with_mod(pwc_mod_api::ModDescriptor { id: "pwc.material-names", name: "Material names", version: "1.0.0", register }))
     }
 
     #[test]
@@ -440,7 +441,7 @@ mod tests {
         assert_eq!((mods.id(0), mods.name(0)), ("material_names", "Material names"));
         assert_eq!(mods.package(0), Some("pwc.material-names"));
         assert!(mods.namer().is_some());
-        mods.suspend_packages(&["pwc.material-names".to_string()]);
+        mods.suspend(&["pwc.material-names"]);
         assert!(mods.namer().is_none(), "suspended: the core describes materials by their readings");
     }
 
@@ -451,6 +452,7 @@ mod tests {
         let style = mods.options().find("pwc.material-names.style").expect("declared");
         assert_eq!(mods.options().show(style), "Mineral");
         assert_eq!(mods.options().spec(style).page, Category::Interface);
+        assert_eq!(mods.options().spec(style).legacy_key, Some("material_names.state.style"));
         let before = mods.namer().unwrap().revision();
         mods.options_changed();
         assert_eq!(mods.namer().unwrap().revision(), before, "no change, no rename");

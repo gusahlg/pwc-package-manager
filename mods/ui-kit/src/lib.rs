@@ -23,4 +23,5 @@ pub use menu::{
 pub use text::{common_prefix, Completion, EditBuf, Ring, TextInput};
 pub use theme::{
     draw_waiting, label, present, shadowed, DefaultTheme, MenuTheme, PresentedRow, PresentedView, RowRect, MENU_BG,
+    MENU_DIM,
 };

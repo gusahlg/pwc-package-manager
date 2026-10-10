@@ -5,7 +5,7 @@ A bundle: no code of its own, just the text chat and its slash commands.
 | Package | Mod id | What it does |
 |---|---|---|
 | `pwc.chat` | `chat` | The chat line on `§` and the scrollback of the game's messages |
-| `pwc.commands` | `commands` | `/help`, `/gfx`, `/time`, the audio commands and `/op`, and a registry for other mods' commands |
+| `pwc.commands` | `commands` | `/help`, `/set` (every setting and option), `/time`, the audio commands and `/op`, and a registry for other mods' commands |
 
 `pwc.essentials` includes this bundle. `pwc.dev-toolkit` adds its travel and inspection commands
 to `pwc.commands`.

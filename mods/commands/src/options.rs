@@ -1,8 +1,9 @@
-//! Options: `/gfx`, `/time` and the audio commands. Each edits the value it is handed; the core
+//! Options: `/set`, `/time` and the audio commands. Each edits the value it is handed; the core
 //! applies and saves changed settings, re-mixes the audio and plays the voice test cue.
 
 use pwc_mod_api::audio::GameEvent;
-use pwc_mod_api::settings::{Settings, SETTINGS};
+use pwc_mod_api::settings::options::CORE;
+use pwc_mod_api::settings::{Applies, OptionsRef, Settings};
 use pwc_mod_api::sky::{DayLength, Sky};
 use pwc_mod_api::ui::Line;
 use pwc_mod_api::{GameContext, VisualMask};
@@ -11,11 +12,6 @@ use crate::{rejected, shown};
 
 /// Appended to a lane no installed, unsuspended package provides a visual group for.
 pub const UNAVAILABLE: &str = "(unavailable in this build)";
-
-/// `msg`, marked when `visuals` strips the lane `key`.
-fn mark(msg: String, key: &str, visuals: VisualMask) -> String {
-    if visuals.strips(key) { format!("{msg} {UNAVAILABLE}") } else { msg }
-}
 
 /// `/time` — show or set the day/night clock, or change the cycle length.
 ///
@@ -76,49 +72,50 @@ fn clock_label(day: f64) -> String {
 }
 
 
-/// `gfx [setting value]` — show or change graphics settings at runtime.
-/// The core applies the mutated [`Settings`] to the engine and persists it.
-pub(crate) fn gfx(args: &[&str], game: &mut GameContext) -> Vec<Line> {
-    let visuals = game.visuals;
-    let usage = || {
-        std::iter::once("usage: /gfx <setting> <value>".to_string())
-            .chain(SETTINGS.iter().map(|field| format!("  /gfx {}", field.usage())))
-            .collect()
-    };
-
-    match args {
-        [] => {
-            let settings = game.settings();
-            shown(
-                SETTINGS
-                    .iter()
-                    .map(|field| {
-                        let msg = if field.key() == "vrs" { settings.vrs_gfx_line() } else { field.confirm(settings) };
-                        mark(msg, field.key(), visuals)
-                    })
-                    .collect(),
-            )
-        }
-        [key, value] => match gfx_set(game.settings_mut(), key, value) {
-            Some(msg) => {
-                let field_key = SETTINGS.iter().find(|f| f.matches(key)).map(|f| f.key()).unwrap_or(*key);
-                let msg = if field_key == "vrs" { game.settings().vrs_gfx_line() } else { msg };
-                shown(vec![mark(msg, field_key, visuals)])
-            }
-            None => rejected(usage()),
-        },
-        _ => rejected(usage()),
+/// One entry of the options view as `/set` shows it: `key = value`, then "(next new world)" for a
+/// value that applies to the next new world and the unavailable marker for a lane no installed
+/// package provides.
+fn entry_line(options: &OptionsRef, i: usize, visuals: VisualMask) -> String {
+    let info = options.info(i);
+    let mut line = format!("{} = {}", options.full_key(i), options.show(i));
+    if info.applies == Applies::NextWorld {
+        line.push_str(" (next new world)");
     }
+    if info.owner == CORE && visuals.strips(info.key) {
+        line.push(' ');
+        line.push_str(UNAVAILABLE);
+    }
+    line
 }
 
-/// `/gfx <key> <value>` dispatches through the one [`SETTINGS`] table: find the
-/// field the key (or an alias) names, parse-and-clamp its value, and echo the
-/// field's confirm line. `None` (unknown key OR unparseable value) means the
-/// caller prints usage — and, because the field is written only after a successful
-/// parse, a bad value changes nothing.
-fn gfx_set(s: &mut Settings, key: &str, value: &str) -> Option<String> {
-    let field = SETTINGS.iter().find(|f| f.matches(key))?;
-    field.parse_human(s, value).then(|| field.confirm(s))
+/// `/set [key [value]]` — every tunable through the game's options registry: the core's settings
+/// (by key or alias: `msaa`, `fps`) and every package's options (by `<package>.<key>`).
+///
+///   `set`               list every key with its value
+///   `set <key>`         show one
+///   `set <key> <value>` change one (parsed and clamped; a bad value changes nothing)
+///
+/// The core applies and saves what changed, and the packages hear their options.
+pub(crate) fn set(args: &[&str], game: &mut GameContext) -> Vec<Line> {
+    let visuals = game.visuals;
+    match args {
+        [] => {
+            let options = game.options();
+            let mut lines = vec!["settings (/set <key> <value>):".to_string()];
+            lines.extend((0..options.len()).map(|i| format!("  {}", entry_line(&options, i, visuals))));
+            shown(lines)
+        }
+        [key, value @ ..] => {
+            let Some(i) = game.options().find(key) else {
+                return rejected(vec![format!("unknown setting '{key}' - type '/set' to list them")]);
+            };
+            if !value.is_empty() && !game.options_mut().parse(i, &value.join(" ")) {
+                let options = game.options();
+                return rejected(vec![format!("usage: /set {} {}", options.full_key(i), options.hint(i))]);
+            }
+            shown(vec![entry_line(&game.options(), i, visuals)])
+        }
+    }
 }
 
 /// `/mute` — toggle the transient master mute. Not persisted (resets each launch);

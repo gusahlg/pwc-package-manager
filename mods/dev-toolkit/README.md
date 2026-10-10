@@ -18,7 +18,7 @@ to an instance with `pwc mod add pwc.dev-toolkit`.
 ## Commands
 
 A leading `/` is optional in singleplayer. In multiplayer a line without `/` is chat. `/help`,
-`/gfx`, `/time`, `/mute`, `/deafen`, `/audio`, `/voicetest` and `/op` come from `pwc.commands`.
+`/set` (alias `/gfx`), `/time`, `/mute`, `/deafen`, `/audio`, `/voicetest` and `/op` come from `pwc.commands`.
 
 | Command | Does |
 |---|---|
@@ -46,7 +46,7 @@ Nothing.
 
 ## Dependencies
 
-`pwc.commands` (`^1.0`, which brings `pwc.chat`) and the PWC mod API (`pwc-api ^2.2`).
+`pwc.commands` (`^1.0`, which brings `pwc.chat`) and the PWC mod API (`pwc-api ^3.0`).
 
 ## Compatibility
 

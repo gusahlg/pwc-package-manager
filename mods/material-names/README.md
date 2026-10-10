@@ -40,15 +40,15 @@ Switching the style renames everything at once (the namer's revision changes).
 
 ## Dependencies
 
-None besides the PWC mod API (`pwc-api ^2.0`).
+None besides the PWC mod API (`pwc-api ^3.0`).
 
 ## Compatibility
 
 - `namer` is first-active-wins: another naming package registered earlier replaces these names
   while both are installed. Without one, the game describes materials by their readings.
 - Names are presentation only: they never reach the law, world generation, saves or the network.
-- The mod id is unchanged from the mod that shipped inside PWC 2.0. The style saved in `mods.cfg`
-  is not carried over: it starts at Mineral.
+- The mod id is unchanged from the mod that shipped inside PWC 2.0. The style an older game saved
+  in `mods.cfg` is read once, the first time this game loads its settings.
 
 ## Licence
 

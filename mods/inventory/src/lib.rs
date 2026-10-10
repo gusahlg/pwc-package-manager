@@ -283,10 +283,11 @@ impl Mod for InventoryMod {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pwc_mod_api::testing::Harness;
     use pwc_mod_api::engine::DVec3;
     use pwc_mod_api::render_config::RenderConfig;
     use pwc_mod_api::world::generation::WorldgenKind;
-    use pwc_mod_api::{GameBuild, ModDescriptor, Mods};
+    use pwc_mod_api::{GameBuild, ModDescriptor};
 
     fn world() -> World {
         World::with_kind(1, RenderConfig::default(), WorldgenKind::Flat, true)
@@ -297,11 +298,10 @@ mod tests {
     }
 
     /// `pwc.hotbar` and this package, registered the way a PWC build registers them.
-    fn build() -> Mods {
-        GameBuild::new()
+    fn build() -> Harness {
+        Harness::new(GameBuild::new()
             .with_mod(ModDescriptor { id: "pwc.hotbar", name: "Hotbar", version: "2.0.0", register: pwc_hotbar::register })
-            .with_mod(ModDescriptor { id: "pwc.inventory", name: "Inventory", version: "2.0.0", register })
-            .mods()
+            .with_mod(ModDescriptor { id: "pwc.inventory", name: "Inventory", version: "2.0.0", register }))
     }
 
     fn ctx<'a>(player: &'a mut Player, world: &'a mut World) -> ModContext<'a> {
@@ -455,9 +455,8 @@ mod tests {
     #[test]
     #[should_panic(expected = "pwc.inventory needs the item UI handle from pwc.hotbar")]
     fn register_without_the_hotbar_names_the_missing_dependency() {
-        let _ = GameBuild::new()
-            .with_mod(ModDescriptor { id: "pwc.inventory", name: "Inventory", version: "2.0.0", register })
-            .mods();
+        let _ = Harness::new(GameBuild::new()
+            .with_mod(ModDescriptor { id: "pwc.inventory", name: "Inventory", version: "2.0.0", register }));
     }
 
     #[test]
@@ -479,11 +478,11 @@ mod tests {
         let mut mods = build();
         let rock = world.registry().id_by_label("rock").unwrap();
         assert!(player.inventory.add(rock, 2));
-        mods.suspend_packages(&["pwc.inventory".to_string()]);
+        mods.suspend(&["pwc.inventory"]);
         assert!(!mods.is_active(1) && mods.is_active(0));
         mods.on_block_break(rock, &world, false);
         assert_eq!(player.inventory.count(rock), 2, "core keeps the configurations");
-        mods.resume_packages();
+        mods.resume();
         let inv = inventory();
         inv.set_visible(true);
         let mut shown = Vec::new();

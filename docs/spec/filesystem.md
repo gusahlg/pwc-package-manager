@@ -75,7 +75,7 @@ first-party repository.
 
 | Variable | Value |
 |---|---|
-| `WATT_DATA_DIR` | `$XDG_DATA_HOME/pwc/instances/<name>/game` (worlds, settings, `mods.cfg`) |
+| `WATT_DATA_DIR` | `$XDG_DATA_HOME/pwc/instances/<name>/game` (worlds, `settings.cfg` with the packages' options) |
 | `WATT_ASSET_DIR` | `<pwc-source>/assets` |
 | `PWC_INSTANCE` | `<name>` |
 | `PWC_ENVIRONMENT` | the lock's environment hash |

@@ -159,7 +159,7 @@ policy accepts AGPL-compatible free licences instead, and the game's `MOD_POLICY
 | `pwc.inventory` | Your held materials as a list (press I); equip any of them into the hotbar. |
 | `pwc.game-ui` | The in-world HUD: reticle, coordinates, frame rate, player count, loading lines and a facing indicator. |
 | `pwc.chat` | The text chat on § (the key left of 1) and the scrollback of the game's messages. |
-| `pwc.commands` | Slash commands in the chat (`/help`, `/gfx`, `/time`, the audio commands, `/op`) and a registry for other mods' commands. |
+| `pwc.commands` | Slash commands in the chat (`/help`, `/set` for every setting and option, `/time`, the audio commands, `/op`) and a registry for other mods' commands. |
 | `pwc.chat-commands` | Bundle of the chat and its commands. |
 | `pwc.visuals` | The shipped look: atmosphere, post-processing and lighting. |
 | `pwc.neural-textures` | Paints every material with a texture grown from its own elements. |
@@ -178,9 +178,9 @@ See [mods/README.md](mods/README.md) for how the package repository is organised
 
 ## Status
 
-Version 0.1.0 (unreleased) implements phases 1–10 of the [roadmap](docs/architecture.md#roadmap):
-the format 1 specifications, packaging, the store, instances, the resolver, the builder,
-`pwc build` and `pwc run` with the build cache, and the first-party packages. Packages come from
+Version 0.2.0 implements phases 1–10 of the [roadmap](docs/architecture.md#roadmap): the format 1
+specifications, packaging, the store, instances, the resolver, the builder, `pwc build` and
+`pwc run` with the build cache, and the first-party packages on mod API 3.0. Packages come from
 local repositories, local source trees and `.pwcmod` files.
 
 Next:

@@ -45,7 +45,7 @@ Nothing.
 
 ## Dependencies
 
-None besides the PWC mod API (`pwc-api ^2.2`: the HUD facts).
+None besides the PWC mod API (`pwc-api ^3.0`: the HUD facts).
 
 ## Performance
 

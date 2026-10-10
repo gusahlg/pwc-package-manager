@@ -63,7 +63,7 @@ Both are cheap `Rc` handles; clones share state. Mod hooks run on the game threa
 
 ## Dependencies
 
-None besides the PWC mod API (`pwc-api ^2.1`).
+None besides the PWC mod API (`pwc-api ^3.0`).
 
 ## Compatibility
 

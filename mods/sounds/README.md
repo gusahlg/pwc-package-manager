@@ -31,7 +31,7 @@ None of its own. Menu clicks come from the core. Nothing is persisted.
 
 ## Dependencies
 
-The PWC mod API (`pwc-api ^2.1`).
+The PWC mod API (`pwc-api ^3.0`).
 
 ## Licence
 

@@ -270,7 +270,7 @@ dependencies = [
 
 [[package]]
 name = "pwc-builder"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "pwc-manifest",
  "semver",
@@ -283,7 +283,7 @@ dependencies = [
 
 [[package]]
 name = "pwc-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -298,7 +298,7 @@ dependencies = [
 
 [[package]]
 name = "pwc-instance"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "pwc-manifest",
  "pwc-package",
@@ -314,7 +314,7 @@ dependencies = [
 
 [[package]]
 name = "pwc-manifest"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "semver",
  "serde",
@@ -325,7 +325,7 @@ dependencies = [
 
 [[package]]
 name = "pwc-package"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "pwc-manifest",
  "ruzstd",
@@ -338,7 +338,7 @@ dependencies = [
 
 [[package]]
 name = "pwc-resolver"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "pwc-manifest",
  "semver",
@@ -347,7 +347,7 @@ dependencies = [
 
 [[package]]
 name = "pwc-store"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "pwc-manifest",
  "pwc-package",

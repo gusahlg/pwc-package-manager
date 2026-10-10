@@ -54,7 +54,7 @@ None. The scrollback and the sent-line history last for one world.
 
 ## Dependencies
 
-`pwc.ui-kit ^1.0` (the input line and the scrollback widgets) and the PWC mod API (`pwc-api ^2.2`:
+`pwc.ui-kit ^1.0` (the input line and the scrollback widgets) and the PWC mod API (`pwc-api ^3.0`:
 the frame hook, text capture and the message stream).
 
 ## Performance

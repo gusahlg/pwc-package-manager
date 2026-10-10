@@ -15,12 +15,15 @@ const STEP: i32 = TerrainCfg::STEP as i32;
 const RELIEF: (i32, i32, i32) = (TerrainCfg::RELIEF.0 as i32, TerrainCfg::RELIEF.1 as i32, STEP);
 const DENSITY: (i32, i32, i32) = (TerrainCfg::DENSITY.0 as i32, TerrainCfg::DENSITY.1 as i32, STEP);
 
-/// The four options, in the order the settings page lists them. Each applies to new worlds.
+/// The four options, in the order the settings page lists them. Each applies to new worlds, and
+/// each reads the knob value an older game kept in `mods.cfg` (`diffusion.state=relief=…`) once.
 pub const OPTIONS: [OptionSpec; 4] = [
-    OptionSpec::percent("relief", "Terrain Relief", Category::World, RELIEF, 100).next_world(),
-    OptionSpec::percent("caves", "Caves", Category::World, DENSITY, 100).next_world(),
-    OptionSpec::percent("mines", "Mines", Category::World, DENSITY, 100).next_world(),
-    OptionSpec::percent("space", "Space", Category::World, DENSITY, 100).next_world(),
+    OptionSpec::percent("relief", "Terrain Relief", Category::World, RELIEF, 100)
+        .next_world()
+        .legacy_key("diffusion.state.relief"),
+    OptionSpec::percent("caves", "Caves", Category::World, DENSITY, 100).next_world().legacy_key("diffusion.state.caves"),
+    OptionSpec::percent("mines", "Mines", Category::World, DENSITY, 100).next_world().legacy_key("diffusion.state.mines"),
+    OptionSpec::percent("space", "Space", Category::World, DENSITY, 100).next_world().legacy_key("diffusion.state.space"),
 ];
 
 /// The package entry point: declares the terrain options and installs [`InfiniteDiffusionMod`].
@@ -88,20 +91,20 @@ impl Mod for InfiniteDiffusionMod {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pwc_mod_api::testing::Harness;
     use pwc_mod_api::settings::OptionValue;
-    use pwc_mod_api::{GameBuild, ModDescriptor, Mods};
+    use pwc_mod_api::{GameBuild, ModDescriptor};
 
-    fn build() -> Mods {
-        GameBuild::new()
-            .with_mod(ModDescriptor { id: "pwc.infinite-diffusion", name: "InfiniteDiffusion", version: "1.1.0", register })
-            .mods()
+    fn build() -> Harness {
+        Harness::new(GameBuild::new()
+            .with_mod(ModDescriptor { id: "pwc.infinite-diffusion", name: "InfiniteDiffusion", version: "1.1.0", register }))
     }
 
-    fn payload_cfg(mods: &Mods) -> TerrainCfg {
+    fn payload_cfg(mods: &Harness) -> TerrainCfg {
         mods.worldgen_config().as_deref().map(TerrainCfg::from_text).unwrap_or_default()
     }
 
-    fn option(mods: &Mods, key: &str) -> OptionId {
+    fn option(mods: &Harness, key: &str) -> OptionId {
         mods.options().find(&format!("pwc.infinite-diffusion.{key}")).expect("declared")
     }
 
@@ -112,7 +115,7 @@ mod tests {
         assert!(mods.is_worldgen(0));
         assert_eq!(mods.package(0), Some("pwc.infinite-diffusion"));
         assert_eq!((mods.id(0), mods.name(0)), (WorldgenKind::Diffusion.id(), "InfiniteDiffusion"));
-        mods.suspend_packages(&["pwc.infinite-diffusion".to_string()]);
+        mods.suspend(&["pwc.infinite-diffusion"]);
         assert_eq!(mods.worldgen_kind(), WorldgenKind::Flat, "the core fallback is the flat world");
         assert_eq!(mods.worldgen_config(), None);
     }
@@ -125,6 +128,7 @@ mod tests {
         let spec = mods.options().spec(relief);
         assert_eq!((spec.label, spec.page), ("Terrain Relief", Category::World));
         assert_eq!(spec.applies, pwc_mod_api::settings::Applies::NextWorld);
+        assert_eq!(spec.legacy_key, Some("diffusion.state.relief"), "the old mods.cfg knob carries over");
         mods.options_mut().step(relief, 1);
         mods.options_mut().step(caves, -1);
         mods.options_mut().step(space, 1);

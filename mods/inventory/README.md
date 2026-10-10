@@ -37,7 +37,7 @@ None.
 
 ## Dependencies
 
-- The PWC mod API (`pwc-api ^2.1`).
+- The PWC mod API (`pwc-api ^3.0`).
 - `pwc.hotbar ^2.0` — the inventory equips through the hotbar's shared `HotbarHandle` and tells it
   that the panel is open through the shared `ItemUiHandle`. The dependency guarantees that the
   hotbar registers (and provides the handles) first; registering the inventory without it panics

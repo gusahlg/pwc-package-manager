@@ -5,8 +5,9 @@
 //!   "unknown command 'x' - type '/help'". The command line is echoed (`> /tp 1 2 3`) before its
 //!   output, except `/op`, which carries a secret.
 //! - **`/`** opens the chat with a `/` already typed. Tab completes command names.
-//! - Shipped commands: `/help`, `/gfx`, `/time`, `/mute`, `/deafen`, `/audio`, `/voicetest` and
-//!   `/op <secret>` (the server's operator login, sent as global chat and never echoed).
+//! - Shipped commands: `/help`, `/set` (every core setting and package option, through the game's
+//!   options registry; `/gfx` is an alias), `/time`, `/mute`, `/deafen`, `/audio`, `/voicetest`
+//!   and `/op <secret>` (the server's operator login, sent as global chat and never echoed).
 //! - Other mods add commands through the [`CommandsHandle`] this package provides (the Developer
 //!   Toolkit adds `/tp`, `/cruise`, `/noclip` and the rest). `/help` lists them all, in
 //!   registration order.
@@ -211,8 +212,8 @@ pub(crate) fn rejected(lines: Vec<String>) -> Vec<Line> {
 
 /// The commands this package ships, in the order `/help` lists them.
 pub const BUILTINS: &[(Command, CommandFn)] = &[
-    (Command { name: "gfx", aliases: &["graphics"], args: "[setting value]", help: "show or change graphics settings" }, |g, a| {
-        options::gfx(a, g)
+    (Command { name: "set", aliases: &["gfx", "graphics"], args: "[key [value]]", help: "show or change settings and options" }, |g, a| {
+        options::set(a, g)
     }),
     (Command { name: "time", aliases: &[], args: "[set|length]", help: "show or set the day/night clock" }, |g, a| {
         options::time(a, g.sky)

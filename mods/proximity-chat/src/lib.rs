@@ -178,6 +178,7 @@ impl Mod for ProximityChat {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pwc_mod_api::testing::Harness;
     use pwc_mod_api::audio::{AudioBench, PeerAudio};
     use pwc_mod_api::engine::DVec3;
     use pwc_mod_api::net::ChannelPair;
@@ -264,9 +265,8 @@ mod tests {
     fn the_voice_chat_option_gates_the_microphone() {
         use pwc_mod_api::settings::OptionValue;
         use pwc_mod_api::{GameBuild, ModDescriptor};
-        let mut mods = GameBuild::new()
-            .with_mod(ModDescriptor { id: "pwc.proximity-chat", name: "Proximity chat", version: "1.1.0", register })
-            .mods();
+        let mut mods = Harness::new(GameBuild::new()
+            .with_mod(ModDescriptor { id: "pwc.proximity-chat", name: "Proximity chat", version: "1.1.0", register }));
         let id = mods.options().find("pwc.proximity-chat.voice_enabled").expect("declared");
         assert_eq!(mods.options().spec(id).page, Category::Audio);
         assert_eq!(mods.options().spec(id).legacy_key, Some("voice_enabled"));

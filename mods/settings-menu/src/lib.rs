@@ -115,6 +115,7 @@ impl Menu for SettingsPage {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pwc_mod_api::testing::Harness;
     use pwc_mod_api::render_config::{lane_group, VisualGroup};
     use pwc_mod_api::settings::OptionSpec;
     use pwc_mod_api::{GameBuild, ModDescriptor, VisualMask};
@@ -136,9 +137,8 @@ mod tests {
 
     #[test]
     fn the_package_offers_settings_on_the_main_menu_and_the_pause_screen() {
-        let mods = GameBuild::new()
-            .with_mod(ModDescriptor { id: "pwc.settings-menu", name: "Settings menu", version: "1.0.0", register })
-            .mods();
+        let mods = Harness::new(GameBuild::new()
+            .with_mod(ModDescriptor { id: "pwc.settings-menu", name: "Settings menu", version: "1.0.0", register }));
         assert_eq!(mods.len(), 0, "an entry, no mod");
         let entries = mods.screen_entries();
         assert_eq!(entries.len(), 1);

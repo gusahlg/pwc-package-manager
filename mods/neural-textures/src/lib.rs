@@ -292,10 +292,14 @@ pub fn paint(src: &AppearanceSource, detail: f32, contrast: f32, out: &mut [u8; 
     }
 }
 
-/// The Texture Detail option: the pattern's spatial frequency.
-pub const DETAIL: OptionSpec = OptionSpec::float("detail", "Texture Detail", Category::Video, (0.1, 2.0, 0.1), 1.0);
-/// The Texture Contrast option: how far the palette spreads from the material's colour.
-pub const CONTRAST: OptionSpec = OptionSpec::float("contrast", "Texture Contrast", Category::Video, (0.1, 2.0, 0.1), 1.0);
+/// The Texture Detail option: the pattern's spatial frequency. Reads an older game's `mods.cfg`
+/// knob once.
+pub const DETAIL: OptionSpec = OptionSpec::float("detail", "Texture Detail", Category::Video, (0.1, 2.0, 0.1), 1.0)
+    .legacy_key("neural_textures.state.detail");
+/// The Texture Contrast option: how far the palette spreads from the material's colour. Reads an
+/// older game's `mods.cfg` knob once.
+pub const CONTRAST: OptionSpec = OptionSpec::float("contrast", "Texture Contrast", Category::Video, (0.1, 2.0, 0.1), 1.0)
+    .legacy_key("neural_textures.state.contrast");
 
 /// The package entry point: declares the Detail and Contrast options and installs
 /// [`NeuralTexturesMod`].
@@ -376,6 +380,7 @@ impl Mod for NeuralTexturesMod {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pwc_mod_api::testing::Harness;
     use pwc_mod_api::material::{observe, visual, Block, Configuration, Law};
 
     fn layer(elems: &[[u8; 4]]) -> [u8; LAYER_BYTES] {
@@ -390,10 +395,9 @@ mod tests {
         out
     }
 
-    fn build() -> pwc_mod_api::Mods {
-        pwc_mod_api::GameBuild::new()
-            .with_mod(pwc_mod_api::ModDescriptor { id: "pwc.neural-textures", name: "Neural textures", version: "1.0.0", register })
-            .mods()
+    fn build() -> Harness {
+        Harness::new(pwc_mod_api::GameBuild::new()
+            .with_mod(pwc_mod_api::ModDescriptor { id: "pwc.neural-textures", name: "Neural textures", version: "1.0.0", register }))
     }
 
     #[test]
@@ -404,7 +408,7 @@ mod tests {
         assert_eq!(mods.package(0), Some("pwc.neural-textures"));
         assert_eq!(mods.appearance().revision(), 1, "the mod's appearance wins while it runs");
         let mut off = build();
-        off.suspend_packages(&["pwc.neural-textures".to_string()]);
+        off.suspend(&["pwc.neural-textures"]);
         let mut flat = [0u8; LAYER_BYTES];
         let mut ours = [0u8; LAYER_BYTES];
         let law = Law::current();
@@ -425,6 +429,7 @@ mod tests {
         let contrast = mods.options().find("pwc.neural-textures.contrast").expect("declared");
         assert_eq!((mods.options().show(detail), mods.options().show(contrast)), ("1.0".to_string(), "1.0".to_string()));
         assert_eq!(mods.options().spec(detail).page, Category::Video);
+        assert_eq!(mods.options().spec(contrast).legacy_key, Some("neural_textures.state.contrast"));
         for _ in 0..3 {
             mods.options_mut().step(detail, 1);
         }

@@ -5,7 +5,7 @@
 use pwc_mod_api::audio::{AudioApi, GameEvent};
 use pwc_mod_api::block::SoundClass;
 use pwc_mod_api::engine::DVec3;
-use pwc_mod_api::{Mod, ModRegistrar, ESSENTIALS};
+use pwc_mod_api::{Mod, ModRegistrar};
 
 /// The package entry point.
 pub fn register(registrar: &mut ModRegistrar) {
@@ -22,14 +22,6 @@ impl Mod for Sounds {
 
     fn id(&self) -> &'static str {
         "sounds"
-    }
-
-    fn description(&self) -> &str {
-        "Footsteps, blocks, tools, swings and menu clicks."
-    }
-
-    fn group(&self) -> &'static str {
-        ESSENTIALS
     }
 
     fn on_game_event(&mut self, ev: &GameEvent, audio: &mut AudioApi) {

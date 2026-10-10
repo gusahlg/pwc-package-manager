@@ -9,9 +9,8 @@ render group:
 | Post (`post`) | Post | Bloom, god rays, TAA, exposure, vignette, and variable-rate shading |
 | Lighting (`lighting`) | Lighting | Shadows, ambient fill, and block light (sunlight stays in the core) |
 
-All three are in the Essentials group and enabled by default. Disable one and its settings lanes
-are forced off; the settings menu and `/gfx` mark them "(off: <mod> mod)". Disable all three for
-the core look.
+Part of `pwc.essentials`. A build without this package has the core look: the lanes of the three
+groups are forced off, and settings screens and `/gfx` mark them "(unavailable in this build)".
 
 ## Controls
 
@@ -20,23 +19,21 @@ or `/gfx`); these mods decide whether each group may be on at all.
 
 ## Settings
 
-None on the mods screen.
+None.
 
 ## Persisted state
 
-- **World save:** nothing.
-- **`mods.cfg`:** `atmosphere=on|off`, `post=on|off`, `lighting=on|off`.
-- `WATT_BENCH_VISUALS=core` (benchmark runs) switches all three off for that run without writing
-  `mods.cfg`.
+Nothing. `WATT_BENCH_VISUALS=core` (benchmark runs) suspends the package for that run, and a server
+that refuses it suspends it for the session; neither is saved.
 
 ## Dependencies
 
-None besides the PWC mod API (`pwc-api ^2.0`).
+None besides the PWC mod API (`pwc-api ^3.0`).
 
 ## Compatibility
 
-- `visual_group` composes: the game ORs every enabled mod's group into its render mask, so another
-  package that owns the same group keeps it on even with this package's mod disabled.
+- `visual_group` composes: the game ORs every active mod's group into its render mask, so another
+  package that provides the same group keeps it on even while this one is suspended.
 - Presentation only: nothing here affects the world, saves or the network.
 - Mod ids are unchanged from the visual mods that shipped inside PWC 2.0.
 

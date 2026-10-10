@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>Chat</title>
+  <rect x="2" y="2" width="60" height="60" rx="12" fill="#1a1c22"/>
+  <path d="M14 16 H50 Q54 16 54 20 V38 Q54 42 50 42 H28 L18 50 V42 H14 Q10 42 10 38 V20 Q10 16 14 16 Z" fill="#87ceeb"/>
+  <path d="M18 25 H44 M18 33 H36" stroke="#1a1c22" stroke-width="4" stroke-linecap="round"/>
+</svg>

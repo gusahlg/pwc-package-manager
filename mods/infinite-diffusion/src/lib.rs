@@ -1,38 +1,53 @@
 //! InfiniteDiffusion worldgen mod: mountains and valleys on the surface, caves and abandoned mines
-//! below, planets in space above (see [`pwc_mod_api::world::terrain`]). Knobs apply to new worlds.
+//! below, planets in space above (see [`pwc_mod_api::world::terrain`]). Its options apply to new
+//! worlds.
 //!
 //! The terrain itself lives in the game (world generation is part of the deterministic core and
-//! the network fingerprint); this mod selects it and carries its knobs. With the mod disabled, new
-//! worlds use the core's flat world.
+//! the network fingerprint); this mod selects it and declares its options (relief, caves, mines,
+//! space) in the game's options registry. A build without the mod makes the core's flat world.
 
+use pwc_mod_api::settings::{Category, OptionId, OptionSpec, Options};
 use pwc_mod_api::world::generation::WorldgenKind;
 use pwc_mod_api::world::terrain::TerrainCfg;
-use pwc_mod_api::world::World;
-use pwc_mod_api::{Knob, Mod, ModRegistrar, ESSENTIALS};
+use pwc_mod_api::{Mod, ModRegistrar};
 
-/// The package entry point: installs [`InfiniteDiffusionMod`], enabled.
+const STEP: i32 = TerrainCfg::STEP as i32;
+const RELIEF: (i32, i32, i32) = (TerrainCfg::RELIEF.0 as i32, TerrainCfg::RELIEF.1 as i32, STEP);
+const DENSITY: (i32, i32, i32) = (TerrainCfg::DENSITY.0 as i32, TerrainCfg::DENSITY.1 as i32, STEP);
+
+/// The four options, in the order the settings page lists them. Each applies to new worlds, and
+/// each reads the knob value an older game kept in `mods.cfg` (`diffusion.state=relief=…`) once.
+pub const OPTIONS: [OptionSpec; 4] = [
+    OptionSpec::percent("relief", "Terrain Relief", Category::World, RELIEF, 100)
+        .next_world()
+        .legacy_key("diffusion.state.relief"),
+    OptionSpec::percent("caves", "Caves", Category::World, DENSITY, 100).next_world().legacy_key("diffusion.state.caves"),
+    OptionSpec::percent("mines", "Mines", Category::World, DENSITY, 100).next_world().legacy_key("diffusion.state.mines"),
+    OptionSpec::percent("space", "Space", Category::World, DENSITY, 100).next_world().legacy_key("diffusion.state.space"),
+];
+
+/// The package entry point: declares the terrain options and installs [`InfiniteDiffusionMod`].
 pub fn register(registrar: &mut ModRegistrar) {
-    registrar.add(InfiniteDiffusionMod::new());
+    let ids = OPTIONS.map(|spec| registrar.option(spec));
+    registrar.add(InfiniteDiffusionMod { options: Some(ids), ..InfiniteDiffusionMod::new() });
 }
 
 /// The InfiniteDiffusion mod (id `diffusion`).
 pub struct InfiniteDiffusionMod {
+    /// Relief, caves, mines and space, when registered through the package.
+    options: Option<[OptionId; 4]>,
     cfg: TerrainCfg,
 }
 
 impl InfiniteDiffusionMod {
-    /// The mod with default knobs (every knob at 100 %).
+    /// The mod with every knob at 100 %.
     pub fn new() -> Self {
-        Self { cfg: TerrainCfg::default() }
+        Self { options: None, cfg: TerrainCfg::default() }
     }
 
-    #[cfg(test)]
-    fn cfg(&self) -> TerrainCfg {
+    /// The generator configuration new worlds get.
+    pub fn cfg(&self) -> TerrainCfg {
         self.cfg
-    }
-
-    fn apply_cfg_text(&mut self, data: &str) {
-        self.cfg = self.cfg.overlay(data);
     }
 }
 
@@ -51,12 +66,17 @@ impl Mod for InfiniteDiffusionMod {
         WorldgenKind::Diffusion.id()
     }
 
-    fn description(&self) -> &str {
-        "Mountain ranges and carved valleys, caves and abandoned mines below, planets in space above (new worlds)."
-    }
-
-    fn group(&self) -> &'static str {
-        ESSENTIALS
+    fn on_options(&mut self, options: &Options) {
+        let Some([relief, caves, mines, space]) = self.options else { return };
+        let percent = |id| options.int(id).clamp(0, u16::MAX as i32) as u16;
+        self.cfg = TerrainCfg {
+            relief: percent(relief),
+            caves: percent(caves),
+            mines: percent(mines),
+            space: percent(space),
+            ..self.cfg
+        }
+        .clamp();
     }
 
     fn worldgen(&self) -> Option<WorldgenKind> {
@@ -66,174 +86,70 @@ impl Mod for InfiniteDiffusionMod {
     fn worldgen_config(&self) -> Option<String> {
         Some(self.cfg.to_text())
     }
-
-    fn knobs(&self) -> Vec<Knob> {
-        let (rlo, rhi) = TerrainCfg::RELIEF;
-        let (dlo, dhi) = TerrainCfg::DENSITY;
-        vec![
-            Knob { label: "Relief", value: format!("{}%", self.cfg.relief), hint: format!("{rlo}..{rhi}%") },
-            Knob { label: "Caves", value: format!("{}%", self.cfg.caves), hint: format!("{dlo}..{dhi}%") },
-            Knob { label: "Mines", value: format!("{}%", self.cfg.mines), hint: format!("{dlo}..{dhi}%") },
-            Knob { label: "Space", value: format!("{}%", self.cfg.space), hint: format!("{dlo}..{dhi}%") },
-        ]
-    }
-
-    fn step_knob(&mut self, index: usize, delta: i32) {
-        let step = |v: u16| (v as i32 + delta * TerrainCfg::STEP as i32).max(0) as u16;
-        match index {
-            0 => self.cfg.relief = step(self.cfg.relief),
-            1 => self.cfg.caves = step(self.cfg.caves),
-            2 => self.cfg.mines = step(self.cfg.mines),
-            3 => self.cfg.space = step(self.cfg.space),
-            _ => {}
-        }
-        self.cfg = self.cfg.clamp();
-    }
-
-    fn save_state(&self, _world: &World) -> Option<(u16, String)> {
-        Some((2, self.cfg.to_text()))
-    }
-
-    fn load_state(&mut self, _version: u16, data: &str, _world: &mut World) -> u32 {
-        self.apply_cfg_text(data);
-        0
-    }
-
-    fn save_choice_state(&self) -> Option<String> {
-        Some(self.cfg.to_text())
-    }
-
-    fn load_choice_state(&mut self, data: &str) {
-        self.apply_cfg_text(data);
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pwc_mod_api::{GameBuild, ModDescriptor, Mods};
+    use pwc_mod_api::testing::Harness;
+    use pwc_mod_api::settings::OptionValue;
+    use pwc_mod_api::{GameBuild, ModDescriptor};
 
-    fn build() -> Mods {
-        GameBuild::new()
-            .with_mod(ModDescriptor { id: "pwc.infinite-diffusion", name: "InfiniteDiffusion", version: "1.0.0", register })
-            .mods()
+    fn build() -> Harness {
+        Harness::new(GameBuild::new()
+            .with_mod(ModDescriptor { id: "pwc.infinite-diffusion", name: "InfiniteDiffusion", version: "1.1.0", register }))
     }
 
-    fn payload_cfg(mods: &Mods) -> TerrainCfg {
+    fn payload_cfg(mods: &Harness) -> TerrainCfg {
         mods.worldgen_config().as_deref().map(TerrainCfg::from_text).unwrap_or_default()
     }
 
-    #[test]
-    fn knobs_step_snap_and_round_trip_through_text() {
-        let mut m = InfiniteDiffusionMod::new();
-        assert_eq!(m.id(), WorldgenKind::Diffusion.id());
-        m.step_knob(0, 2);
-        assert_eq!(m.cfg().relief, 150);
-        m.step_knob(2, -10);
-        assert_eq!(m.cfg().mines, 0, "density knobs bottom out at 0");
-        m.step_knob(0, 10);
-        assert_eq!(m.cfg().relief, TerrainCfg::RELIEF.1);
-        let text = m.save_choice_state().unwrap();
-        let mut n = InfiniteDiffusionMod::new();
-        n.load_choice_state(&text);
-        assert_eq!(n.cfg(), m.cfg());
-        n.load_choice_state("relief=37,unknown=9");
-        assert_eq!(n.cfg().relief, 25, "a stray value snaps onto the stepper");
+    fn option(mods: &Harness, key: &str) -> OptionId {
+        mods.options().find(&format!("pwc.infinite-diffusion.{key}")).expect("declared")
     }
 
     #[test]
     fn worldgen_kind_follows_the_mod() {
-        let mods = build();
-        assert_eq!(mods.worldgen_kind(), WorldgenKind::Diffusion, "InfiniteDiffusion is on by default");
+        let mut mods = build();
+        assert_eq!(mods.worldgen_kind(), WorldgenKind::Diffusion);
         assert!(mods.is_worldgen(0));
-        assert_eq!(mods.group(0), ESSENTIALS);
         assert_eq!(mods.package(0), Some("pwc.infinite-diffusion"));
-        let mut off = build();
-        off.set_enabled("diffusion", false);
-        assert_eq!(off.worldgen_kind(), WorldgenKind::Flat, "the core fallback is the flat world");
+        assert_eq!((mods.id(0), mods.name(0)), (WorldgenKind::Diffusion.id(), "InfiniteDiffusion"));
+        mods.suspend(&["pwc.infinite-diffusion"]);
+        assert_eq!(mods.worldgen_kind(), WorldgenKind::Flat, "the core fallback is the flat world");
+        assert_eq!(mods.worldgen_config(), None);
     }
 
     #[test]
-    fn set_enabled_keys_on_id_case_insensitively() {
+    fn the_options_are_the_next_new_world_payload() {
         let mut mods = build();
-        assert_eq!(mods.id(0), WorldgenKind::Diffusion.id());
-        assert_eq!(mods.name(0), "InfiniteDiffusion");
-        assert_ne!(mods.id(0), mods.name(0));
-        mods.set_enabled("diffusion", true);
-        assert_eq!(mods.worldgen_kind(), WorldgenKind::Diffusion);
-        mods.set_enabled("DIFFUSION", false);
-        assert_eq!(mods.worldgen_kind(), WorldgenKind::Flat);
-        mods.set_enabled("InfiniteDiffusion", true);
-        assert_eq!(mods.worldgen_kind(), WorldgenKind::Flat, "display name is not a set_enabled key");
-    }
-
-    #[test]
-    fn worldgen_config_is_the_winning_kind_payload() {
-        let mut off = build();
-        off.set_enabled("diffusion", false);
-        assert_eq!(off.worldgen_config(), None);
-        let mut on = build();
-        let text = on.worldgen_config().expect("payload");
-        assert_eq!(TerrainCfg::from_text(&text), TerrainCfg::default());
-        on.step_knob(0, 3, 1);
-        assert_eq!(TerrainCfg::from_text(&on.worldgen_config().unwrap()).space, 125);
-    }
-
-    #[test]
-    fn choices_text_round_trips_knobs_and_ignores_junk() {
-        let mut mods = build();
-        let defaults = mods.choices_text();
-        assert!(defaults.contains("diffusion=on"));
-        assert!(defaults.contains("diffusion.state=relief=100,caves=100,mines=100,space=100"), "{defaults}");
-        mods.step_knob(0, 0, 1);
-        mods.step_knob(0, 1, -1);
+        assert_eq!(payload_cfg(&mods), TerrainCfg::default());
+        let (relief, caves, space) = (option(&mods, "relief"), option(&mods, "caves"), option(&mods, "space"));
+        let spec = mods.options().spec(relief);
+        assert_eq!((spec.label, spec.page), ("Terrain Relief", Category::World));
+        assert_eq!(spec.applies, pwc_mod_api::settings::Applies::NextWorld);
+        assert_eq!(spec.legacy_key, Some("diffusion.state.relief"), "the old mods.cfg knob carries over");
+        mods.options_mut().step(relief, 1);
+        mods.options_mut().step(caves, -1);
+        mods.options_mut().step(space, 1);
+        mods.options_changed();
         let cfg = payload_cfg(&mods);
-        assert_eq!((cfg.relief, cfg.caves), (125, 75));
-        let text = mods.choices_text();
-        assert!(text.contains(&format!("diffusion.state={}", cfg.to_text())));
-        let mut fresh = build();
-        fresh.apply_choices_text(&text);
-        assert_eq!(payload_cfg(&fresh), cfg);
-        let mut junk = build();
-        junk.apply_choices_text("version=2\ndiffusion=on\ndiffusion.state=relief=150\nunknown.state=tile=16\n");
-        assert_eq!(payload_cfg(&junk).relief, 150);
-        assert!(junk.is_enabled(0));
-    }
-
-    /// A pre-marker file wrote `diffusion=off` (and an unrelated knob payload) for everyone:
-    /// it must not switch off the world generator.
-    #[test]
-    fn version_one_choices_keep_the_world_generator() {
-        let mut mods = build();
-        mods.apply_choices_text("diffusion=off\ndiffusion.state=tile=16,stride=16,phases=8,relief=1.00\n");
-        let text = mods.choices_text();
-        assert!(text.starts_with("version=2\n"));
-        assert!(text.contains("diffusion=on"), "{text}");
-        assert_eq!(payload_cfg(&mods).relief, 100);
-        mods.apply_choices_text(&text.replace("diffusion=on", "diffusion=off"));
-        assert!(mods.choices_text().contains("diffusion=off"), "a current file's choice applies");
-    }
-
-    #[test]
-    fn world_state_round_trips_through_the_save_line() {
-        let mut world = World::new(1);
-        let mut mods = build();
-        mods.step_knob(0, 2, 1);
-        let saved = mods.save_states(&world);
+        assert_eq!((cfg.relief, cfg.caves, cfg.space, cfg.mines), (125, 75, 125, 100));
+        for _ in 0..20 {
+            mods.options_mut().step(relief, 1);
+        }
+        mods.options_mut().set(caves, OptionValue::Int(37));
+        mods.options_changed();
         let cfg = payload_cfg(&mods);
-        assert_eq!(saved, [("diffusion".to_string(), format!("v2;{}", cfg.to_text()))]);
-        let mut fresh = build();
-        fresh.load_state("diffusion", &saved[0].1, &mut world);
-        assert_eq!(payload_cfg(&fresh), cfg);
+        assert_eq!(cfg.relief, TerrainCfg::RELIEF.1, "relief stops at its top");
+        assert_eq!(cfg.caves, 25, "a stray value snaps onto the stepper");
     }
 
     #[test]
-    fn bench_pins_switch_the_generator() {
-        let mut mods = build();
-        mods.apply_bench_env(Some(false), None);
-        assert_eq!(mods.worldgen_kind(), WorldgenKind::Flat);
-        assert!(mods.choices_text().contains("diffusion=off"));
-        mods.apply_bench_env(Some(true), Some(true));
-        assert_eq!(mods.worldgen_kind(), WorldgenKind::Diffusion);
+    fn a_mod_without_options_keeps_the_defaults() {
+        let mut m = InfiniteDiffusionMod::new();
+        m.on_options(&Options::new());
+        assert_eq!(m.cfg(), TerrainCfg::default());
+        assert_eq!(m.worldgen_config().map(|t| TerrainCfg::from_text(&t)), Some(TerrainCfg::default()));
     }
 }

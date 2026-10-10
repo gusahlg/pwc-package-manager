@@ -1,5 +1,12 @@
 # Changelog — pwc.hotbar
 
+## 2.1.0
+
+- Requires `pwc-api ^3.0`. `hud` takes the core's `HudFacts`: the bar hides with the HUD off (the
+  core now asks every mod in every HUD mode). Each action names `immediate: false`.
+- No description or group of its own: the package manifest is what menus show. Mods are no longer
+  switched in the game; the build decides what is in. Save format unchanged.
+
 ## 2.0.1
 
 - Requires `pwc-api ^2.1`. Each action names `held: false`. Behaviour unchanged.

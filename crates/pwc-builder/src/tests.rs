@@ -74,7 +74,7 @@ fn manifest(p: &Pkg) -> ModManifest {
             license: "AGPL-3.0-or-later".to_owned(),
             license_files: vec!["LICENSE".to_owned()],
             kind: p.kind,
-            pwc_api: (p.kind != ModKind::Bundle).then(|| VersionReq::parse("^1.0").unwrap()),
+            pwc_api: (p.kind != ModKind::Bundle).then(|| VersionReq::parse("^2.0").unwrap()),
             edition: if p.id.ends_with("old") {
                 Edition::E2021
             } else {
@@ -98,23 +98,35 @@ fn manifest(p: &Pkg) -> ModManifest {
     }
 }
 
+/// The `pwc-mod-api` version of the fake PWC source: the first with `PackageInfo`.
+const API: &str = "2.2.0";
+
 /// A fake world: a PWC source, a store, cache directories.
 struct World {
     root: tempfile::TempDir,
     pwc: PathBuf,
+    api: Version,
 }
 
 impl World {
     fn new() -> Self {
+        Self::with_api(API)
+    }
+
+    /// A world whose PWC source provides `pwc-mod-api` `api` (test packages require `^2.0`).
+    fn with_api(api: &str) -> Self {
         let root = tempfile::tempdir().unwrap();
         let pwc = root.path().join("project_watt_cubed");
         write(&pwc.join("Cargo.toml"), PWC_CARGO_TOML);
         write(&pwc.join("Cargo.lock"), "# seed lock\nversion = 4\n");
         write(
             &pwc.join("crates/pwc-mod-api/Cargo.toml"),
-            "[package]\nname = \"pwc-mod-api\"\nversion = \"1.0.0\"\nedition = \"2024\"\n",
+            &format!(
+                "[package]\nname = \"pwc-mod-api\"\nversion = \"{api}\"\nedition = \"2024\"\n"
+            ),
         );
-        Self { root, pwc }
+        let api = Version::parse(api).unwrap();
+        Self { root, pwc, api }
     }
 
     fn store_dir(&self, p: &Pkg) -> PathBuf {
@@ -136,7 +148,7 @@ impl World {
             .collect();
         let pwc = LockedPwc {
             version: Version::new(2, 0, 0),
-            api: Version::new(1, 0, 0),
+            api: self.api.clone(),
             source: self.pwc.clone(),
             revision: "0123abc".to_owned(),
             dirty: false,
@@ -255,37 +267,161 @@ fn build_id_changes_with_every_input() {
 // ---------------------------------------------------------------------------------------------
 // Generated workspace
 
+/// The `(id, kind, dependencies, register)` of every `PackageInfo` in a generated bundle, in order.
+fn listed(lib: &str) -> Vec<(String, String, String, String)> {
+    lib.split("pwc_mod_api::PackageInfo {")
+        .skip(1)
+        .map(|entry| {
+            let field = |name: &str| -> String {
+                let line = entry
+                    .lines()
+                    .map(str::trim)
+                    .find(|l| l.starts_with(&format!("{name}: ")))
+                    .unwrap_or_else(|| panic!("no {name} in {entry}"));
+                line[name.len() + 2..].trim_end_matches(',').to_owned()
+            };
+            let id = field("id");
+            let id = id
+                .trim_start_matches('"')
+                .split('"')
+                .next()
+                .unwrap()
+                .to_owned();
+            (id, field("kind"), field("dependencies"), field("register"))
+        })
+        .collect()
+}
+
 #[test]
-fn bundle_registers_mods_in_topological_order_with_ties_by_id() {
+fn bundle_lists_every_package_in_topological_order_with_ties_by_id() {
     let world = World::new();
     let ws = generate(&world.request(MODS)).unwrap();
     let lib = &ws.files["bundle/src/lib.rs"];
-    let registered: Vec<&str> = lib
-        .lines()
-        .filter_map(|l| l.trim().strip_prefix("id: \""))
-        .map(|l| l.split('"').next().unwrap())
-        .collect();
-    // Dependencies first; among ready packages the smallest id. The library (pwc.names) and the
-    // bundle (pwc.essentials) take part in the ordering but are not registered.
+    // Dependencies first; among ready packages the smallest id. Every kind is listed; only mods
+    // have an entry point, and only their crates are named.
+    let entries = listed(lib);
+    let expect = |id: &str, kind: &str, deps: &str, register: &str| {
+        (
+            id.to_owned(),
+            format!("pwc_mod_api::PackageKind::{kind}"),
+            deps.to_owned(),
+            register.to_owned(),
+        )
+    };
     assert_eq!(
-        registered,
-        ["pwc.hotbar", "pwc.inventory", "pwc.zoom", "pwc.alpha"]
+        entries,
+        [
+            expect("pwc.hotbar", "Mod", "&[]", "Some(pwc_hotbar::register)"),
+            expect("pwc.names", "Library", "&[]", "None"),
+            expect(
+                "pwc.inventory",
+                "Mod",
+                r#"&["pwc.hotbar", "pwc.names"]"#,
+                "Some(pwc_inventory::register)"
+            ),
+            expect("pwc.zoom", "Mod", "&[]", "Some(pwc_zoom::register)"),
+            expect(
+                "pwc.essentials",
+                "Bundle",
+                r#"&["pwc.inventory", "pwc.zoom"]"#,
+                "None"
+            ),
+            expect(
+                "pwc.alpha",
+                "Mod",
+                r#"&["pwc.essentials"]"#,
+                "Some(pwc_alpha::register)"
+            ),
+        ],
+        "{lib}"
     );
-    assert!(lib.contains("register: pwc_hotbar::register,"));
     assert!(
         !lib.contains("pwc_names"),
-        "libraries are not registered:\n{lib}"
+        "a library has no entry point:\n{lib}"
     );
     assert!(
         !lib.contains("pwc_essentials"),
-        "bundles generate nothing:\n{lib}"
+        "a bundle has no crate:\n{lib}"
     );
 }
 
 #[test]
 fn bundle_lib_has_the_spec_shape() {
     let world = World::new();
-    let request = world.request(&MODS[1..2]);
+    let mut request = world.request(&[
+        pkg("pwc.names", ModKind::Library, &[]),
+        pkg("pwc.hotbar", ModKind::Mod, &["pwc.names"]),
+        pkg("pwc.essentials", ModKind::Bundle, &["pwc.hotbar"]),
+    ]);
+    let hotbar = &mut request
+        .packages
+        .get_mut(&id("pwc.hotbar"))
+        .unwrap()
+        .1
+        .package;
+    hotbar.name = "Hotbar".to_owned();
+    hotbar.description = "Nine slots.".to_owned();
+    let ws = generate(&request).unwrap();
+    let expected = format!(
+        "//! Generated by pwc. Do not edit.\n\n\
+         /// The environment hash of the lock this bundle was generated from.\n\
+         pub const ENVIRONMENT: &str = \"{}\";\n\n\
+         /// Every package of the lock, of every kind: dependencies before dependents, ties by id.\n\
+         pub static PACKAGES: &[pwc_mod_api::PackageInfo] = &[\n    \
+         pwc_mod_api::PackageInfo {{\n        \
+         id: \"pwc.names\", name: \"Test package\", version: \"1.0.0\",\n        \
+         description: \"A test package.\",\n        \
+         kind: pwc_mod_api::PackageKind::Library,\n        \
+         dependencies: &[],\n        \
+         register: None,\n    \
+         }},\n    \
+         pwc_mod_api::PackageInfo {{\n        \
+         id: \"pwc.hotbar\", name: \"Hotbar\", version: \"1.0.0\",\n        \
+         description: \"Nine slots.\",\n        \
+         kind: pwc_mod_api::PackageKind::Mod,\n        \
+         dependencies: &[\"pwc.names\"],\n        \
+         register: Some(pwc_hotbar::register),\n    \
+         }},\n    \
+         pwc_mod_api::PackageInfo {{\n        \
+         id: \"pwc.essentials\", name: \"Test package\", version: \"1.0.0\",\n        \
+         description: \"A test package.\",\n        \
+         kind: pwc_mod_api::PackageKind::Bundle,\n        \
+         dependencies: &[\"pwc.hotbar\"],\n        \
+         register: None,\n    \
+         }},\n\
+         ];\n\n\
+         /// The game build: [`PACKAGES`] and [`ENVIRONMENT`].\n\
+         pub fn game_build() -> pwc_mod_api::GameBuild {{\n    \
+         pwc_mod_api::GameBuild::from_static(ENVIRONMENT, PACKAGES)\n\
+         }}\n",
+        request.lock.environment
+    );
+    assert_eq!(ws.files["bundle/src/lib.rs"], expected);
+}
+
+#[test]
+fn dependencies_are_listed_sorted_and_once() {
+    let world = World::new();
+    let mut request = world.request(&[
+        pkg("pwc.b", ModKind::Mod, &[]),
+        pkg("pwc.a", ModKind::Library, &[]),
+        pkg("pwc.c", ModKind::Mod, &["pwc.b", "pwc.a"]),
+    ]);
+    request.lock.packages[2].dependencies = vec![id("pwc.b"), id("pwc.a"), id("pwc.b")];
+    let ws = generate(&request).unwrap();
+    let entries = listed(&ws.files["bundle/src/lib.rs"]);
+    assert_eq!(entries[2].0, "pwc.c");
+    assert_eq!(entries[2].2, r#"&["pwc.a", "pwc.b"]"#);
+}
+
+#[test]
+fn sources_before_the_package_list_get_the_2x_bundle() {
+    let world = World::with_api("2.1.0");
+    let request = world.request(&[
+        pkg("pwc.names", ModKind::Library, &[]),
+        pkg("pwc.hotbar", ModKind::Mod, &["pwc.names"]),
+        pkg("pwc.essentials", ModKind::Bundle, &["pwc.hotbar"]),
+    ]);
     let ws = generate(&request).unwrap();
     let expected = format!(
         "//! Generated by pwc. Do not edit.\n\n\
@@ -302,6 +438,12 @@ fn bundle_lib_has_the_spec_shape() {
         request.lock.environment
     );
     assert_eq!(ws.files["bundle/src/lib.rs"], expected);
+    assert!(
+        !generate(&World::with_api("2.1.0").request(&[]))
+            .unwrap()
+            .files["bundle/src/lib.rs"]
+            .contains("PackageInfo")
+    );
 }
 
 #[test]
@@ -517,22 +659,30 @@ fn cargo_lock_is_seeded_from_the_pwc_source() {
 #[test]
 fn names_and_paths_are_escaped() {
     const TRICKY: &str = "Quote \"Q\" \\ back\tslash Höhle \u{202e}rtl";
-    let world = World::new();
-    let mut request = world.request(&MODS[1..2]);
-    request
-        .packages
-        .get_mut(&id("pwc.hotbar"))
-        .unwrap()
-        .1
-        .package
-        .name = TRICKY.to_owned();
-    let ws = generate(&request).unwrap();
-    let lib = &ws.files["bundle/src/lib.rs"];
-    assert!(
-        lib.contains(r#"name: "Quote \"Q\" \\ back\u{9}slash H\u{f6}hle \u{202e}rtl""#),
-        "{lib}"
-    );
-    assert!(lib.is_ascii(), "generated Rust is pure ASCII");
+    const ESCAPED: &str = r#""Quote \"Q\" \\ back\u{9}slash H\u{f6}hle \u{202e}rtl""#;
+    for api in [API, "2.1.0"] {
+        let world = World::with_api(api);
+        let mut request = world.request(&MODS[1..2]);
+        let package = &mut request
+            .packages
+            .get_mut(&id("pwc.hotbar"))
+            .unwrap()
+            .1
+            .package;
+        package.name = TRICKY.to_owned();
+        package.description = format!("{TRICKY}\nline two");
+        let ws = generate(&request).unwrap();
+        let lib = &ws.files["bundle/src/lib.rs"];
+        assert!(lib.contains(&format!("name: {ESCAPED}")), "{lib}");
+        if api == API {
+            let description = format!(
+                "description: {}\\u{{a}}line two\",",
+                &ESCAPED[..ESCAPED.len() - 1]
+            );
+            assert!(lib.contains(&description), "{lib}");
+        }
+        assert!(lib.is_ascii(), "generated Rust is pure ASCII");
+    }
 
     assert_eq!(rust_str("plain"), "\"plain\"");
     assert_eq!(toml_str("a\"b\\c\nd é"), "\"a\\\"b\\\\c\\u000Ad é\"");
@@ -553,7 +703,15 @@ fn generation_is_deterministic() {
 fn empty_lock_builds_vanilla() {
     let world = World::new();
     let ws = generate(&world.request(&[])).unwrap();
-    assert!(ws.files["bundle/src/lib.rs"].contains(".with_environment(ENVIRONMENT)\n}\n"));
+    let lib = &ws.files["bundle/src/lib.rs"];
+    assert!(
+        lib.contains("pub static PACKAGES: &[pwc_mod_api::PackageInfo] = &[];\n"),
+        "{lib}"
+    );
+    assert!(
+        lib.contains("pwc_mod_api::GameBuild::from_static(ENVIRONMENT, PACKAGES)\n}\n"),
+        "{lib}"
+    );
     let root: toml::Table = ws.files["Cargo.toml"].parse().unwrap();
     assert_eq!(root["workspace"]["members"].as_array().unwrap().len(), 2);
 }
@@ -573,8 +731,8 @@ fn pwc_version_and_api_must_match_the_lock() {
     assert!(generate_err(&request).contains("the checkout is PWC 2.0.0 but the lock pins 2.1.0"));
 
     let mut request = world.request(MODS);
-    request.lock.pwc.api = Version::new(1, 1, 0);
-    assert!(generate_err(&request).contains("pwc-mod-api 1.0.0 but the lock pins 1.1.0"));
+    request.lock.pwc.api = Version::new(2, 3, 0);
+    assert!(generate_err(&request).contains("pwc-mod-api 2.2.0 but the lock pins 2.3.0"));
 }
 
 #[test]
@@ -586,13 +744,13 @@ fn workspace_inherited_versions_are_followed() {
     );
     let text = PWC_CARGO_TOML.replace(
         "resolver = \"2\"",
-        "resolver = \"2\"\n[workspace.package]\nversion = \"1.0.0\"",
+        &format!("resolver = \"2\"\n[workspace.package]\nversion = \"{API}\""),
     );
     write(&world.pwc.join("Cargo.toml"), &text);
     let mut request = world.request(MODS);
     generate(&request).unwrap();
-    request.lock.pwc.api = Version::new(2, 0, 0);
-    assert!(generate_err(&request).contains("pwc-mod-api 1.0.0"));
+    request.lock.pwc.api = Version::new(3, 0, 0);
+    assert!(generate_err(&request).contains("pwc-mod-api 2.2.0"));
 }
 
 #[test]
@@ -619,10 +777,10 @@ fn packages_must_accept_the_api_version() {
         .unwrap()
         .1
         .package
-        .pwc_api = Some(VersionReq::parse("^2.0").unwrap());
+        .pwc_api = Some(VersionReq::parse("^3.0").unwrap());
     let err = generate(&request).unwrap_err();
     assert!(
-        matches!(&err, BuildError::Package(p, m) if p.as_str() == "pwc.zoom" && m.contains("requires pwc-api ^2.0")),
+        matches!(&err, BuildError::Package(p, m) if p.as_str() == "pwc.zoom" && m.contains("requires pwc-api ^3.0")),
         "{err}"
     );
 }

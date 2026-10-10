@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>Chat and Commands</title>
+  <rect x="2" y="2" width="60" height="60" rx="12" fill="#1a1c22"/>
+  <path d="M14 14 H50 Q54 14 54 18 V36 Q54 40 50 40 H28 L18 48 V40 H14 Q10 40 10 36 V18 Q10 14 14 14 Z" fill="#87ceeb"/>
+  <path d="M34 19 L26 35" stroke="#1a1c22" stroke-width="5" stroke-linecap="round"/>
+</svg>

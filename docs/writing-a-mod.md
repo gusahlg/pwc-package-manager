@@ -49,7 +49,7 @@ description = "Shows your height in the top-right corner of the screen."
 authors = ["Alice Example <alice@example.org>"]
 license = "Apache-2.0 OR MIT"
 license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
-pwc-api = "^1.0"
+pwc-api = "^3.0"
 categories = ["interface"]
 ```
 <!-- SPDX-SnippetEnd -->
@@ -58,6 +58,9 @@ categories = ["interface"]
   organisation name); `pwc` is reserved for first-party packages. The id also gives the Rust crate
   name, with `.` and `-` replaced by `_`: this package is the crate `alice_altimeter`.
 - **`pwc-api`** is the version requirement on the `pwc-mod-api` crate your code compiles against.
+  This tutorial is written for API 3.0.
+- **`name`** and **`description`** are what menus show for your package (the mod list reads them
+  from the build); the mod itself has no display text.
 
 ### Licensing
 
@@ -128,19 +131,15 @@ pub fn register(registrar: &mut ModRegistrar) {
 struct Altimeter;
 
 impl Mod for Altimeter {
-    fn name(&self) -> &str {
-        "Altimeter"
-    }
-
     fn id(&self) -> &'static str {
         "alice.altimeter"
     }
 
-    fn description(&self) -> &str {
-        "Your height in the top-right corner."
-    }
-
-    fn hud(&self, _world: &World, player: &Player, _screen: (i32, i32), out: &mut Vec<HudElement>) {
+    fn hud(&self, facts: &HudFacts, _world: &World, player: &Player, out: &mut Vec<HudElement>) {
+        // The game asks in every HUD mode; show nothing with the HUD off.
+        if !facts.hud_mode.shows_mod_hud() {
+            return;
+        }
         out.push(HudElement::Label {
             at: Anchor::TopRight,
             off: (-12, 40),
@@ -155,33 +154,41 @@ impl Mod for Altimeter {
 <!-- SPDX-SnippetEnd -->
 
 `pwc_mod_api::prelude` re-exports what most mods need: `Mod`, `ModRegistrar`, `ModContext`,
-`Player`, `World`, `BlockId`, `BlockRegistry`, the HUD types (`HudElement`, `Anchor`, `Role`,
-`Line`, `Panel`, `Row`), `Knob`, `Group` and `ESSENTIALS`. Everything else lives in modules such as
-`pwc_mod_api::ui`, `pwc_mod_api::world` and `pwc_mod_api::block`.
+`FrameContext`, `GameContext`, `HudFacts`, `Player`, `World`, `BlockId`, `BlockRegistry`, the HUD
+types (`HudElement`, `Anchor`, `Role`, `Line`, `Panel`, `Row`) and the options types (`OptionSpec`,
+`OptionId`, `Options`, `Category`). Everything else lives in modules such as `pwc_mod_api::ui`,
+`pwc_mod_api::world`, `pwc_mod_api::screen` and `pwc_mod_api::block`.
 
-`name` and `id` are the only required methods. `name` is the label on the Mods screen and may
-change between versions. `id` is the stable key the game uses to persist the mod's on/off choice,
-settings and per-world state, so it must never change; use your package id, or the package id plus
-a suffix when a package installs several mods.
+`id` is the only required method. It is the stable key the game uses for the mod's per-world
+state, so it must never change; use your package id, or the package id plus a suffix when a package
+installs several mods. `name` defaults to the id.
+
+There is no switch for a mod in the game: a mod runs whenever the build has its package. A server
+may refuse a package; the game then *suspends* it for that session, and its hooks do not run.
 
 Every other method is an optional hook with a no-op default. The most common ones:
 
 | Hook | Called | Use it to |
 |---|---|---|
-| `description`, `group` | Mods screen | Describe the mod; place it in a group. |
 | `update(&mut self, ctx)` | Every mod tick | React to input and change state through `ModContext`. |
-| `hud(&self, world, player, screen, out)` | Every frame | Push `HudElement`s to draw. |
-| `run_command(&mut self, ctx, cmd, args)`, `commands` | Console line | Handle a `/command` with the player, world, settings and sky in `ctx`; list your commands for `/help` and Tab completion (API 1.1). The context-free `command(cmd, args)` of API 1.0 still works: `run_command` falls back to it. |
-| `on_toggle_fly(&mut self, player, world) -> bool` | Flight key (`F`) | Offer flight and return `true`: the core has no flight toggle of its own; the first enabled mod that takes the key wins (API 1.1). |
-| `knobs`, `step_knob` | Mods screen | Offer settings the player can change. |
-| `save_choice_state`, `load_choice_state` | `mods.cfg` | Persist those settings. |
+| `on_frame(&mut self, ctx)` | Every in-world frame | Read immediate actions, take the keyboard (`ctx.capture_text`), change game state through `ctx.game`. Runs with mod logic off too. |
+| `hud(&self, facts, world, player, out)` | Every frame, every HUD mode | Push `HudElement`s to draw; `facts.hud_mode` says whether the HUD is shown. |
+| `on_message(&mut self, msg) -> bool` | A chat line, join, leave or notice | Show it; return `true` when you did. |
+| `on_options(&mut self, options)` | Options loaded or changed | Copy the values of your options (section 7). |
 | `save_state`, `load_state` | World save and load | Persist per-world state, with a payload version. |
-| `on_enable`, `on_disable`, `reset` | Toggle, world change | Set up and clear state. |
-| `held`, `on_block_break`, `on_tool_changed` | Gameplay events | Take part in holding and using matter. |
-| `appearance`, `namer`, `worldgen`, `start_screen`, `menu_theme` | When the game needs one | Replace a core default (first enabled mod wins). |
+| `reset` | Entering a world | Clear per-world state. |
+| `tool`, `on_block_break`, `on_tool_changed` | Gameplay events | Take part in holding and using matter. |
+| `appearance`, `namer`, `worldgen` | When the game needs one | Replace a core default (first active mod wins). |
+| `root_screen`, `pause_screen` | Out of a world; Esc in a world | Be the start screen or the pause screen (first active mod wins). |
+
+To offer a screen on the main menu or the pause screen without being either, register an entry:
+`registrar.screen_entry(ScreenEntry { id, label, places, order, open })`. The menu framework and
+default look are in the `pwc.ui-kit` library package; `pwc.settings-menu` and `pwc.pause-menu` show
+how to use it. Commands come from `pwc.commands`: depend on it and add yours through its
+`CommandsHandle` (see its README).
 
 This list is not complete; see the `pwc-mod-api` documentation for every hook, its arguments and
-how the game arbitrates when several mods implement it (fan-out in install order, or first enabled
+how the game arbitrates when several mods implement it (fan-out in install order, or first active
 mod wins). To read it, run `cargo doc -p pwc-mod-api --open` in the game checkout.
 
 Two rules matter from the first line of code:
@@ -222,46 +229,84 @@ under `~/.local/share/pwc/store/<hash>/`; the paths below that directory mirror 
 For editor support you may keep a development `Cargo.toml` next to `mod.toml` (for example one
 that depends on `pwc-mod-api` by path in your game checkout); packaging ignores it.
 
-## 7. Settings
+## 7. Options
 
-A knob is a setting the player changes on the Mods screen. This version of the altimeter lets the
-player choose how many decimals to show and remembers the choice in `mods.cfg`:
+A setting the player may tune is an *option* in the game's options registry. Declare it in
+`register`; the game stores the value, saves it in `settings.cfg` as `<package-id>.<key>=`, and
+every settings screen (such as `pwc.settings-menu`) and the `/set` command list it on its page.
+Neither knows your package, and your package depends on neither. This version of the altimeter
+lets the player choose how many decimals to show:
 
 <!-- SPDX-SnippetBegin -->
 <!-- SPDX-SnippetCopyrightText: 2026 Project Watt Cubed contributors -->
 <!-- SPDX-License-Identifier: Apache-2.0 OR MIT -->
 ```rust
+pub fn register(registrar: &mut ModRegistrar) {
+    let decimals = registrar.option(OptionSpec::choice("decimals", "Altimeter Decimals", Category::Interface, &["0", "1", "2"], 0));
+    registrar.add(Altimeter { decimals_id: decimals, decimals: 0 });
+}
+
 struct Altimeter {
+    decimals_id: OptionId,
     decimals: usize,
 }
 
 impl Mod for Altimeter {
-    // name, id, description and hud as before; hud formats with
+    // id and hud as before; hud formats with
     // format!("{:.*} m", self.decimals, player.position.y)
 
-    fn knobs(&self) -> Vec<Knob> {
-        vec![Knob { label: "decimals", value: self.decimals.to_string(), hint: "0-2".into() }]
-    }
-
-    fn step_knob(&mut self, _index: usize, delta: i32) {
-        self.decimals = (self.decimals as i32 + delta).clamp(0, 2) as usize;
-    }
-
-    fn save_choice_state(&self) -> Option<String> {
-        Some(self.decimals.to_string())
-    }
-
-    fn load_choice_state(&mut self, data: &str) {
-        if let Ok(decimals) = data.parse::<usize>() {
-            self.decimals = decimals.min(2);
-        }
+    fn on_options(&mut self, options: &Options) {
+        self.decimals = options.choice(self.decimals_id);
     }
 }
 ```
 <!-- SPDX-SnippetEnd -->
 
-Treat persisted data as untrusted input: an old or hand-edited file must not crash the game.
-Changing what you persist in an incompatible way requires a major version bump.
+- Kinds: `OptionSpec::toggle`, `choice`, `percent` (whole percents with a range and a step) and
+  `float`. `.next_world()` marks a value that applies to new worlds only.
+- The game calls `on_options` after registration, once `settings.cfg` is read, and whenever a
+  value changes. Reads are by the `OptionId` you got, so they cost nothing; copy what you need.
+- Values are clamped to their range; a hand-edited or unparseable line keeps the default.
+  `.legacy_key(k)` reads a value an older version saved under another key, once.
+- Changing an option's key or kind incompatibly requires a major version bump.
+
+Per-world state (`save_state` / `load_state`) is untrusted input too: an old or hand-edited save
+must not crash the game.
+
+## Testing
+
+Unit tests drive your package the way a build registers it, through
+`pwc_mod_api::testing::Harness`:
+
+<!-- SPDX-SnippetBegin -->
+<!-- SPDX-SnippetCopyrightText: 2026 Project Watt Cubed contributors -->
+<!-- SPDX-License-Identifier: Apache-2.0 OR MIT -->
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pwc_mod_api::settings::OptionValue;
+    use pwc_mod_api::testing::Harness;
+    use pwc_mod_api::{GameBuild, ModDescriptor};
+
+    #[test]
+    fn the_decimals_option_reaches_the_mod() {
+        let mut harness = Harness::new(GameBuild::new().with_mod(ModDescriptor {
+            id: "alice.altimeter",
+            name: "Altimeter",
+            version: "0.1.0",
+            register,
+        }));
+        assert_eq!(harness.id(0), "alice.altimeter");
+        assert!(harness.set_option("alice.altimeter.decimals", OptionValue::Choice(2)));
+    }
+}
+```
+<!-- SPDX-SnippetEnd -->
+
+The harness offers the hooks as the game arbitrates them (`update`, `frame`, `message`, `hud`,
+`tool`, `appearance`, the screens), the options, and `suspend` / `resume`. Run the tests with
+`cargo test` in a generated build workspace (`pwc build --print-dir` prints it).
 
 ## 8. Depend on another mod
 
@@ -272,7 +317,7 @@ A mod can use another package's Rust API. Declare the dependency in `mod.toml`:
 <!-- SPDX-License-Identifier: Apache-2.0 OR MIT -->
 ```toml
 [dependencies]
-"pwc.hotbar" = "^1.0"
+"pwc.hotbar" = "^2.1"
 ```
 <!-- SPDX-SnippetEnd -->
 
@@ -283,7 +328,7 @@ contains your mod, registers it before yours, and makes it available to your cod
 
 - Format 1 has no optional dependencies: whatever you list is always part of the build.
 - Only dependencies you declare are visible to your code, and only through their public Rust API.
-- A major version bump of a dependency signals an incompatible API change, so `^1.0` keeps you on
+- A major version bump of a dependency signals an incompatible API change, so `^2.1` keeps you on
   compatible versions.
 - Depending on a bundle such as `pwc.essentials` pulls in its packages but provides no crate; to
   use a package's API, depend on that package directly.
@@ -320,7 +365,7 @@ impl AltitudeHandle {
 pub fn register(registrar: &mut ModRegistrar) {
     let altitude = AltitudeHandle(Rc::new(Cell::new(0.0)));
     registrar.provide(altitude.clone());
-    registrar.add(Altimeter { altitude, decimals: 0 });
+    registrar.add(Altimeter { altitude });
 }
 
 // In `impl Mod for Altimeter`:

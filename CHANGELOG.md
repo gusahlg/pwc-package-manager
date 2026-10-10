@@ -3,6 +3,36 @@
 Notable changes to the `pwc` tooling and this repository. Each first-party package in `mods/`
 carries its own version in its `mod.toml`.
 
+## 0.2.0
+
+### First-party packages (mods-v3, pwc-api 3.0)
+
+Every first-party package requires `pwc-api ^3.0`: the game's mods-v3 release, where chat,
+commands, every menu and the mod list are mods, the build decides what is installed, and every
+tunable lives in one options registry.
+
+- New: `pwc.ui-kit` 1.0.0 (a library: the menu framework, the default look and the text widgets),
+  `pwc.settings-menu`, `pwc.mod-menu` and `pwc.pause-menu` 1.0.0, `pwc.chat`, `pwc.commands` and the
+  `pwc.chat-commands` bundle 1.0.0.
+- Major: `pwc.start-screen` 2.0.0 (the root screen), `pwc.dev-toolkit` 2.0.0 (its commands register
+  through `pwc.commands`; flight is its own key), `pwc.game-ui` 2.0.0 (the HUD the core no longer
+  draws), `pwc.essentials` 2.0.0.
+- Minor: `pwc.hotbar` and `pwc.inventory` 2.1.0; `pwc.sounds`, `pwc.proximity-chat` (Voice Chat is
+  its option), `pwc.neural-textures`, `pwc.material-names`, `pwc.infinite-diffusion` (their knobs
+  are options, carried over once from an old `mods.cfg`) and `pwc.visuals` 1.1.0.
+- Retired: `pwc.menus` (its theme is the UI kit's look).
+- Package tests use `pwc_mod_api::testing::Harness`; the game's host type is no longer part of the
+  API.
+
+### Builder
+
+- The generated mod bundle lists every locked package, of every kind, as a
+  `pwc_mod_api::PackageInfo`: id, name, version, description, kind, direct dependencies, and the
+  entry point for mods. It builds the game with `GameBuild::from_static`. The game hands the list
+  to every package, so a package such as a mod menu can show what a build contains without the
+  game naming any package. A PWC source whose `pwc-mod-api` is older than 2.2.0 still gets the
+  earlier bundle, which lists only the mods.
+
 ## 0.1.0 — unreleased
 
 The first release: local packages, instances and reproducible builds of modded PWC.

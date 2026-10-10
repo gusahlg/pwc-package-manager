@@ -11,7 +11,7 @@ When a break overflows the inventory (units are destroyed because it is full), t
 or, while the panel is closed, a line at the top of the screen — warns
 "Inventory full - elements lost!" for 2.5 seconds after the last overflowing break.
 
-Mod id: `inventory` (display name "Inventory"), in the Essentials group, enabled by default.
+Mod id: `inventory`. Part of `pwc.essentials`.
 
 ## Controls
 
@@ -34,11 +34,10 @@ None.
 
 - **World save:** nothing. The counts live on the player (the core inventory), which the game saves
   itself; the hotbar saves its slots.
-- **`mods.cfg`:** only `inventory=on|off`.
 
 ## Dependencies
 
-- The PWC mod API (`pwc-api ^2.1`).
+- The PWC mod API (`pwc-api ^3.0`).
 - `pwc.hotbar ^2.0` — the inventory equips through the hotbar's shared `HotbarHandle` and tells it
   that the panel is open through the shared `ItemUiHandle`. The dependency guarantees that the
   hotbar registers (and provides the handles) first; registering the inventory without it panics
@@ -47,8 +46,8 @@ None.
 ## Compatibility
 
 - Disabling the inventory makes the list inaccessible again but keeps every unit on the player.
-- `close_overlay` (Escape) is first-enabled-wins: an open inventory panel consumes Escape.
-- Mod id and `mods.cfg` key are unchanged from the inventory that shipped inside PWC 2.0.
+- `close_overlay` (Escape) is first-active-wins: an open inventory panel consumes Escape.
+- The mod id is unchanged from the inventory that shipped inside PWC 2.0.
 
 ## Licence
 

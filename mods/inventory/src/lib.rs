@@ -21,7 +21,7 @@ use pwc_mod_api::inventory::Inventory;
 use pwc_mod_api::player::Player;
 use pwc_mod_api::ui::{visible_window, Anchor, HudElement, Panel, Role, Row, PANEL_FONT};
 use pwc_mod_api::world::World;
-use pwc_mod_api::{Action, Mod, ModContext, ModRegistrar, ESSENTIALS};
+use pwc_mod_api::{Action, HudFacts, Mod, ModContext, ModRegistrar};
 
 const TOGGLE: &[Chord] = &[Chord::key(Key::I)];
 const ACTIONS: &[Action] = &[Action {
@@ -30,6 +30,7 @@ const ACTIONS: &[Action] = &[Action {
     default: TOGGLE,
     repeat: false,
     held: false,
+    immediate: false,
 }];
 
 /// How long the "elements lost" warning stays on screen after the last overflowing break.
@@ -43,7 +44,7 @@ const PANEL_WIDTH: i32 = 420;
 const PANEL_PAD: i32 = 8;
 const FONT_SIZE: i32 = 18;
 const LINE_HEIGHT: i32 = FONT_SIZE + 4;
-/// The console scrollback and the hotbar occupy the bottom of the screen.
+/// The chat scrollback and the hotbar occupy the bottom of the screen.
 const BOTTOM_RESERVE: i32 = 260;
 
 /// The package entry point: installs the inventory over the hotbar's shared handles. `pwc.hotbar`
@@ -188,16 +189,8 @@ impl Mod for InventoryMod {
         "inventory"
     }
 
-    fn description(&self) -> &str {
-        "Your held materials (press I): choose one and press 1-9 to equip it on the hotbar."
-    }
-
     fn actions(&self) -> &[Action] {
         ACTIONS
-    }
-
-    fn group(&self) -> &'static str {
-        ESSENTIALS
     }
 
     fn update(&mut self, ctx: &mut ModContext) {
@@ -260,7 +253,12 @@ impl Mod for InventoryMod {
         }
     }
 
-    fn hud(&self, world: &World, player: &Player, (screen_w, screen_h): (i32, i32), out: &mut Vec<HudElement>) {
+    fn hud(&self, facts: &HudFacts, world: &World, player: &Player, out: &mut Vec<HudElement>) {
+        // Gameplay UI: every HUD mode but Off.
+        if !facts.hud_mode.shows_mod_hud() {
+            return;
+        }
+        let (screen_w, screen_h) = facts.screen;
         let overflow = self.loss.showing();
         let visible = self.visible();
         let bar = self.bar.get();
@@ -285,10 +283,11 @@ impl Mod for InventoryMod {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pwc_mod_api::testing::Harness;
     use pwc_mod_api::engine::DVec3;
     use pwc_mod_api::render_config::RenderConfig;
     use pwc_mod_api::world::generation::WorldgenKind;
-    use pwc_mod_api::{GameBuild, ModDescriptor, Mods};
+    use pwc_mod_api::{GameBuild, ModDescriptor};
 
     fn world() -> World {
         World::with_kind(1, RenderConfig::default(), WorldgenKind::Flat, true)
@@ -299,11 +298,10 @@ mod tests {
     }
 
     /// `pwc.hotbar` and this package, registered the way a PWC build registers them.
-    fn build() -> Mods {
-        GameBuild::new()
+    fn build() -> Harness {
+        Harness::new(GameBuild::new()
             .with_mod(ModDescriptor { id: "pwc.hotbar", name: "Hotbar", version: "2.0.0", register: pwc_hotbar::register })
-            .with_mod(ModDescriptor { id: "pwc.inventory", name: "Inventory", version: "2.0.0", register })
-            .mods()
+            .with_mod(ModDescriptor { id: "pwc.inventory", name: "Inventory", version: "2.0.0", register }))
     }
 
     fn ctx<'a>(player: &'a mut Player, world: &'a mut World) -> ModContext<'a> {
@@ -343,8 +341,13 @@ mod tests {
         assert!(armed.elapsed() <= OVERFLOW_WARNING);
         assert!(inventory.loss.showing());
         let mut shown = Vec::new();
-        inventory.hud(&world, &Player::new(DVec3::new(0.0, 70.0, 0.0)), (800, 600), &mut shown);
+        inventory.hud(&HudFacts::new((800, 600)), &world, &Player::new(DVec3::new(0.0, 70.0, 0.0)), &mut shown);
         assert_eq!(hud_text(&shown), "Inventory full - elements lost!\n", "the closed panel still warns");
+        let mut off = HudFacts::new((800, 600));
+        off.hud_mode = pwc_mod_api::ui::HudMode::Off;
+        let mut hidden = Vec::new();
+        inventory.hud(&off, &world, &Player::new(DVec3::new(0.0, 70.0, 0.0)), &mut hidden);
+        assert!(hidden.is_empty(), "the HUD off hides the warning too");
         inventory.reset();
         assert!(inventory.loss.raised.is_none(), "reset must clear the warning");
     }
@@ -435,7 +438,6 @@ mod tests {
         let ids: Vec<&str> = (0..mods.len()).map(|i| mods.id(i)).collect();
         assert_eq!(ids, ["hotbar", "inventory"], "dependency order: the hotbar registers first");
         assert_eq!(mods.package(1), Some("pwc.inventory"));
-        assert_eq!(mods.group(1), ESSENTIALS);
         let mut c = ctx(&mut player, &mut world);
         c.set_action("inventory.toggle");
         mods.update(&mut c);
@@ -453,9 +455,8 @@ mod tests {
     #[test]
     #[should_panic(expected = "pwc.inventory needs the item UI handle from pwc.hotbar")]
     fn register_without_the_hotbar_names_the_missing_dependency() {
-        let _ = GameBuild::new()
-            .with_mod(ModDescriptor { id: "pwc.inventory", name: "Inventory", version: "2.0.0", register })
-            .mods();
+        let _ = Harness::new(GameBuild::new()
+            .with_mod(ModDescriptor { id: "pwc.inventory", name: "Inventory", version: "2.0.0", register }));
     }
 
     #[test]
@@ -468,28 +469,24 @@ mod tests {
         let saved = mods.save_states(&world);
         assert!(saved.iter().all(|(k, _)| k != "inventory"), "the inventory is core state, not an inventory save line");
         assert!(saved.iter().any(|(k, _)| k == "hotbar"));
-        let text = mods.choices_text();
-        assert!(text.contains("inventory=on") && !text.contains("inventory.state"), "{text}");
-        mods.apply_choices_text("version=2\ninventory=off\nnot-a-mod=on\n");
-        assert!(!mods.is_enabled(1));
-        assert!(mods.is_enabled(0), "an unmentioned mod keeps its default (on)");
     }
 
     #[test]
-    fn disabling_inventory_does_not_destroy_mined_blocks() {
+    fn suspending_inventory_does_not_destroy_mined_blocks() {
         let world = world();
         let mut player = Player::new(DVec3::new(0.0, 70.0, 0.0));
         let mut mods = build();
         let rock = world.registry().id_by_label("rock").unwrap();
         assert!(player.inventory.add(rock, 2));
-        mods.set_enabled("inventory", false);
+        mods.suspend(&["pwc.inventory"]);
+        assert!(!mods.is_active(1) && mods.is_active(0));
         mods.on_block_break(rock, &world, false);
         assert_eq!(player.inventory.count(rock), 2, "core keeps the configurations");
-        mods.set_enabled("inventory", true);
+        mods.resume();
         let inv = inventory();
         inv.set_visible(true);
         let mut shown = Vec::new();
-        inv.hud(&world, &player, (800, 600), &mut shown);
+        inv.hud(&HudFacts::new((800, 600)), &world, &player, &mut shown);
         let text = hud_text(&shown);
         assert!(text.contains(&format!("2x {}", world.registry().display_name(rock))), "{text}");
         assert!(!text.contains("rock"), "labels never reach the player: {text}");

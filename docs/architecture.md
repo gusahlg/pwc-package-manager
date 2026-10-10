@@ -13,7 +13,7 @@ specification wins.
 The system keeps four ideas separate.
 
 - **Mod**: source code and assets that extend PWC through the PWC Mod API. A mod is what an author
-  writes and what a player switches on or off.
+  writes and what a player adds to an instance.
 - **Package**: one immutable, distributable version of one mod, a `.pwcmod` file. Its identity is
   the SHA-256 of its canonical contents; the same id and version never have different contents.
 - **Instance**: one PWC setup and its mods. `instance.toml` is the desired state ("the essentials,

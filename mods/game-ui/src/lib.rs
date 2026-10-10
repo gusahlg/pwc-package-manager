@@ -1,5 +1,10 @@
-//! Game UI: in-world HUD pieces of the essentials. Today one piece, the facing indicator: which
-//! way the player looks along the world's own (physical) X, Y and Z axes.
+//! Game UI: the in-world HUD of the essentials. Two pieces:
+//!
+//! - **The information HUD** ([`info`]): the reticle, the loading line, the coordinates, the frame
+//!   rate, the player count and the "connection interrupted" banner, drawn from the facts the core
+//!   passes to `hud`. The core draws no HUD text of its own.
+//! - **The facing indicator**: which way the player looks along the world's own (physical) X, Y
+//!   and Z axes.
 //!
 //! Under the minimap, in the top-right corner, a small gizmo shows where +X, +Y and +Z point on
 //! screen (an axis pointing into the screen is drawn dimmer, nearer axes on top), and under it the
@@ -17,7 +22,9 @@ use pwc_mod_api::engine::Color;
 use pwc_mod_api::player::Player;
 use pwc_mod_api::ui::{Anchor, HudElement, Role};
 use pwc_mod_api::world::World;
-use pwc_mod_api::{Mod, ModRegistrar, ESSENTIALS};
+use pwc_mod_api::{HudFacts, Mod, ModRegistrar};
+
+mod info;
 
 /// The package entry point: installs the Game UI mod.
 pub fn register(registrar: &mut ModRegistrar) {
@@ -26,13 +33,14 @@ pub fn register(registrar: &mut ModRegistrar) {
 
 /// The Game UI mod (id `game_ui`).
 pub struct GameUi {
+    info: info::Info,
     hud: RefCell<Memo<Facing, Vec<HudElement>>>,
 }
 
 // By hand: `Memo`'s derived `Default` would require one of `Facing` too.
 impl Default for GameUi {
     fn default() -> Self {
-        Self { hud: RefCell::new(Memo::new()) }
+        Self { info: info::Info::default(), hud: RefCell::new(Memo::new()) }
     }
 }
 
@@ -45,17 +53,13 @@ impl Mod for GameUi {
         "game_ui"
     }
 
-    fn description(&self) -> &str {
-        "Which way you look along the world's X, Y and Z axes: a gizmo and the facing in words."
-    }
-
-    fn group(&self) -> &'static str {
-        ESSENTIALS
-    }
-
-    fn hud(&self, _world: &World, player: &Player, screen: (i32, i32), out: &mut Vec<HudElement>) {
-        let facing = Facing::of(player, screen);
-        out.extend(self.hud.borrow_mut().get_or(facing, || facing.paint()).iter().cloned());
+    fn hud(&self, facts: &HudFacts, _world: &World, player: &Player, out: &mut Vec<HudElement>) {
+        self.info.hud(facts, player, out);
+        // The facing indicator is gameplay UI: every HUD mode but Off.
+        if facts.hud_mode.shows_mod_hud() {
+            let facing = Facing::of(player, facts.screen);
+            out.extend(self.hud.borrow_mut().get_or(facing, || facing.paint()).iter().cloned());
+        }
     }
 }
 
@@ -182,7 +186,7 @@ impl Facing {
             out.push(HudElement::Label { at: Anchor::Center, off: at(label), base_fs: 12, role, text: name.into() });
         }
         // The words line up with the gizmo's right edge, so a long line grows to the left.
-        // Line gaps leave room for the text at any UI scale (mods cannot read the scale).
+        // Line gaps leave room for the text at any UI scale.
         let below = TOP + 2 * half + l.px(8.0);
         out.push(HudElement::Label { at: Anchor::TopRight, off: (-MARGIN, below), base_fs: 16, role: Role::Primary, text: self.words().into() });
         out.push(HudElement::Label { at: Anchor::TopRight, off: (-MARGIN, below + line_room(16)), base_fs: 13, role: Role::Muted, text: self.vector().into() });
@@ -193,10 +197,20 @@ impl Facing {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pwc_mod_api::testing::Harness;
     use pwc_mod_api::engine::DVec3;
+    use pwc_mod_api::ui::HudMode;
     use pwc_mod_api::{GameBuild, ModDescriptor};
 
     const SCREEN: (i32, i32) = (1280, 720);
+
+    /// Loaded single-player facts at `mode`, with no frame-rate reading yet.
+    fn facts(mode: HudMode) -> HudFacts {
+        let mut facts = HudFacts::new(SCREEN);
+        facts.hud_mode = mode;
+        facts
+    }
+
 
     /// A player at the origin looking `yaw`, `pitch` degrees in the identity (Y-up) frame.
     fn looking(yaw: f32, pitch: f32) -> Player {
@@ -244,7 +258,8 @@ mod tests {
     fn the_hud_draws_the_gizmo_and_the_words() {
         let ui = GameUi::default();
         let (world, mut out) = (World::new(1), Vec::new());
-        ui.hud(&world, &looking(-90.0, 30.0), SCREEN, &mut out);
+        // Minimal: the reticle, then the indicator (the readouts are Full only).
+        ui.hud(&facts(HudMode::Minimal), &world, &looking(-90.0, 30.0), &mut out);
         // Back to front: +Y leans into the screen, +Z points at the viewer.
         assert_eq!(labels(&out), ["Y", "X", "Z", "facing -Z +Y", "(+0.00, +0.50, -0.87)"]);
         let rects = out.iter().filter(|e| matches!(e, HudElement::Rect { .. })).count();
@@ -259,7 +274,7 @@ mod tests {
         let world = World::new(1);
         let text = |player: &Player| {
             let mut out = Vec::new();
-            ui.hud(&world, player, SCREEN, &mut out);
+            ui.hud(&facts(HudMode::Full), &world, player, &mut out);
             match out.last() {
                 Some(HudElement::Label { text, .. }) => text.clone(),
                 _ => panic!("the vector label comes last"),
@@ -272,12 +287,106 @@ mod tests {
         assert!(!std::sync::Arc::ptr_eq(&a, &text(&turned)));
     }
 
+    /// Full mode: the reticle, the coordinates, the frame rate and (on a server) the player count;
+    /// Minimal keeps the reticle and the facing indicator; Off shows nothing.
     #[test]
-    fn register_installs_game_ui_in_the_essentials() {
+    fn each_hud_mode_shows_its_pieces() {
+        let ui = GameUi::default();
+        let world = World::new(1);
+        let mut player = looking(0.0, 0.0);
+        player.position = DVec3::new(12.34, 70.0, -5.06);
+        let shown = |facts: &HudFacts| {
+            let mut out = Vec::new();
+            ui.hud(facts, &world, &player, &mut out);
+            out
+        };
+        let mut full = facts(HudMode::Full);
+        full.fps = Some(60);
+        let out = shown(&full);
+        assert_eq!(labels(&out)[..2], ["X: 12.3    Y: 70.0    Z: -5.1", "60 FPS"]);
+        assert_eq!(out.iter().take_while(|e| matches!(e, HudElement::Rect { .. })).count(), 3, "the reticle comes first");
+        full.players_online = Some(3);
+        full.ping_ms = Some(42);
+        full.fps = None;
+        full.cruise = Some(100_000.0);
+        let out = shown(&full);
+        assert_eq!(
+            labels(&out)[..3],
+            ["X: 12.3    Y: 70.0    Z: -5.1    CRUISE 100000 km/s", "-- FPS", "players online: 3   42 ms"]
+        );
+        let minimal = shown(&facts(HudMode::Minimal));
+        assert!(matches!(minimal[0], HudElement::Rect { .. }), "the reticle stays");
+        assert!(
+            !labels(&minimal).iter().any(|l| l.contains("FPS") || l.starts_with("X:")),
+            "no readouts below Full: {:?}",
+            labels(&minimal)
+        );
+        assert!(shown(&facts(HudMode::Off)).is_empty(), "HUD Off shows nothing");
+    }
+
+    #[test]
+    fn loading_and_interrupted_lines_follow_the_facts() {
+        let ui = GameUi::default();
+        let world = World::new(1);
+        let player = looking(0.0, 0.0);
+        let first = |facts: &HudFacts| {
+            let mut out = Vec::new();
+            ui.hud(facts, &world, &player, &mut out);
+            labels(&out).first().map(|s| s.to_string())
+        };
+        let mut f = facts(HudMode::Full);
+        f.spawn_ready = false;
+        assert_eq!(first(&f).as_deref(), Some("Loading terrain…"));
+        f.snapshot_ready = false;
+        assert_eq!(first(&f).as_deref(), Some("Loading world…"), "a join waits for the world first");
+        f.hud_mode = HudMode::Off;
+        assert_eq!(first(&f), None);
+        let mut lost = facts(HudMode::Minimal);
+        lost.link_interrupted = true;
+        assert_eq!(first(&lost).as_deref(), Some("connection interrupted"));
+    }
+
+    /// The coordinates shrink to fit between the frame rate and the minimap, never below half.
+    #[test]
+    fn the_coordinates_fit_between_the_readouts() {
+        let mut f = facts(HudMode::Full);
+        assert_eq!(info::fitted_base(&f, 26, 30, 1000), 26, "room to spare");
+        assert_eq!(info::fitted_base(&f, 26, 30, 600), 20, "30 glyphs of 20 px fill 600 px");
+        assert_eq!(info::fitted_base(&f, 26, 30, 100), 13, "never below half the full size");
+        f.ui_scale = 1.5;
+        let base = info::fitted_base(&f, 26, 30, 600);
+        assert!(f.font_px(base) * 30 <= 600 && f.font_px(base + 1) * 30 > 600, "the largest size that fits at scale 1.5");
+    }
+
+    /// An unchanged readout reuses its shared strings.
+    #[test]
+    fn unchanged_readouts_reuse_their_strings() {
+        let ui = GameUi::default();
+        let world = World::new(1);
+        let player = looking(0.0, 0.0);
+        let mut f = facts(HudMode::Full);
+        f.fps = Some(60);
+        f.players_online = Some(2);
+        let texts = || {
+            let mut out = Vec::new();
+            ui.hud(&f, &world, &player, &mut out);
+            out.into_iter()
+                .filter_map(|e| match e {
+                    HudElement::Label { text, .. } => Some(text),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        };
+        let (a, b) = (texts(), texts());
+        assert_eq!(a.len(), b.len());
+        assert!(a.iter().zip(&b).all(|(x, y)| std::sync::Arc::ptr_eq(x, y)));
+    }
+
+    #[test]
+    fn register_installs_game_ui() {
         let package = ModDescriptor { id: "pwc.game-ui", name: "Game UI", version: "1.0.0", register };
-        let mods = GameBuild::new().with_mod(package).mods();
-        assert_eq!((mods.id(0), mods.name(0), mods.group(0)), ("game_ui", "Game UI", ESSENTIALS));
-        assert!(mods.is_enabled(0), "on by default");
-        assert_eq!(mods.choices_text(), "version=2\ngame_ui=on\n");
+        let mods = Harness::new(GameBuild::new().with_mod(package));
+        assert_eq!((mods.len(), mods.id(0), mods.package(0)), (1, "game_ui", Some("pwc.game-ui")));
+        assert!(mods.is_active(0));
     }
 }

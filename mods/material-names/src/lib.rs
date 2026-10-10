@@ -23,7 +23,8 @@ use std::sync::OnceLock;
 
 use pwc_mod_api::block::naming::{MaterialNamer, MaterialNames, NamingSource};
 use pwc_mod_api::material::{Configuration, Element};
-use pwc_mod_api::{Knob, Mod, ModRegistrar, ESSENTIALS};
+use pwc_mod_api::settings::{Category, OptionId, OptionSpec, Options};
+use pwc_mod_api::{Mod, ModRegistrar};
 
 /// The training words: mineral, rock and element names (public scientific vocabulary).
 const CORPUS: &str = "quartz feldspar mica garnet beryl topaz jasper agate onyx obsidian basalt granite gneiss \
@@ -331,13 +332,24 @@ fn name(src: &NamingSource, vocab: &Vocabulary) -> MaterialNames {
     MaterialNames { block, tool }
 }
 
-/// The package entry point: installs [`NamingMod`], enabled.
+/// The naming styles, in the order the Style option offers them.
+pub const STYLES: &[&str] = &["Mineral", "Arcane"];
+
+/// The Style option: which vocabulary names materials. Persisted as
+/// `pwc.material-names.style=mineral|arcane`; reads an older game's `mods.cfg` knob once.
+pub const STYLE: OptionSpec =
+    OptionSpec::choice("style", "Material Names", Category::Interface, STYLES, 0).legacy_key("material_names.state.style");
+
+/// The package entry point: declares the Style option and installs [`NamingMod`].
 pub fn register(registrar: &mut ModRegistrar) {
-    registrar.add(NamingMod::new());
+    let style = registrar.option(STYLE);
+    registrar.add(NamingMod { style: Some(style), ..NamingMod::new() });
 }
 
-/// The Essentials naming mod (id `material_names`).
+/// The naming mod (id `material_names`).
 pub struct NamingMod {
+    /// The Style option, when registered through the package.
+    style: Option<OptionId>,
     arcane: bool,
     revision: u32,
 }
@@ -345,7 +357,16 @@ pub struct NamingMod {
 impl NamingMod {
     /// The namer in the mineral style.
     pub fn new() -> Self {
-        Self { arcane: false, revision: 1 }
+        Self { style: None, arcane: false, revision: 1 }
+    }
+
+    /// Switch the vocabulary (what the Style option does). Cached names are invalidated only by
+    /// a real change.
+    pub fn set_arcane(&mut self, arcane: bool) {
+        if arcane != self.arcane {
+            self.arcane = arcane;
+            self.revision = self.revision.wrapping_add(1);
+        }
     }
 }
 
@@ -374,42 +395,13 @@ impl Mod for NamingMod {
         "material_names"
     }
 
-    fn description(&self) -> &str {
-        "Names every material and tool with words a small language model learned from minerals and elements."
-    }
-
-    fn group(&self) -> &'static str {
-        ESSENTIALS
-    }
-
     fn namer(&self) -> Option<&dyn MaterialNamer> {
         Some(self)
     }
 
-    fn knobs(&self) -> Vec<Knob> {
-        vec![Knob {
-            label: "Style",
-            value: if self.arcane { "Arcane" } else { "Mineral" }.to_string(),
-            hint: "Mineral / Arcane".to_string(),
-        }]
-    }
-
-    fn step_knob(&mut self, index: usize, delta: i32) {
-        if index == 0 && delta != 0 {
-            self.arcane = !self.arcane;
-            self.revision = self.revision.wrapping_add(1);
-        }
-    }
-
-    fn save_choice_state(&self) -> Option<String> {
-        Some(format!("style={}", if self.arcane { "arcane" } else { "mineral" }))
-    }
-
-    fn load_choice_state(&mut self, data: &str) {
-        let arcane = data.trim() == "style=arcane";
-        if arcane != self.arcane {
-            self.arcane = arcane;
-            self.revision = self.revision.wrapping_add(1);
+    fn on_options(&mut self, options: &Options) {
+        if let Some(style) = self.style {
+            self.set_arcane(options.choice(style) == 1);
         }
     }
 }
@@ -417,6 +409,7 @@ impl Mod for NamingMod {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pwc_mod_api::testing::Harness;
     use pwc_mod_api::material::{observe, Block, Law};
 
     fn names_of(elems: &[[u8; 4]]) -> MaterialNames {
@@ -436,43 +429,37 @@ mod tests {
         }
     }
 
-    fn build() -> pwc_mod_api::Mods {
-        pwc_mod_api::GameBuild::new()
-            .with_mod(pwc_mod_api::ModDescriptor { id: "pwc.material-names", name: "Material names", version: "1.0.0", register })
-            .mods()
+    fn build() -> Harness {
+        Harness::new(pwc_mod_api::GameBuild::new()
+            .with_mod(pwc_mod_api::ModDescriptor { id: "pwc.material-names", name: "Material names", version: "1.0.0", register }))
     }
 
     #[test]
-    fn registers_one_enabled_essential_that_names_materials() {
-        let mods = build();
-        assert_eq!(mods.len(), 1);
-        assert_eq!((mods.id(0), mods.name(0), mods.group(0)), ("material_names", "Material names", ESSENTIALS));
-        assert_eq!(mods.package(0), Some("pwc.material-names"));
-        assert!(mods.is_enabled(0));
-        assert!(mods.namer().is_some());
-        let mut off = build();
-        off.set_enabled("material_names", false);
-        assert!(off.namer().is_none(), "disabled: the core describes materials by their readings");
-    }
-
-    #[test]
-    fn style_knob_flips_vocabulary_bumps_revision_and_persists() {
+    fn registers_one_mod_that_names_materials() {
         let mut mods = build();
-        assert!(mods.choices_text().contains("material_names.state=style=mineral"));
-        assert_eq!(mods.knobs(0)[0].value, "Mineral");
+        assert_eq!(mods.len(), 1);
+        assert_eq!((mods.id(0), mods.name(0)), ("material_names", "Material names"));
+        assert_eq!(mods.package(0), Some("pwc.material-names"));
+        assert!(mods.namer().is_some());
+        mods.suspend(&["pwc.material-names"]);
+        assert!(mods.namer().is_none(), "suspended: the core describes materials by their readings");
+    }
+
+    #[test]
+    fn the_style_option_flips_the_vocabulary_and_bumps_the_revision() {
+        use pwc_mod_api::settings::OptionValue;
+        let mut mods = build();
+        let style = mods.options().find("pwc.material-names.style").expect("declared");
+        assert_eq!(mods.options().show(style), "Mineral");
+        assert_eq!(mods.options().spec(style).page, Category::Interface);
+        assert_eq!(mods.options().spec(style).legacy_key, Some("material_names.state.style"));
         let before = mods.namer().unwrap().revision();
-        mods.step_knob(0, 0, 0);
-        assert_eq!(mods.namer().unwrap().revision(), before, "a zero step changes nothing");
-        mods.step_knob(0, 0, 1);
-        assert_eq!(mods.knobs(0)[0].value, "Arcane");
+        mods.options_changed();
+        assert_eq!(mods.namer().unwrap().revision(), before, "no change, no rename");
+        mods.options_mut().set(style, OptionValue::Choice(1));
+        mods.options_changed();
+        assert_eq!(mods.options().show(style), "Arcane");
         assert_ne!(mods.namer().unwrap().revision(), before, "renaming invalidates cached names");
-        let text = mods.choices_text();
-        assert!(text.contains("material_names.state=style=arcane"), "{text}");
-        let mut fresh = build();
-        fresh.apply_choices_text(&text);
-        assert_eq!(fresh.knobs(0)[0].value, "Arcane");
-        fresh.apply_choices_text("version=2\nmaterial_names.state=garbage\n");
-        assert_eq!(fresh.knobs(0)[0].value, "Mineral", "anything but arcane is the mineral style");
     }
 
     #[test]
@@ -483,10 +470,10 @@ mod tests {
         let src = NamingSource { law: &law, config: &c, obs: &obs };
         let mut m = NamingMod::new();
         let mineral = m.names(&src);
-        m.step_knob(0, 1);
+        m.set_arcane(true);
         let arcane = m.names(&src);
         assert_ne!(mineral, arcane);
-        m.step_knob(0, -1);
+        m.set_arcane(false);
         assert_eq!(m.names(&src), mineral, "the style is the only input besides the configuration");
     }
 

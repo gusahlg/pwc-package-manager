@@ -3,6 +3,17 @@
 Notable changes to the `pwc` tooling and this repository. Each first-party package in `mods/`
 carries its own version in its `mod.toml`.
 
+## Unreleased
+
+### Builder
+
+- The generated mod bundle lists every locked package, of every kind, as a
+  `pwc_mod_api::PackageInfo`: id, name, version, description, kind, direct dependencies, and the
+  entry point for mods. It builds the game with `GameBuild::from_static`. The game hands the list
+  to every package, so a package such as a mod menu can show what a build contains without the
+  game naming any package. A PWC source whose `pwc-mod-api` is older than 2.2.0 still gets the
+  earlier bundle, which lists only the mods.
+
 ## 0.1.0 — unreleased
 
 The first release: local packages, instances and reproducible builds of modded PWC.

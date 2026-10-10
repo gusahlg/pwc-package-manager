@@ -28,8 +28,10 @@ const RETICLE: Color = Color::new(255, 255, 255, 180);
 
 /// The information HUD's string caches.
 pub(crate) struct Info {
-    coords: RefCell<Memo<[i64; 4], Arc<str>>>,
-    fps: RefCell<Memo<Option<u32>, Arc<str>>>,
+    /// The coordinate line and its length in glyphs.
+    coords: RefCell<Memo<[i64; 4], (Arc<str>, i32)>>,
+    /// The frame-rate readout and its length in glyphs.
+    fps: RefCell<Memo<Option<u32>, (Arc<str>, i32)>>,
     online: RefCell<Memo<(usize, Option<u32>), Arc<str>>>,
     loading_world: Arc<str>,
     loading_terrain: Arc<str>,
@@ -61,12 +63,12 @@ impl Info {
         } else if !facts.spawn_ready && mode.shows_world_ui() {
             out.push(label(Anchor::Top, (0, 12), 26, Role::Primary, &self.loading_terrain));
         } else if mode.shows_info() {
-            let fps = self.fps.borrow_mut().get_or(facts.fps, || fps_text(facts.fps)).clone();
-            let coords = self.coords(facts, player);
+            let (fps, fps_len) = self.fps.borrow_mut().get_or(facts.fps, || counted(fps_text(facts.fps))).clone();
+            let (coords, coords_len) = self.coords(facts, player);
             // The centred coordinates shrink to fit between the frame-rate readout and the minimap.
-            let fps_w = 10 + chars(&fps) * facts.font_px(20);
+            let fps_w = 10 + fps_len * facts.font_px(20);
             let side = fps_w.max(facts.minimap_corner.0) + 12;
-            let base = fitted_base(facts, 26, chars(&coords), facts.screen.0 - 2 * side);
+            let base = fitted_base(facts, 26, coords_len, facts.screen.0 - 2 * side);
             out.push(label(Anchor::Top, (0, 12), base, Role::Primary, &coords));
             out.push(label(Anchor::TopLeft, (10, 12), 20, Role::Positive, &fps));
             if let Some(count) = facts.players_online {
@@ -81,18 +83,17 @@ impl Info {
     }
 
     /// The coordinate line, re-formatted only when a shown digit moves (0.1 block, 1 km/s).
-    fn coords(&self, facts: &HudFacts, player: &Player) -> Arc<str> {
+    fn coords(&self, facts: &HudFacts, player: &Player) -> (Arc<str>, i32) {
         let p = player.position;
         let key = [(p.x * 10.0) as i64, (p.y * 10.0) as i64, (p.z * 10.0) as i64, facts.cruise.map_or(-1, |km_s| km_s as i64)];
         let cruise = facts.cruise;
         self.coords
             .borrow_mut()
             .get_or(key, || {
-                match cruise {
-                    Some(km_s) => format!("X: {:.1}    Y: {:.1}    Z: {:.1}    CRUISE {km_s:.0} km/s", p.x, p.y, p.z),
-                    None => format!("X: {:.1}    Y: {:.1}    Z: {:.1}", p.x, p.y, p.z),
-                }
-                .into()
+                counted(match cruise {
+                    Some(km_s) => format!("X: {:.1}    Y: {:.1}    Z: {:.1}    CRUISE {km_s:.0} km/s", p.x, p.y, p.z).into(),
+                    None => format!("X: {:.1}    Y: {:.1}    Z: {:.1}", p.x, p.y, p.z).into(),
+                })
             })
             .clone()
     }
@@ -122,8 +123,10 @@ fn online_text((count, ping): (usize, Option<u32>)) -> Arc<str> {
     }
 }
 
-fn chars(text: &str) -> i32 {
-    text.chars().count() as i32
+/// A text with its length in glyphs, counted once when it is formatted.
+fn counted(text: Arc<str>) -> (Arc<str>, i32) {
+    let len = text.chars().count() as i32;
+    (text, len)
 }
 
 /// The largest label size (as a `base_fs`, at most `base_fs`) at which `chars` glyphs fit in

@@ -1,5 +1,12 @@
 # Changelog — pwc.essentials
 
+## 2.0.0
+
+- Adds the `pwc.chat-commands` bundle (`pwc.chat` and `pwc.commands`): the chat and its commands
+  left the core. The chat opens on `§`.
+- `pwc.game-ui ^2.0` (it draws the reticle and the readouts the core used to), `pwc.hotbar ^2.1`,
+  `pwc.inventory ^2.1` and `pwc.proximity-chat ^1.1`, all on mod API 2.2.
+
 ## 1.3.0
 
 - Adds `pwc.sounds` and `pwc.proximity-chat` (`^1.0`), both enabled by default. They need a PWC

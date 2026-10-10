@@ -1,10 +1,12 @@
 //! Options: `/gfx`, `/time` and the audio commands. Each edits the value it is handed; the core
 //! applies and saves changed settings, re-mixes the audio and plays the voice test cue.
 
+use pwc_mod_api::audio::GameEvent;
+use pwc_mod_api::render_config::{lane_group, VisualGroup};
 use pwc_mod_api::settings::{Settings, SETTINGS};
 use pwc_mod_api::sky::{DayLength, Sky};
 use pwc_mod_api::ui::Line;
-use pwc_mod_api::{annotate_setting, CommandContext, VisualMask};
+use pwc_mod_api::{GameContext, VisualMask};
 
 use crate::{rejected, shown};
 
@@ -42,7 +44,7 @@ pub(crate) fn time(args: &[&str], sky: &mut Sky) -> Vec<Line> {
 
 /// Parse a `/time set` argument into a day fraction in `[0, 1)`. Accepts named
 /// times, a `0..1` fraction, or a `0..24` hour.
-fn parse_when(s: &str) -> Option<f64> {
+pub(crate) fn parse_when(s: &str) -> Option<f64> {
     let named = match s.to_ascii_lowercase().as_str() {
         "midnight" => Some(0.0),
         "dawn" | "sunrise" => Some(0.25),
@@ -66,9 +68,32 @@ fn clock_label(day: f64) -> String {
     format!("{:02}:{:02}", (total / 60) % 24, total % 60)
 }
 
+/// The name of the visual mod a lane's group belongs to, as `/gfx` shows it.
+fn group_name(group: VisualGroup) -> &'static str {
+    match group {
+        VisualGroup::Atmosphere => "Atmosphere",
+        VisualGroup::Post => "Post",
+        VisualGroup::Lighting => "Lighting",
+    }
+}
+
+/// Marker appended to a lane this build's visual mods leave off: `(off: Post mod)`.
+pub fn forced_off_marker(name: &str) -> String {
+    format!("(off: {name} mod)")
+}
+
+/// `value` with [`forced_off_marker`] appended when no installed visual mod provides `key`'s lane.
+fn annotate(value: String, key: &str, visuals: VisualMask) -> String {
+    match lane_group(key) {
+        Some(group) if !visuals.get(group) => format!("{value} {}", forced_off_marker(group_name(group))),
+        _ => value,
+    }
+}
+
 /// `gfx [setting value]` — show or change graphics settings at runtime.
 /// The core applies the mutated [`Settings`] to the engine and persists it.
-pub(crate) fn gfx(args: &[&str], settings: &mut Settings, visuals: VisualMask) -> Vec<Line> {
+pub(crate) fn gfx(args: &[&str], game: &mut GameContext) -> Vec<Line> {
+    let visuals = game.visuals;
     let usage = || {
         std::iter::once("usage: /gfx <setting> <value>".to_string())
             .chain(SETTINGS.iter().map(|field| format!("  /gfx {}", field.usage())))
@@ -76,32 +101,23 @@ pub(crate) fn gfx(args: &[&str], settings: &mut Settings, visuals: VisualMask) -
     };
 
     match args {
-        [] => shown(
-            SETTINGS
-                .iter()
-                .map(|field| {
-                    let msg = if field.key() == "vrs" {
-                        settings.vrs_gfx_line()
-                    } else {
-                        field.confirm(settings)
-                    };
-                    annotate_setting(msg, field.key(), visuals)
-                })
-                .collect(),
-        ),
-        [key, value] => match gfx_set(settings, key, value) {
-            Some(msg) => {
-                let field_key = SETTINGS
+        [] => {
+            let settings = game.settings();
+            shown(
+                SETTINGS
                     .iter()
-                    .find(|f| f.matches(key))
-                    .map(|f| f.key())
-                    .unwrap_or(*key);
-                let msg = if field_key == "vrs" {
-                    settings.vrs_gfx_line()
-                } else {
-                    msg
-                };
-                shown(vec![annotate_setting(msg, field_key, visuals)])
+                    .map(|field| {
+                        let msg = if field.key() == "vrs" { settings.vrs_gfx_line() } else { field.confirm(settings) };
+                        annotate(msg, field.key(), visuals)
+                    })
+                    .collect(),
+            )
+        }
+        [key, value] => match gfx_set(game.settings_mut(), key, value) {
+            Some(msg) => {
+                let field_key = SETTINGS.iter().find(|f| f.matches(key)).map(|f| f.key()).unwrap_or(*key);
+                let msg = if field_key == "vrs" { game.settings().vrs_gfx_line() } else { msg };
+                shown(vec![annotate(msg, field_key, visuals)])
             }
             None => rejected(usage()),
         },
@@ -136,7 +152,7 @@ pub(crate) fn deafen(settings: &mut Settings) -> Vec<Line> {
 
 /// `/audio <master|effects|voice> <0-100>` — set one mix volume, clamped to 0..=100.
 /// The core persists the mutated [`Settings`]; a bad channel or value changes nothing.
-pub(crate) fn audio(args: &[&str], settings: &mut Settings) -> Vec<Line> {
+pub(crate) fn audio(args: &[&str], game: &mut GameContext) -> Vec<Line> {
     let usage = || rejected(vec!["usage: /audio <master|effects|voice> <0-100>".to_string()]);
     let [channel, value] = args else {
         return usage();
@@ -144,18 +160,21 @@ pub(crate) fn audio(args: &[&str], settings: &mut Settings) -> Vec<Line> {
     let Ok(pct) = value.parse::<u8>() else {
         return usage();
     };
+    if !matches!(*channel, "master" | "effects" | "sfx" | "voice") {
+        return usage();
+    }
+    let settings = game.settings_mut();
     let field = match *channel {
         "master" => &mut settings.master_volume,
         "effects" | "sfx" => &mut settings.effects_volume,
-        "voice" => &mut settings.voice_volume,
-        _ => return usage(),
+        _ => &mut settings.voice_volume,
     };
     *field = pct.min(100);
     shown(vec![format!("{channel} volume {}%", *field)])
 }
 
 /// `/voicetest` — ask the core to play the local test cue, so the user can check their voice path.
-pub(crate) fn voicetest(ctx: &mut CommandContext<'_>) -> Vec<Line> {
-    ctx.voice_test = true;
+pub(crate) fn voicetest(game: &mut GameContext) -> Vec<Line> {
+    game.events.push(GameEvent::VoiceTest);
     shown(vec!["queued a voice test cue".to_string()])
 }

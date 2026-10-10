@@ -1,7 +1,8 @@
 # Developer Toolkit (`pwc.dev-toolkit`)
 
-The console commands and the flight key. The base game keeps the console (chat, messages from the
-game and from mods) but has no commands and no way to fly of its own: this package adds them.
+Travel and inspection commands, and the flight key. The base game has no commands and no way to
+fly of its own: the chat (`pwc.chat`) and its commands (`pwc.commands`) are mods, and this package
+adds its commands to them.
 
 Mod id: `dev_toolkit` (display name "Developer Toolkit"), in the Tools group, enabled by default.
 It is not part of `pwc.essentials`; add it to an instance with `pwc mod add pwc.dev-toolkit`.
@@ -10,13 +11,14 @@ It is not part of `pwc.essentials`; add it to an instance with `pwc mod add pwc.
 
 | Input | Action |
 |---|---|
-| `F` | Toggle walking and flying |
-| `T`, or `/` | Open the console (the core's); type a command and press Enter |
-| `Tab` | Complete a command name (from every enabled mod) |
+| `F` | Toggle walking and flying (works under every graphics preset; not while the free camera is detached) |
+| `§`, or `/` | Open the chat (`pwc.chat`, `pwc.commands`); type a command and press Enter |
+| `Tab` | Complete a command name (from every mod) |
 
 ## Commands
 
-A leading `/` is optional in singleplayer. In multiplayer a line without `/` is chat.
+A leading `/` is optional in singleplayer. In multiplayer a line without `/` is chat. `/help`,
+`/gfx`, `/time`, `/mute`, `/deafen`, `/audio`, `/voicetest` and `/op` come from `pwc.commands`.
 
 | Command | Does |
 |---|---|
@@ -30,16 +32,9 @@ A leading `/` is optional in singleplayer. In multiplayer a line without `/` is 
 | `/inspect [x y z]` | Describe a block (the one under your feet by default): elements, readings, descriptor. Also `/look`. |
 | `/reactions` | Show the reaction scheduler's active contacts, turns and operations. |
 | `/gravity` | Show the pull of the matter around you: strength, direction, tilt, potential. Also `/g`. |
-| `/gfx [setting value]` | Show every graphics setting, or change one (`/gfx msaa 4`). Also `/graphics`. |
-| `/time [set <when> \| length <secs>]` | Show or set the day/night clock (`0..1`, `0..24` or `dawn`, `noon`, `dusk`, `night`...), or the length of a day. |
-| `/mute` | Toggle the master mute for this session. |
-| `/deafen` | Toggle hearing incoming voice. |
-| `/audio <master\|effects\|voice> <0-100>` | Set a volume. Also `/volume`. |
-| `/voicetest` | Play a local voice test cue. |
-| `/help` | List the commands of every enabled mod. Also `/?`. |
 
-The game follows up on what a command changed: changed settings are applied and saved, the audio
-mix follows, a `/time` change goes to the server, and a teleport streams its destination at once.
+The game follows up on what a command changed: a teleport streams its destination at once and is
+reported to the server.
 
 ## Settings
 
@@ -47,19 +42,18 @@ None. The toolkit has no knobs on the mods screen.
 
 ## Persisted state
 
-Nothing besides `dev_toolkit=on|off` in `mods.cfg`. Graphics and audio commands edit the game's own
-settings, which the game saves.
+Nothing besides `dev_toolkit=on|off` in `mods.cfg`.
 
 ## Dependencies
 
-None besides the PWC mod API (`pwc-api ^2.0`).
+`pwc.commands` (`^1.0`, which brings `pwc.chat`) and the PWC mod API (`pwc-api ^2.2`).
 
 ## Compatibility
 
 - In multiplayer the server sets the length of a day (`/time length` is undone locally) and may
   refuse a teleport (it snaps you back).
-- `run_command` is first-enabled-wins: another enabled mod that registers earlier and handles a
-  command of the same name takes it.
+- A command name another package added to `pwc.commands` earlier keeps going to that package
+  (the shipped commands come first).
 - Disabling the toolkit removes the commands and the flight key. Whether the player flies is the
   game's state (it is saved with the world), so a player who is flying keeps flying until the
   toolkit is enabled again.

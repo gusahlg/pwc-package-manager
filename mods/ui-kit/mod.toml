@@ -1,0 +1,17 @@
+format = 1
+
+[package]
+id = "pwc.ui-kit"
+name = "UI kit"
+version = "1.0.0"
+description = "The menu framework, the default look of every screen outside a world, and the text widgets menu packages share."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "library"
+pwc-api = "^2.2"
+readme = "README.md"
+icon = "assets/icon.svg"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["menu", "theme", "ui", "library"]
+categories = ["library", "interface"]

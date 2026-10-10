@@ -150,8 +150,11 @@ policy accepts AGPL-compatible free licences instead, and the game's `MOD_POLICY
 
 | Package | Description |
 |---|---|
-| `pwc.menus` | The standard menu look: title and panel screens, bars and toggles. |
-| `pwc.start-screen` | The default start screen: main menu, Worlds page, host and join forms. |
+| `pwc.ui-kit` | Library: the menu framework, the standard look and the text widgets the menus share. |
+| `pwc.start-screen` | The default start screen: main menu, Worlds page, host and join forms, the loading page. |
+| `pwc.settings-menu` | The settings hub and pages: every core setting and every package option, by category. |
+| `pwc.mod-menu` | The packages of the build, read-only, grouped under their bundles. |
+| `pwc.pause-menu` | What Esc opens in a world: Resume, Settings, Mods, Leave World. |
 | `pwc.hotbar` | Nine slots plus the bare hand; the selected slot is the held tool. |
 | `pwc.inventory` | Your held materials as a list (press I); equip any of them into the hotbar. |
 | `pwc.game-ui` | In-world HUD pieces, starting with a facing indicator for the world's X, Y and Z axes. |
@@ -159,6 +162,8 @@ policy accepts AGPL-compatible free licences instead, and the game's `MOD_POLICY
 | `pwc.neural-textures` | Paints every material with a texture grown from its own elements. |
 | `pwc.material-names` | Names every material and tool with a small model trained on mineral and element names. |
 | `pwc.infinite-diffusion` | InfiniteDiffusion, the world generator: surface, underground and space. |
+| `pwc.sounds` | Footsteps, blocks, tools, swings and menu clicks. |
+| `pwc.proximity-chat` | Push-to-talk voice for people you can see. |
 | `pwc.essentials` | Bundle of all of the above: the default set of mods. |
 | `pwc.dev-toolkit` | Developer Toolkit: the console commands (`/tp`, `/gfx`, `/time`, `/help`...) and flight on F. Not in the essentials. |
 

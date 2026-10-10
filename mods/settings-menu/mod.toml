@@ -1,19 +1,19 @@
 format = 1
 
 [package]
-id = "pwc.start-screen"
-name = "Start screen"
-version = "2.0.0"
-description = "The default start screen: main menu, a page of saved worlds, the host and join server forms, and the waiting page while a world loads."
+id = "pwc.settings-menu"
+name = "Settings menu"
+version = "1.0.0"
+description = "The settings hub and its pages: every core setting and every package option, by category, on the main menu and the pause screen."
 authors = ["Project Watt Cubed contributors"]
 license = "Apache-2.0 OR MIT"
 license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
 kind = "mod"
-pwc-api = "^2.0"
+pwc-api = "^2.2"
 readme = "README.md"
 icon = "assets/icon.svg"
 repository = "https://github.com/gusahlg/pwc-package-manager"
-keywords = ["start-screen", "menu", "saves", "multiplayer"]
+keywords = ["settings", "menu", "options"]
 categories = ["interface"]
 
 [dependencies]

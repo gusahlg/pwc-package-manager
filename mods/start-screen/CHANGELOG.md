@@ -2,6 +2,12 @@
 
 ## 2.0.0 (unreleased)
 
+- The root screen of the game's screen host (`Mod::root_screen`) instead of a start screen beside a
+  core fallback. It asks the core with `AppRequest`s and draws into the core's `UiElement`s with
+  the `pwc.ui-kit` look (new dependency `pwc.ui-kit ^1.0`).
+- Mods and Settings are no longer fixed rows: the main menu lists the entries other packages offer
+  for it (by order), and opens them by id.
+- Draws the waiting page ("Connecting…" / "Loading…", "Cancel") the game used to draw itself.
 - No description or group of its own: the package manifest is what menus show. A server can
   suspend the package for a session; mods are no longer switched in the game.
 

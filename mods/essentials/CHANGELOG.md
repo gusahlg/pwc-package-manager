@@ -2,8 +2,12 @@
 
 ## 2.0.0 (unreleased)
 
-- Depends on `pwc.game-ui ^2.0`. Mods are no longer switched or grouped in the game: the bundle is
-  how the first-party packages are installed together.
+- The menus are packages: `pwc.start-screen ^2.0` (the root screen), and the new `pwc.settings-menu`,
+  `pwc.mod-menu` and `pwc.pause-menu` (`^1.0`), which draw with the new library `pwc.ui-kit`.
+  `pwc.menus` is retired: its theme is the UI kit's default look.
+- Depends on `pwc.game-ui ^2.0`, `pwc.hotbar` and `pwc.inventory` `^2.1`, and the other members at
+  `^1.1` (options in the game's registry). Mods are no longer switched or grouped in the game: the
+  bundle is how the first-party packages are installed together.
 
 ## 1.3.0
 

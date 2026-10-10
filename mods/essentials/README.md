@@ -5,8 +5,10 @@ A bundle: no code of its own, just the first-party packages that make up PWC as 
 
 | Package | Mods (ids) | What it does |
 |---|---|---|
-| `pwc.menus` | `menus` | The standard menu theme |
-| `pwc.start-screen` | `start` | Main menu, saved-worlds page, host and join forms |
+| `pwc.start-screen` | `start` | Main menu, saved-worlds page, host and join forms, the loading page |
+| `pwc.settings-menu` | — | The settings hub and pages (core settings and every package's options) |
+| `pwc.mod-menu` | — | The packages of the build, read-only |
+| `pwc.pause-menu` | `pause_menu` | What Esc opens in a world: Resume, Settings, Mods, Leave World |
 | `pwc.hotbar` | `hotbar` | Nine slots of held materials plus the bare hand |
 | `pwc.inventory` | `inventory` | The held-materials list (press I); equips into the hotbar |
 | `pwc.game-ui` | `game_ui` | In-world HUD pieces: which way you look along X, Y and Z |
@@ -17,8 +19,9 @@ A bundle: no code of its own, just the first-party packages that make up PWC as 
 | `pwc.sounds` | `sounds` | Footsteps, blocks, tools, swings and menu clicks |
 | `pwc.proximity-chat` | `proximity_chat` | Push-to-talk voice for people you can see |
 
-Every mod is in the Essentials group on the mods screen, where the whole group can be switched on
-or off at once (each member's choice is saved as its own `mods.cfg` line).
+The menus draw with `pwc.ui-kit`, a library the four menu packages depend on; it comes with them.
+Mods are compiled in: the bundle is how these packages are installed together, and nothing in the
+game switches them.
 
 ## Controls, settings and persisted state
 
@@ -26,16 +29,17 @@ See each package's README. The bundle adds none.
 
 ## Dependencies
 
-`pwc.hotbar` and `pwc.inventory` at `^2.0`, `pwc.sounds` and `pwc.proximity-chat` at `^1.0`, and the
-other seven packages at `^1.0`. The resolver picks one version of each; `pwc.hotbar` always
-registers before `pwc.inventory`, which depends on it.
+`pwc.start-screen ^2.0`, the three new menus at `^1.0`, `pwc.hotbar` and `pwc.inventory` at `^2.1`,
+`pwc.game-ui ^2.0`, and the other six packages at `^1.1`. The resolver picks one version of each;
+`pwc.hotbar` always registers before `pwc.inventory`, which depends on it.
 
 ## Compatibility
 
-Without the bundle (or with every Essential switched off) PWC still runs: the core keeps the
-world, the law, the player's held materials, the Settings and Mods screens, a plain start menu, a
-built-in menu theme, flat block colours and a flat world. Without `pwc.sounds` it plays no cues.
-Without `pwc.proximity-chat` the microphone stays closed and voice is neither sent nor played.
+Without the bundle PWC still runs: the core keeps the world, the law, the player's held materials,
+flat block colours and a flat world, and with no start screen it enters the most recent world (or
+a new one) and Esc saves and quits. Settings then live only in `settings.cfg`. Without
+`pwc.pause-menu`, Esc leaves the world at once. Without `pwc.sounds` it plays no cues. Without
+`pwc.proximity-chat` the microphone stays closed and voice is neither sent nor played.
 
 ## Licence
 

@@ -3,7 +3,7 @@ format = 1
 [package]
 id = "pwc.game-ui"
 name = "Game UI"
-version = "1.0.1"
+version = "2.0.0"
 description = "In-world HUD pieces: a facing indicator that shows which way you look along the world's X, Y and Z axes."
 authors = ["Project Watt Cubed contributors"]
 license = "Apache-2.0 OR MIT"

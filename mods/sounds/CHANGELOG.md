@@ -1,5 +1,10 @@
 # Changelog — pwc.sounds
 
+## 1.1.0 (unreleased)
+
+- No description or group of its own: the package manifest is what menus show. Mods are no longer
+  switched in the game; the build decides what is in.
+
 ## 1.0.0
 
 - Mod id `sounds`, in the Essentials group, enabled by default. Requires `pwc-api ^2.1`.

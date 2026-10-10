@@ -3,7 +3,7 @@ format = 1
 [package]
 id = "pwc.infinite-diffusion"
 name = "InfiniteDiffusion"
-version = "1.0.1"
+version = "1.1.0"
 description = "World generation with mountain ranges and carved valleys, caves and abandoned mines below, and planets in space above."
 authors = ["Project Watt Cubed contributors"]
 license = "Apache-2.0 OR MIT"

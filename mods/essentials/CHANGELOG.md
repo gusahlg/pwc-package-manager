@@ -1,5 +1,10 @@
 # Changelog — pwc.essentials
 
+## 2.0.0 (unreleased)
+
+- Depends on `pwc.game-ui ^2.0`. Mods are no longer switched or grouped in the game: the bundle is
+  how the first-party packages are installed together.
+
 ## 1.3.0
 
 - Adds `pwc.sounds` and `pwc.proximity-chat` (`^1.0`), both enabled by default. They need a PWC

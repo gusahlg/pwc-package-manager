@@ -4,9 +4,17 @@
 use pwc_mod_api::settings::{Settings, SETTINGS};
 use pwc_mod_api::sky::{DayLength, Sky};
 use pwc_mod_api::ui::Line;
-use pwc_mod_api::{annotate_setting, CommandContext, VisualMask};
+use pwc_mod_api::{CommandContext, VisualMask};
 
 use crate::{rejected, shown};
+
+/// Appended to a lane no installed, unsuspended package provides a visual group for.
+pub(crate) const UNAVAILABLE: &str = "(unavailable in this build)";
+
+/// `msg`, marked when `visuals` strips the lane `key`.
+fn mark(msg: String, key: &str, visuals: VisualMask) -> String {
+    if visuals.strips(key) { format!("{msg} {UNAVAILABLE}") } else { msg }
+}
 
 /// `/time` — show or set the day/night clock, or change the cycle length.
 ///
@@ -85,7 +93,7 @@ pub(crate) fn gfx(args: &[&str], settings: &mut Settings, visuals: VisualMask) -
                     } else {
                         field.confirm(settings)
                     };
-                    annotate_setting(msg, field.key(), visuals)
+                    mark(msg, field.key(), visuals)
                 })
                 .collect(),
         ),
@@ -101,7 +109,7 @@ pub(crate) fn gfx(args: &[&str], settings: &mut Settings, visuals: VisualMask) -
                 } else {
                     msg
                 };
-                shown(vec![annotate_setting(msg, field_key, visuals)])
+                shown(vec![mark(msg, field_key, visuals)])
             }
             None => rejected(usage()),
         },

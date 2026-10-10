@@ -1,5 +1,11 @@
 # Changelog — pwc.visuals
 
+## 1.1.0 (unreleased)
+
+- No description or group of its own. Installed means the three render groups are allowed; a
+  suspended package (a refusing server, `WATT_BENCH_VISUALS=core`) strips them, and settings screens
+  mark the lanes "(unavailable in this build)" instead of naming a mod.
+
 ## 1.0.1
 
 - Requires `pwc-api ^2.0`. Behaviour unchanged.

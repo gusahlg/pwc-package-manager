@@ -17,7 +17,7 @@ use pwc_mod_api::engine::Color;
 use pwc_mod_api::player::Player;
 use pwc_mod_api::ui::{Anchor, HudElement, Role};
 use pwc_mod_api::world::World;
-use pwc_mod_api::{Mod, ModRegistrar, ESSENTIALS};
+use pwc_mod_api::{Mod, ModRegistrar};
 
 /// The package entry point: installs the Game UI mod.
 pub fn register(registrar: &mut ModRegistrar) {
@@ -43,14 +43,6 @@ impl Mod for GameUi {
 
     fn id(&self) -> &'static str {
         "game_ui"
-    }
-
-    fn description(&self) -> &str {
-        "Which way you look along the world's X, Y and Z axes: a gizmo and the facing in words."
-    }
-
-    fn group(&self) -> &'static str {
-        ESSENTIALS
     }
 
     fn hud(&self, _world: &World, player: &Player, screen: (i32, i32), out: &mut Vec<HudElement>) {
@@ -273,11 +265,10 @@ mod tests {
     }
 
     #[test]
-    fn register_installs_game_ui_in_the_essentials() {
+    fn register_installs_game_ui() {
         let package = ModDescriptor { id: "pwc.game-ui", name: "Game UI", version: "1.0.0", register };
         let mods = GameBuild::new().with_mod(package).mods();
-        assert_eq!((mods.id(0), mods.name(0), mods.group(0)), ("game_ui", "Game UI", ESSENTIALS));
-        assert!(mods.is_enabled(0), "on by default");
-        assert_eq!(mods.choices_text(), "version=2\ngame_ui=on\n");
+        assert_eq!((mods.len(), mods.id(0), mods.package(0)), (1, "game_ui", Some("pwc.game-ui")));
+        assert!(mods.is_active(0));
     }
 }

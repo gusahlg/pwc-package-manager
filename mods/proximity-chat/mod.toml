@@ -3,7 +3,7 @@ format = 1
 [package]
 id = "pwc.proximity-chat"
 name = "Proximity chat"
-version = "1.0.0"
+version = "1.1.0"
 description = "Push-to-talk voice: who hears whom, over the voice channel."
 authors = ["Project Watt Cubed contributors"]
 license = "Apache-2.0 OR MIT"

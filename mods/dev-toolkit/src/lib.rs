@@ -4,7 +4,7 @@
 //! Every command the game used to ship moved here with its behaviour and output unchanged: travel
 //! (`/tp`, `/bodies`, `/noclip`, `/cruise`, `/walkspeed`, `/flyspeed`, `/pos`), looking at the
 //! world (`/inspect`, `/reactions`, `/gravity`), options (`/gfx`, `/time`, `/mute`, `/deafen`,
-//! `/audio`, `/voicetest`) and `/help`, which lists the commands of every enabled mod. `F` toggles
+//! `/audio`, `/voicetest`) and `/help`, which lists the commands of every active mod. `F` toggles
 //! walking and flying. A command only edits the game state it is handed; the core follows up
 //! (applies and saves changed settings, streams a teleport's destination, tells a server).
 
@@ -12,7 +12,7 @@ use pwc_mod_api::engine::DVec3;
 use pwc_mod_api::ui::{Line, Role};
 use pwc_mod_api::player::Player;
 use pwc_mod_api::world::World;
-use pwc_mod_api::{Command, CommandContext, Group, Mod, ModRegistrar};
+use pwc_mod_api::{Command, CommandContext, Mod, ModRegistrar};
 
 mod inspect;
 mod options;
@@ -21,12 +21,8 @@ mod travel;
 #[cfg(test)]
 mod tests;
 
-/// The mods-screen group of developer tools.
-pub const TOOLS: Group = Group { id: "tools", name: "Tools", description: "Developer tools: console commands and flight." };
-
-/// The package entry point: declares the tools group and installs the toolkit.
+/// The package entry point: installs the toolkit.
 pub fn register(registrar: &mut ModRegistrar) {
-    registrar.declare_group(TOOLS);
     registrar.add(DevToolkit);
 }
 
@@ -40,14 +36,6 @@ impl Mod for DevToolkit {
 
     fn id(&self) -> &'static str {
         "dev_toolkit"
-    }
-
-    fn description(&self) -> &str {
-        "Console commands (/tp, /gfx, /time, /help...) and flight on F."
-    }
-
-    fn group(&self) -> &'static str {
-        TOOLS.id
     }
 
     fn commands(&self) -> &[Command] {

@@ -12,27 +12,28 @@ The palette comes from the law's presentation (element colours, the impurity acc
 crystalline veins, weak cohesion draws grain, glow lights the pattern's crests, clarity sets alpha.
 Textures tile seamlessly and are deterministic: every machine paints the same pixels.
 
-Mod id: `neural_textures` (display name "Neural textures"), in the Essentials group, enabled by
-default.
+Mod id: `neural_textures`. Part of `pwc.essentials`.
 
 ## Controls
 
 None.
 
-## Settings (mods screen)
+## Settings (the Video page)
 
-| Knob | Range | Default | Effect |
+Options in the game's options registry, listed on the Video page of any settings screen.
+
+| Option | Range | Default | Effect |
 |---|---|---|---|
-| Detail | 0.1 – 2.0 (steps of 0.1) | 1.0 | Spatial frequency of the pattern |
-| Contrast | 0.1 – 2.0 (steps of 0.1) | 1.0 | Spread of the palette around the material's colour |
+| Texture Detail | 0.1 – 2.0 (steps of 0.1) | 1.0 | Spatial frequency of the pattern |
+| Texture Contrast | 0.1 – 2.0 (steps of 0.1) | 1.0 | Spread of the palette around the material's colour |
 
-Changing a knob repaints every texture (the appearance revision changes).
+Changing one repaints every texture (the appearance revision changes).
 
 ## Persisted state
 
 - **World save:** nothing.
-- **`mods.cfg`:** `neural_textures=on|off` and `neural_textures.state=detail=<d>,contrast=<c>`
-  (one decimal each; out-of-range values clamp, unparseable ones are ignored).
+- **`settings.cfg`:** `pwc.neural-textures.detail=` and `pwc.neural-textures.contrast=` (one
+  decimal each; out-of-range values clamp, unparseable ones keep the default).
 
 ## Dependencies
 
@@ -40,12 +41,13 @@ None besides the PWC mod API (`pwc-api ^2.0`).
 
 ## Compatibility
 
-- `appearance` is first-enabled-wins: another appearance package registered earlier replaces these
-  textures while both are enabled. Disabled, blocks use the core's flat colours.
+- `appearance` is first-active-wins: another appearance package registered earlier replaces these
+  textures while both are installed. Without one, blocks use the core's flat colours.
 - Presentation only: textures never feed back into the law, world generation, saves or the network.
-- The game paints a texture once per configuration (and again only when a knob changes), never per
-  frame.
-- The mod id and knob payload are unchanged from the mod that shipped inside PWC 2.0.
+- The game paints a texture once per configuration (and again only when an option changes), never
+  per frame.
+- The mod id is unchanged from the mod that shipped inside PWC 2.0. Values saved in `mods.cfg` are
+  not carried over: both options start at 1.0.
 
 ## Licence
 

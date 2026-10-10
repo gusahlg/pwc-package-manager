@@ -11,7 +11,7 @@ something else) the slot follows it to its new configuration. The bar shows each
 accent and count, and the name of what is held (the tool name from a namer such as
 `pwc.material-names`, or "Bare hand").
 
-Mod id: `hotbar` (display name "Hotbar"), in the Essentials group, enabled by default.
+Mod id: `hotbar`. Part of `pwc.essentials`.
 
 ## Controls
 
@@ -28,14 +28,13 @@ panel, which uses them to equip materials into slots.
 
 ## Settings
 
-None. The hotbar has no knobs on the mods screen.
+None.
 
 ## Persisted state
 
 - **World save:** one line under the mod id `hotbar`, payload version 1:
   `v1;sel=<selected>;<key>=<material spec>;…` — the selected slot (0 = hand) and the portable
   spec of every filled slot. Older saves keyed by the display name ("Hotbar") still load.
-- **`mods.cfg`:** only `hotbar=on|off`.
 
 Placed units are spent from the core inventory, not from the hotbar, so the inventory stays the one record
 of what the player holds.
@@ -68,7 +67,7 @@ None besides the PWC mod API (`pwc-api ^2.1`).
 
 ## Compatibility
 
-- `tool` is a first-enabled-wins hook: another enabled mod that reports a tool and
+- `tool` is a first-active-wins hook: another mod that reports a tool and
   registers earlier takes precedence over this bar.
 - Disabling the hotbar leaves no tool, so a primary action breaks into the inventory. The number
   keys are this mod's actions, so they select nothing while it is off. The inventory is core state,
@@ -76,7 +75,7 @@ None besides the PWC mod API (`pwc-api ^2.1`).
 - In multiplayer the server evaluates tool use and placements; a rejected placement is refunded
   by the core.
 - Mod ids, the save key and the payload format are unchanged from the hotbar that shipped inside
-  PWC 2.0, so existing worlds and `mods.cfg` files keep working.
+  PWC 2.0, so existing worlds keep working.
 
 ## Licence
 

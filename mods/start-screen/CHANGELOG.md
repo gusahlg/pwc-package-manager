@@ -1,5 +1,10 @@
 # Changelog — pwc.start-screen
 
+## 2.0.0 (unreleased)
+
+- No description or group of its own: the package manifest is what menus show. A server can
+  suspend the package for a session; mods are no longer switched in the game.
+
 ## 1.1.1
 
 - Requires `pwc-api ^2.0`. Behaviour unchanged.

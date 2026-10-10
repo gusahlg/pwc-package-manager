@@ -14,9 +14,9 @@ use pwc_mod_api::menu::{
 };
 use pwc_mod_api::net::{DEFAULT_PORT, MAX_NAME};
 use pwc_mod_api::session::Session;
-use pwc_mod_api::settings::Settings;
+use pwc_mod_api::settings::{Options, Settings};
 use pwc_mod_api::ui::EditBuf;
-use pwc_mod_api::{Mod, ModRegistrar, ESSENTIALS};
+use pwc_mod_api::{Mod, ModRegistrar};
 
 /// The package entry point: installs [`StartScreenMod`], enabled.
 pub fn register(registrar: &mut ModRegistrar) {
@@ -48,14 +48,6 @@ impl Mod for StartScreenMod {
         "start"
     }
 
-    fn description(&self) -> &str {
-        "The default start screen (main menu, load list, host and join forms)."
-    }
-
-    fn group(&self) -> &'static str {
-        ESSENTIALS
-    }
-
     fn start_screen(&self, facts: &StartFacts) -> Option<Box<dyn StartScreen>> {
         Some(Box::new(DefaultStart::open(facts)))
     }
@@ -83,21 +75,16 @@ impl DefaultStart {
         }
     }
 
-    fn dummy_ctx<'a>(facts: &'a StartFacts, settings: &'a mut Settings) -> Ctx<'a> {
-        Ctx {
-            settings,
-            saves: facts.saves,
-            mods: &[],
-            session: facts.session,
-            mods_save_error: None,
-        }
+    fn dummy_ctx<'a>(facts: &'a StartFacts, settings: &'a mut Settings, options: &'a mut Options) -> Ctx<'a> {
+        Ctx { saves: facts.saves, ..Ctx::bare(settings, options, facts.session) }
     }
 }
 
 impl StartScreen for DefaultStart {
     fn view(&self, facts: &StartFacts) -> MenuModel {
         let mut settings = Settings::default();
-        let ctx = Self::dummy_ctx(facts, &mut settings);
+        let mut options = Options::new();
+        let ctx = Self::dummy_ctx(facts, &mut settings, &mut options);
         match &self.overlay {
             Some(Overlay::Worlds(frame)) => {
                 let (view, sel) = frame.view_sel(&ctx);
@@ -125,7 +112,8 @@ impl StartScreen for DefaultStart {
 
     fn update(&mut self, intents: &[Intent], facts: &StartFacts) -> Option<StartAction> {
         let mut settings = Settings::default();
-        let mut ctx = Self::dummy_ctx(facts, &mut settings);
+        let mut options = Options::new();
+        let mut ctx = Self::dummy_ctx(facts, &mut settings, &mut options);
         if let Some(overlay) = &mut self.overlay {
             let cmd = match overlay {
                 Overlay::Worlds(frame) => frame.update(intents, &mut ctx),
@@ -529,18 +517,9 @@ mod tests {
     fn submit_form<const JOIN: bool>(session: &Session) -> Command {
         let mut menu = ConnectionMenu::<JOIN>::new(session);
         let mut settings = Settings::default();
-        let mut ctx = ctx(&mut settings, session);
+        let mut options = Options::new();
+        let mut ctx = Ctx::bare(&mut settings, &mut options, session);
         menu.update(Msg::Pick(ConnectionAction::Submit), &mut ctx)
-    }
-
-    fn ctx<'a>(settings: &'a mut Settings, session: &'a Session) -> Ctx<'a> {
-        Ctx {
-            settings,
-            saves: &[],
-            mods: &[],
-            session,
-            mods_save_error: None,
-        }
     }
 
     fn open(facts: &StartFacts) -> Box<dyn StartScreen> {
@@ -795,7 +774,8 @@ mod tests {
         let session = Session::default();
         let mut menu = HostMenu::new(&session);
         let mut settings = Settings::default();
-        let mut ctx = ctx(&mut settings, &session);
+        let mut options = Options::new();
+        let mut ctx = Ctx::bare(&mut settings, &mut options, &session);
         // Prefill is "5555"; delete it and type "0".
         for _ in 0..4 {
             menu.update(Msg::Edited(ConnectionAction::Port, TextOp::Backspace), &mut ctx);
@@ -817,7 +797,8 @@ mod tests {
         let session = remembered("", "", "");
         let mut menu = HostMenu::new(&session);
         let mut settings = Settings::default();
-        let mut ctx = ctx(&mut settings, &session);
+        let mut options = Options::new();
+        let mut ctx = Ctx::bare(&mut settings, &mut options, &session);
         // Prefill of empty session.port is DEFAULT_PORT text; clear it.
         for _ in 0..5 {
             menu.update(Msg::Edited(ConnectionAction::Port, TextOp::Backspace), &mut ctx);
@@ -832,17 +813,17 @@ mod tests {
     }
 
     #[test]
-    fn first_enabled_start_screen_wins_and_disabled_falls_back() {
+    fn the_start_screen_wins_and_a_suspended_one_falls_back() {
         let session = Session::default();
         let f = facts(&[], &session, None);
         let mods = build();
-        assert_eq!((mods.id(0), mods.name(0), mods.group(0)), ("start", "Start", ESSENTIALS));
+        assert_eq!((mods.id(0), mods.name(0)), ("start", "Start"));
         assert_eq!(mods.package(0), Some("pwc.start-screen"));
-        let screen = mods.start_screen(&f).expect("default start mod is on");
+        let screen = mods.start_screen(&f).expect("the start mod answers");
         assert_eq!(screen.view(&f).labels()[0], "New World");
 
         let mut off = build();
-        off.set_enabled("start", false);
+        off.suspend_packages(&["pwc.start-screen".to_string()]);
         assert!(off.start_screen(&f).is_none());
         let fb = fallback(&f);
         assert_eq!(fb.view(&f).labels()[0], "New world");

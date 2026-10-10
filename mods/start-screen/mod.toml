@@ -3,7 +3,7 @@ format = 1
 [package]
 id = "pwc.start-screen"
 name = "Start screen"
-version = "1.1.1"
+version = "2.0.0"
 description = "The default start screen: main menu, a page of saved worlds, and the host and join server forms."
 authors = ["Project Watt Cubed contributors"]
 license = "Apache-2.0 OR MIT"

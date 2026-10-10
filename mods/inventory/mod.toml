@@ -3,7 +3,7 @@ format = 1
 [package]
 id = "pwc.inventory"
 name = "Inventory"
-version = "2.0.1"
+version = "2.1.0"
 description = "Your held materials as a list (press I); equip any of them into the hotbar."
 authors = ["Project Watt Cubed contributors"]
 license = "Apache-2.0 OR MIT"

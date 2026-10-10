@@ -3,7 +3,7 @@ format = 1
 [package]
 id = "pwc.dev-toolkit"
 name = "Developer Toolkit"
-version = "1.0.1"
+version = "2.0.0"
 description = "Console commands (teleport, bodies, noclip, cruise, speeds, graphics, time, audio, gravity, help) and flight on F."
 authors = ["Project Watt Cubed contributors"]
 license = "Apache-2.0 OR MIT"

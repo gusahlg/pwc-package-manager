@@ -4,7 +4,7 @@ In-world HUD pieces of the essentials. The first one is the **facing indicator**
 look along the world's own X, Y and Z axes, the axes `/tp` coordinates and the coordinate readout
 use. Later HUD pieces of the same kind join this package.
 
-Mod id: `game_ui` (display name "Game UI"), in the Essentials group, enabled by default.
+Mod id: `game_ui`. Part of `pwc.essentials`.
 
 ## The facing indicator
 
@@ -24,11 +24,11 @@ camera. It is drawn whenever mod HUDs are shown (the Full and Minimal HUD modes)
 
 ## Controls and settings
 
-None. The indicator has no keys and no knobs on the mods screen; switch it off with the mod.
+None.
 
 ## Persisted state
 
-Nothing besides `game_ui=on|off` in `mods.cfg`.
+Nothing.
 
 ## Dependencies
 

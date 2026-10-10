@@ -15,7 +15,8 @@ use std::f32::consts::TAU;
 
 use pwc_mod_api::block::appearance::{AppearanceSource, BlockAppearance, LAYER_BYTES, TEXTURE_SIZE};
 use pwc_mod_api::material::{element_colour, Element};
-use pwc_mod_api::{Knob, Mod, ModRegistrar, ESSENTIALS};
+use pwc_mod_api::settings::{Category, OptionId, OptionSpec, Options};
+use pwc_mod_api::{Mod, ModRegistrar};
 
 /// Periodic input features per texel.
 const INPUTS: usize = 10;
@@ -291,25 +292,37 @@ pub fn paint(src: &AppearanceSource, detail: f32, contrast: f32, out: &mut [u8; 
     }
 }
 
-/// The package entry point: installs [`NeuralTexturesMod`], enabled.
+/// The Texture Detail option: the pattern's spatial frequency.
+pub const DETAIL: OptionSpec = OptionSpec::float("detail", "Texture Detail", Category::Video, (0.1, 2.0, 0.1), 1.0);
+/// The Texture Contrast option: how far the palette spreads from the material's colour.
+pub const CONTRAST: OptionSpec = OptionSpec::float("contrast", "Texture Contrast", Category::Video, (0.1, 2.0, 0.1), 1.0);
+
+/// The package entry point: declares the Detail and Contrast options and installs
+/// [`NeuralTexturesMod`].
 pub fn register(registrar: &mut ModRegistrar) {
-    registrar.add(NeuralTexturesMod::new());
+    let detail = registrar.option(DETAIL);
+    let contrast = registrar.option(CONTRAST);
+    registrar.add(NeuralTexturesMod { options: Some((detail, contrast)), ..NeuralTexturesMod::new() });
 }
 
-/// The Essentials appearance mod (id `neural_textures`).
+/// The appearance mod (id `neural_textures`).
 pub struct NeuralTexturesMod {
+    /// The Detail and Contrast options, when registered through the package.
+    options: Option<(OptionId, OptionId)>,
     detail: f32,
     contrast: f32,
     revision: u32,
 }
 
 impl NeuralTexturesMod {
-    /// The mod with both knobs at 1.0.
+    /// The mod with Detail and Contrast at 1.0.
     pub fn new() -> Self {
-        Self { detail: 1.0, contrast: 1.0, revision: 1 }
+        Self { options: None, detail: 1.0, contrast: 1.0, revision: 1 }
     }
 
-    fn set_knob(&mut self, which: usize, value: f32) {
+    /// Set Detail (0) or Contrast (1), clamped to 0.1..2.0 in steps of 0.1. A real change bumps the
+    /// appearance revision, so every texture repaints.
+    pub fn set_knob(&mut self, which: usize, value: f32) {
         let value = ((value * 10.0).round() as i32).clamp(1, KNOB_MAX) as f32 / 10.0;
         let slot = match which {
             0 => &mut self.detail,
@@ -348,46 +361,14 @@ impl Mod for NeuralTexturesMod {
         "neural_textures"
     }
 
-    fn description(&self) -> &str {
-        "Each configuration grows a pattern network from its own elements: a unique 32×32 texture per material."
-    }
-
-    fn group(&self) -> &'static str {
-        ESSENTIALS
-    }
-
     fn appearance(&self) -> Option<&dyn BlockAppearance> {
         Some(self)
     }
 
-    fn knobs(&self) -> Vec<Knob> {
-        vec![
-            Knob { label: "Detail", value: format!("{:.1}", self.detail), hint: "0.1..2.0".to_string() },
-            Knob { label: "Contrast", value: format!("{:.1}", self.contrast), hint: "0.1..2.0".to_string() },
-        ]
-    }
-
-    fn step_knob(&mut self, index: usize, delta: i32) {
-        match index {
-            0 => self.set_knob(0, self.detail + delta as f32 * 0.1),
-            1 => self.set_knob(1, self.contrast + delta as f32 * 0.1),
-            _ => {}
-        }
-    }
-
-    fn save_choice_state(&self) -> Option<String> {
-        Some(format!("detail={:.1},contrast={:.1}", self.detail, self.contrast))
-    }
-
-    fn load_choice_state(&mut self, data: &str) {
-        for part in data.split(',') {
-            let Some((k, v)) = part.split_once('=') else { continue };
-            let Ok(n) = v.trim().parse::<f32>() else { continue };
-            match k.trim() {
-                "detail" => self.set_knob(0, n),
-                "contrast" => self.set_knob(1, n),
-                _ => {}
-            }
+    fn on_options(&mut self, options: &Options) {
+        if let Some((detail, contrast)) = self.options {
+            self.set_knob(0, options.float(detail));
+            self.set_knob(1, options.float(contrast));
         }
     }
 }
@@ -416,15 +397,14 @@ mod tests {
     }
 
     #[test]
-    fn registers_one_enabled_essential_that_paints_blocks() {
+    fn registers_one_mod_that_paints_blocks() {
         let mods = build();
         assert_eq!(mods.len(), 1);
-        assert_eq!((mods.id(0), mods.name(0), mods.group(0)), ("neural_textures", "Neural textures", ESSENTIALS));
+        assert_eq!((mods.id(0), mods.name(0)), ("neural_textures", "Neural textures"));
         assert_eq!(mods.package(0), Some("pwc.neural-textures"));
-        assert!(mods.is_enabled(0));
-        assert_eq!(mods.appearance().revision(), 1, "the mod's appearance wins while enabled");
+        assert_eq!(mods.appearance().revision(), 1, "the mod's appearance wins while it runs");
         let mut off = build();
-        off.set_enabled("neural_textures", false);
+        off.suspend_packages(&["pwc.neural-textures".to_string()]);
         let mut flat = [0u8; LAYER_BYTES];
         let mut ours = [0u8; LAYER_BYTES];
         let law = Law::current();
@@ -434,30 +414,30 @@ mod tests {
         let src = AppearanceSource { law: &law, block: &block, visual: &vis, obs: &obs };
         off.appearance().layer(&src, &mut flat);
         mods.appearance().layer(&src, &mut ours);
-        assert_ne!(flat, ours, "disabled: the core's flat look");
+        assert_ne!(flat, ours, "suspended: the core's flat look");
     }
 
     #[test]
-    fn knobs_clamp_bump_revision_and_round_trip_through_choices() {
+    fn options_clamp_and_bump_the_revision_only_on_change() {
+        use pwc_mod_api::settings::OptionValue;
         let mut mods = build();
-        assert!(mods.choices_text().contains("neural_textures.state=detail=1.0,contrast=1.0"));
-        let knobs = mods.knobs(0);
-        assert_eq!((knobs[0].label, knobs[0].value.as_str()), ("Detail", "1.0"));
-        assert_eq!((knobs[1].label, knobs[1].hint.as_str()), ("Contrast", "0.1..2.0"));
-        mods.step_knob(0, 0, 3);
-        mods.step_knob(0, 1, -50);
-        assert_eq!(mods.appearance().revision(), 3, "each change repaints");
-        mods.step_knob(0, 1, -1);
+        let detail = mods.options().find("pwc.neural-textures.detail").expect("declared");
+        let contrast = mods.options().find("pwc.neural-textures.contrast").expect("declared");
+        assert_eq!((mods.options().show(detail), mods.options().show(contrast)), ("1.0".to_string(), "1.0".to_string()));
+        assert_eq!(mods.options().spec(detail).page, Category::Video);
+        for _ in 0..3 {
+            mods.options_mut().step(detail, 1);
+        }
+        mods.options_mut().set(contrast, OptionValue::Float(-5.0));
+        mods.options_changed();
+        assert_eq!(mods.appearance().revision(), 3, "each changed value repaints once");
+        assert_eq!((mods.options().show(detail), mods.options().show(contrast)), ("1.3".to_string(), "0.1".to_string()));
+        mods.options_mut().step(contrast, -1);
+        mods.options_changed();
         assert_eq!(mods.appearance().revision(), 3, "already at the floor: nothing to repaint");
-        let text = mods.choices_text();
-        assert!(text.contains("neural_textures.state=detail=1.3,contrast=0.1"), "{text}");
-        let mut fresh = build();
-        fresh.apply_choices_text(&text);
-        assert_eq!(fresh.knobs(0)[0].value, "1.3");
-        assert_eq!(fresh.knobs(0)[1].value, "0.1");
-        fresh.apply_choices_text("version=2\nneural_textures.state=detail=9,contrast=x,bogus\n");
-        assert_eq!(fresh.knobs(0)[0].value, "2.0", "out-of-range values clamp");
-        assert_eq!(fresh.knobs(0)[1].value, "0.1", "unparseable values are ignored");
+        let mut m = NeuralTexturesMod::new();
+        m.set_knob(0, 9.0);
+        assert_eq!(m.detail, 2.0, "out-of-range values clamp");
     }
 
     #[test]

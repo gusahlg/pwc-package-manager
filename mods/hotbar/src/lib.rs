@@ -26,7 +26,7 @@ use pwc_mod_api::input::intent::{Chord, Source};
 use pwc_mod_api::player::Player;
 use pwc_mod_api::ui::{Anchor, HudElement, Role};
 use pwc_mod_api::world::World;
-use pwc_mod_api::{Action, Mod, ModContext, ModRegistrar, ToolUse, ESSENTIALS};
+use pwc_mod_api::{Action, Mod, ModContext, ModRegistrar, ToolUse};
 
 /// Material slots (keys 1-9); slot 0 is the bare hand.
 pub const SLOTS: usize = 9;
@@ -370,14 +370,6 @@ impl Mod for HotbarMod {
         "hotbar"
     }
 
-    fn description(&self) -> &str {
-        "Nine slots of held materials: 1-9 / wheel to pick, left click uses it as a tool, right click places it. 0 = bare hand."
-    }
-
-    fn group(&self) -> &'static str {
-        ESSENTIALS
-    }
-
     fn actions(&self) -> &[Action] {
         ACTIONS
     }
@@ -638,9 +630,9 @@ mod tests {
             .with_mod(ModDescriptor { id: "test.consumer", name: "Consumer", version: "1.0.0", register: consumer })
             .mods();
         assert_eq!(mods.len(), 1);
-        assert_eq!((mods.id(0), mods.name(0), mods.group(0)), ("hotbar", "Hotbar", ESSENTIALS));
+        assert_eq!((mods.id(0), mods.name(0)), ("hotbar", "Hotbar"), "the name old saves used");
         assert_eq!(mods.package(0), Some("pwc.hotbar"));
-        assert!(mods.is_enabled(0), "the hotbar starts enabled");
+        assert!(mods.is_active(0));
         let world = World::new(1);
         let saved = mods.save_states(&world);
         assert_eq!(saved, [("hotbar".to_string(), "v1;sel=4".to_string())], "the consumer's handle is the mod's state");
@@ -712,17 +704,5 @@ mod tests {
             el,
             HudElement::Label { text, at: Anchor::Bottom, off: (0, -112), base_fs: 18, role: Role::Muted, .. } if &**text == "no reaction"
         )));
-    }
-
-    #[test]
-    fn choices_persist_only_the_on_off_line() {
-        let mut mods = build();
-        assert_eq!(mods.choices_text(), "version=2\nhotbar=on\n", "the hotbar has no knobs");
-        mods.set_group_enabled(ESSENTIALS, false);
-        let text = mods.choices_text();
-        assert!(text.contains("hotbar=off"), "{text}");
-        let mut fresh = build();
-        fresh.apply_choices_text(&text);
-        assert!(!fresh.is_enabled(0));
     }
 }

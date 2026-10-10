@@ -1,5 +1,10 @@
 # Changelog — pwc.inventory
 
+## 2.1.0 (unreleased)
+
+- No description or group of its own: the package manifest is what menus show. Mods are no longer
+  switched in the game; the build decides what is in.
+
 ## 2.0.1
 
 - Requires `pwc-api ^2.1`. `inventory.toggle` names `held: false`. Behaviour unchanged.

@@ -14,7 +14,7 @@
 //! first of them in registration order is used.
 
 use pwc_mod_api::menu::theme::{DefaultTheme, MenuTheme};
-use pwc_mod_api::{Mod, ModRegistrar, ESSENTIALS};
+use pwc_mod_api::{Mod, ModRegistrar};
 
 /// The theme this package hands out. It is a stateless unit value, so one static instance serves
 /// every frame.
@@ -36,14 +36,6 @@ impl Mod for Menus {
 
     fn id(&self) -> &'static str {
         "menus"
-    }
-
-    fn description(&self) -> &str {
-        "Draws the title screen and the other out-of-game screens in the standard PWC style."
-    }
-
-    fn group(&self) -> &'static str {
-        ESSENTIALS
     }
 
     fn menu_theme(&self) -> Option<&dyn MenuTheme> {
@@ -80,27 +72,21 @@ mod tests {
     }
 
     #[test]
-    fn registers_one_enabled_essential_named_menus() {
+    fn registers_one_mod_named_menus() {
         let mods = build();
         assert_eq!(mods.len(), 1);
-        assert_eq!((mods.id(0), mods.name(0), mods.group(0)), ("menus", "Menus", ESSENTIALS));
+        assert_eq!((mods.id(0), mods.name(0)), ("menus", "Menus"));
         assert_eq!(mods.package(0), Some("pwc.menus"));
-        assert!(mods.is_enabled(0));
-        assert!(!mods.description(0).is_empty());
-        assert!(mods.knobs(0).is_empty(), "nothing to tune");
-        assert_eq!(mods.choices_text(), "version=2\nmenus=on\n", "only the on/off line persists");
     }
 
     #[test]
-    fn the_theme_is_offered_only_while_enabled() {
+    fn the_theme_is_offered_unless_suspended() {
         let mut mods = build();
         assert!(mods.menu_theme().is_some());
-        mods.set_enabled("menus", false);
-        assert!(mods.menu_theme().is_none(), "disabled: the game draws its built-in theme");
-        mods.set_group_enabled(ESSENTIALS, true);
+        mods.suspend_packages(&["pwc.menus".to_string()]);
+        assert!(mods.menu_theme().is_none(), "suspended: the game draws its built-in theme");
+        mods.resume_packages();
         assert!(mods.menu_theme().is_some());
-        mods.apply_choices_text("version=2\nmenus=off\n");
-        assert!(mods.menu_theme().is_none());
     }
 
     #[test]

@@ -1,5 +1,12 @@
 # Changelog — pwc.dev-toolkit
 
+## 2.0.0 (unreleased)
+
+- No Tools group: mods are no longer grouped, switched or tuned in the game; the build decides
+  what is in. A server that refuses the toolkit suspends it for the session.
+- `/gfx` marks a lane no installed package provides "(unavailable in this build)" instead of naming
+  a visual mod.
+
 ## 1.0.1
 
 - Requires `pwc-api ^2.0`. Behaviour unchanged.

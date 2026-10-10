@@ -21,7 +21,7 @@ use pwc_mod_api::inventory::Inventory;
 use pwc_mod_api::player::Player;
 use pwc_mod_api::ui::{visible_window, Anchor, HudElement, Panel, Role, Row, PANEL_FONT};
 use pwc_mod_api::world::World;
-use pwc_mod_api::{Action, Mod, ModContext, ModRegistrar, ESSENTIALS};
+use pwc_mod_api::{Action, Mod, ModContext, ModRegistrar};
 
 const TOGGLE: &[Chord] = &[Chord::key(Key::I)];
 const ACTIONS: &[Action] = &[Action {
@@ -188,16 +188,8 @@ impl Mod for InventoryMod {
         "inventory"
     }
 
-    fn description(&self) -> &str {
-        "Your held materials (press I): choose one and press 1-9 to equip it on the hotbar."
-    }
-
     fn actions(&self) -> &[Action] {
         ACTIONS
-    }
-
-    fn group(&self) -> &'static str {
-        ESSENTIALS
     }
 
     fn update(&mut self, ctx: &mut ModContext) {
@@ -435,7 +427,6 @@ mod tests {
         let ids: Vec<&str> = (0..mods.len()).map(|i| mods.id(i)).collect();
         assert_eq!(ids, ["hotbar", "inventory"], "dependency order: the hotbar registers first");
         assert_eq!(mods.package(1), Some("pwc.inventory"));
-        assert_eq!(mods.group(1), ESSENTIALS);
         let mut c = ctx(&mut player, &mut world);
         c.set_action("inventory.toggle");
         mods.update(&mut c);
@@ -468,24 +459,20 @@ mod tests {
         let saved = mods.save_states(&world);
         assert!(saved.iter().all(|(k, _)| k != "inventory"), "the inventory is core state, not an inventory save line");
         assert!(saved.iter().any(|(k, _)| k == "hotbar"));
-        let text = mods.choices_text();
-        assert!(text.contains("inventory=on") && !text.contains("inventory.state"), "{text}");
-        mods.apply_choices_text("version=2\ninventory=off\nnot-a-mod=on\n");
-        assert!(!mods.is_enabled(1));
-        assert!(mods.is_enabled(0), "an unmentioned mod keeps its default (on)");
     }
 
     #[test]
-    fn disabling_inventory_does_not_destroy_mined_blocks() {
+    fn suspending_inventory_does_not_destroy_mined_blocks() {
         let world = world();
         let mut player = Player::new(DVec3::new(0.0, 70.0, 0.0));
         let mut mods = build();
         let rock = world.registry().id_by_label("rock").unwrap();
         assert!(player.inventory.add(rock, 2));
-        mods.set_enabled("inventory", false);
+        mods.suspend_packages(&["pwc.inventory".to_string()]);
+        assert!(!mods.is_active(1) && mods.is_active(0));
         mods.on_block_break(rock, &world, false);
         assert_eq!(player.inventory.count(rock), 2, "core keeps the configurations");
-        mods.set_enabled("inventory", true);
+        mods.resume_packages();
         let inv = inventory();
         inv.set_visible(true);
         let mut shown = Vec::new();

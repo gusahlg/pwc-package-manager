@@ -3,7 +3,7 @@ format = 1
 [package]
 id = "pwc.sounds"
 name = "Sounds"
-version = "1.0.0"
+version = "1.1.0"
 description = "Footsteps, block and tool sounds, swings and menu clicks."
 authors = ["Project Watt Cubed contributors"]
 license = "Apache-2.0 OR MIT"

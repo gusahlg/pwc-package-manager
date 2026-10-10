@@ -1,24 +1,34 @@
 //! Who hears whom. Hold V to send opus frames on the `"voice"` channel. A peer
 //! is audible while they are in the interest set; leaving the roster closes the
 //! session. Distance is the audio kernel's job. The microphone stays shut unless
-//! this mod is on, voice is enabled, and the talk key is held on a live connection.
+//! this mod runs, its Voice Chat option is on, and the talk key is held on a live connection.
 
 use pwc_mod_api::audio::{AudioApi, AudioView, CapturedFrame, GameEvent, ModFrame, ModLink};
 use pwc_mod_api::engine::Key;
 use pwc_mod_api::input::intent::Chord;
-use pwc_mod_api::{Action, Mod, ModRegistrar, ESSENTIALS};
+use pwc_mod_api::settings::{Category, OptionId, OptionSpec, Options};
+use pwc_mod_api::{Action, Mod, ModRegistrar};
 
 const CHANNEL: &str = "voice";
 const TALK: &str = "voice.talk";
 
-/// The package entry point.
+/// The Voice Chat option: the microphone gate. It was the core setting `voice_enabled`, so a
+/// player's earlier choice carries over.
+pub const VOICE: OptionSpec =
+    OptionSpec::toggle("voice_enabled", "Voice Chat", Category::Audio, true).legacy_key("voice_enabled");
+
+/// The package entry point: declares the Voice Chat option and installs the mod.
 pub fn register(registrar: &mut ModRegistrar) {
-    registrar.add(ProximityChat::default());
+    let voice = registrar.option(VOICE);
+    registrar.add(ProximityChat { voice: Some(voice), ..ProximityChat::default() });
 }
 
 /// The proximity-chat mod (id `proximity_chat`).
-#[derive(Default)]
 pub struct ProximityChat {
+    /// The Voice Chat option, when registered through the package.
+    voice: Option<OptionId>,
+    /// Its value: the microphone may open.
+    voice_enabled: bool,
     /// Peers we have positioned. Closed when they leave the roster, not when they go invisible.
     known: Vec<u32>,
     /// Encoded frames a test queued. Non-empty means "send these, do not open the microphone".
@@ -28,7 +38,27 @@ pub struct ProximityChat {
     seq: u32,
 }
 
+impl Default for ProximityChat {
+    /// Voice on, no option attached (tests set [`voice_enabled`](Self::set_voice_enabled)).
+    fn default() -> Self {
+        Self {
+            voice: None,
+            voice_enabled: true,
+            known: Vec::new(),
+            outbox: Vec::new(),
+            inbox: Vec::new(),
+            captured: Vec::new(),
+            seq: 0,
+        }
+    }
+}
+
 impl ProximityChat {
+    /// Open or shut the microphone gate directly (what the Voice Chat option does).
+    pub fn set_voice_enabled(&mut self, on: bool) {
+        self.voice_enabled = on;
+    }
+
     /// Queue one encoded frame. The next in-world frame sends it and leaves the microphone shut.
     pub fn inject(&mut self, bytes: Vec<u8>) {
         self.outbox.push(bytes);
@@ -91,7 +121,7 @@ impl ProximityChat {
             }
             return;
         }
-        if online && view.voice_enabled && view.action(TALK) {
+        if online && self.voice_enabled && view.action(TALK) {
             audio.start_capture();
             audio.drain_capture(&mut self.captured);
             for frame in self.captured.drain(..) {
@@ -112,14 +142,6 @@ impl Mod for ProximityChat {
         "proximity_chat"
     }
 
-    fn description(&self) -> &str {
-        "Push-to-talk voice. People nearby hear you; the mixer does the distance."
-    }
-
-    fn group(&self) -> &'static str {
-        ESSENTIALS
-    }
-
     fn actions(&self) -> &[Action] {
         const CHORDS: &[Chord] = &[Chord::key(Key::V)];
         const ACTIONS: &[Action] = &[Action {
@@ -130,6 +152,12 @@ impl Mod for ProximityChat {
             held: true,
         }];
         ACTIONS
+    }
+
+    fn on_options(&mut self, options: &Options) {
+        if let Some(voice) = self.voice {
+            self.voice_enabled = options.bool(voice);
+        }
     }
 
     fn on_game_event(&mut self, ev: &GameEvent, audio: &mut AudioApi) {
@@ -156,7 +184,7 @@ mod tests {
 
     const IDS: &[&str] = &[TALK];
 
-    fn view<'a>(peers: &'a [PeerAudio], enabled: bool, talking: bool) -> AudioView<'a> {
+    fn view<'a>(peers: &'a [PeerAudio], talking: bool) -> AudioView<'a> {
         let mut actions = ActionSet::NONE;
         if talking {
             actions.insert(0);
@@ -166,7 +194,6 @@ mod tests {
             pos: DVec3::ZERO,
             peers,
             in_world: true,
-            voice_enabled: enabled,
             hear_voice: true,
             actions,
             ids: IDS,
@@ -181,12 +208,14 @@ mod tests {
     #[test]
     fn a_disabled_or_offline_voice_does_not_open_the_microphone() {
         let mut chat = ProximityChat::default();
+        chat.set_voice_enabled(false);
         let mut bench = AudioBench::recording();
-        let seen = view(&[], false, true);
+        let seen = view(&[], true);
         let mut link = ModLink::idle();
         frame(&mut chat, &mut bench, &seen, &mut link);
         assert!(!bench.capture_requested(), "voice disabled never asks for the microphone");
-        let offline = view(&[], true, true);
+        chat.set_voice_enabled(true);
+        let offline = view(&[], true);
         frame(&mut chat, &mut bench, &offline, &mut link);
         assert!(!bench.capture_requested(), "no connection, no microphone");
     }
@@ -199,7 +228,7 @@ mod tests {
         sender.inject(vec![1, 2, 3, 4]);
         let mut send_bench = AudioBench::recording();
         let mut recv_bench = AudioBench::recording();
-        let talking = view(&[], true, true);
+        let talking = view(&[], true);
         pair.with_a(|mut link| frame(&mut sender, &mut send_bench, &talking, &mut link));
         assert!(!send_bench.capture_requested(), "an injected frame does not open the microphone");
 
@@ -222,9 +251,30 @@ mod tests {
             gait: 0.0,
             speed: 0.0,
         }];
-        let hearing = view(&peers, true, false);
+        let hearing = view(&peers, false);
         pair.with_b(|mut link| frame(&mut receiver, &mut recv_bench, &hearing, &mut link));
         assert!(recv_bench.stream_count() >= 1, "the received frame opened a voice session");
         assert!(!recv_bench.capture_requested());
+    }
+
+    /// The package declares Voice Chat on the Audio page; the mod follows it, and the old core
+    /// key carries a player's choice over.
+    #[test]
+    fn the_voice_chat_option_gates_the_microphone() {
+        use pwc_mod_api::settings::OptionValue;
+        use pwc_mod_api::{GameBuild, ModDescriptor};
+        let mut mods = GameBuild::new()
+            .with_mod(ModDescriptor { id: "pwc.proximity-chat", name: "Proximity chat", version: "1.1.0", register })
+            .mods();
+        let id = mods.options().find("pwc.proximity-chat.voice_enabled").expect("declared");
+        assert_eq!(mods.options().spec(id).page, Category::Audio);
+        assert_eq!(mods.options().spec(id).legacy_key, Some("voice_enabled"));
+        assert!(mods.options().bool(id), "on by default");
+        mods.options_mut().set(id, OptionValue::Bool(false));
+        mods.options_changed();
+        let mut chat = ProximityChat::default();
+        chat.voice = Some(id);
+        chat.on_options(mods.options());
+        assert!(!chat.voice_enabled);
     }
 }

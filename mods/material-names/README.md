@@ -17,25 +17,26 @@ configuration, so every player sees the same names, and the names mean something
 - the **tool** name adds a noun by mass and look: shard, chisel or awl, pick, maul or hammer,
   sledge; lens or lantern for clear or glowing tools.
 
-Mod id: `material_names` (display name "Material names"), in the Essentials group, enabled by
-default.
+Mod id: `material_names`. Part of `pwc.essentials`.
 
 ## Controls
 
 None.
 
-## Settings (mods screen)
+## Settings (the Interface page)
 
-| Knob | Values | Default | Effect |
+An option in the game's options registry, listed on the Interface page of any settings screen.
+
+| Option | Values | Default | Effect |
 |---|---|---|---|
-| Style | Mineral / Arcane | Mineral | Switches the vocabulary of suffixes and qualifiers (mineral-like "-ite", "Banded" or fantasy-like "-ael", "Runic") |
+| Material Names | Mineral / Arcane | Mineral | Switches the vocabulary of suffixes and qualifiers (mineral-like "-ite", "Banded" or fantasy-like "-ael", "Runic") |
 
 Switching the style renames everything at once (the namer's revision changes).
 
 ## Persisted state
 
 - **World save:** nothing. Names are never saved; they are recomputed from the configuration.
-- **`mods.cfg`:** `material_names=on|off` and `material_names.state=style=mineral|arcane`.
+- **`settings.cfg`:** `pwc.material-names.style=mineral|arcane`.
 
 ## Dependencies
 
@@ -43,10 +44,11 @@ None besides the PWC mod API (`pwc-api ^2.0`).
 
 ## Compatibility
 
-- `namer` is first-enabled-wins: another naming package registered earlier replaces these names
-  while both are enabled. Disabled, the game describes materials by their readings.
+- `namer` is first-active-wins: another naming package registered earlier replaces these names
+  while both are installed. Without one, the game describes materials by their readings.
 - Names are presentation only: they never reach the law, world generation, saves or the network.
-- The mod id and knob payload are unchanged from the mod that shipped inside PWC 2.0.
+- The mod id is unchanged from the mod that shipped inside PWC 2.0. The style saved in `mods.cfg`
+  is not carried over: it starts at Mineral.
 
 ## Licence
 

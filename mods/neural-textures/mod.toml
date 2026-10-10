@@ -3,7 +3,7 @@ format = 1
 [package]
 id = "pwc.neural-textures"
 name = "Neural textures"
-version = "1.0.1"
+version = "1.1.0"
 description = "Every material grows a small pattern network from its own elements and paints a unique 32x32 texture with it."
 authors = ["Project Watt Cubed contributors"]
 license = "Apache-2.0 OR MIT"

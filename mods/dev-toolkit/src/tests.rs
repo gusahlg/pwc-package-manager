@@ -9,9 +9,9 @@ use pwc_mod_api::sky::Sky;
 use pwc_mod_api::world::generation::WorldgenKind;
 use pwc_mod_api::world::terrain::cosmos::{Kind, Shape, RELIEF};
 use pwc_mod_api::world::World;
-use pwc_mod_api::{forced_off_marker, GameBuild, ModDescriptor, Mods, VisualMask};
+use pwc_mod_api::{GameBuild, ModDescriptor, Mods, VisualMask};
 
-use crate::options::time;
+use crate::options::{time, UNAVAILABLE};
 use crate::travel::{landing, landing_vec};
 
 const PACKAGE: ModDescriptor = ModDescriptor { id: "pwc.dev-toolkit", name: "Developer Toolkit", version: "1.0.0", register };
@@ -153,15 +153,12 @@ fn help_lists_the_commands_of_every_enabled_mod() {
 }
 
 #[test]
-fn register_installs_the_toolkit_in_the_tools_group() {
+fn register_installs_the_toolkit() {
     let mods = build();
     assert_eq!(mods.len(), 1);
-    assert_eq!((mods.id(0), mods.name(0), mods.group(0)), ("dev_toolkit", "Developer Toolkit", "tools"));
-    assert_eq!(mods.group_of(0), Some(TOOLS));
-    assert!(TOOLS.description.chars().count() <= 60, "the group description fits the mods panel");
+    assert_eq!((mods.id(0), mods.name(0)), ("dev_toolkit", "Developer Toolkit"));
     assert_eq!(mods.package(0), Some("pwc.dev-toolkit"));
-    assert!(mods.is_enabled(0), "the toolkit starts enabled");
-    assert_eq!(mods.choices_text(), "version=2\ndev_toolkit=on\n", "nothing persisted besides on/off");
+    assert!(mods.is_active(0), "the toolkit runs");
     let names: Vec<&str> = mods.commands().map(|c| c.name).collect();
     assert_eq!(names.len(), 17);
     assert!(!names.contains(&"name"), "the crafting stub is gone");
@@ -334,13 +331,13 @@ fn gfx_lists_effective_visual_lanes_when_a_mod_strips_them() {
     let out = execute_with_visuals("gfx", &mut p, &mut w, &mut s, &mut sky, mask);
     let text = joined(&out);
     assert!(
-        text.contains(&format!("bloom on {}", forced_off_marker("Post"))),
-        "effective /gfx must name the stripping mod: {text}"
+        text.contains(&format!("bloom on {UNAVAILABLE}")),
+        "effective /gfx must mark the stripped lane: {text}"
     );
-    assert!(!text.contains("shadows on (off:"), "Lighting is still enabled: {text}");
+    assert!(!text.contains(&format!("shadows on {UNAVAILABLE}")), "Lighting is still provided: {text}");
     let set = execute_with_visuals("gfx bloom off", &mut p, &mut w, &mut s, &mut sky, mask);
     assert!(
-        joined(&set).contains(&format!("bloom off {}", forced_off_marker("Post"))),
+        joined(&set).contains(&format!("bloom off {UNAVAILABLE}")),
         "a set confirmation must also show the strip: {}",
         joined(&set)
     );

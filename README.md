@@ -20,7 +20,8 @@ curl -fsSL https://raw.githubusercontent.com/gusahlg/pwc-package-manager/main/sc
 
 The first build takes 15-40 minutes. Afterwards, start the game from the "Project Watt Cubed" icon
 or with `~/ProjectWattCubed/play`; both update to the latest version first. Everything, including
-your worlds, lives in `~/ProjectWattCubed`.
+your worlds, lives in `~/ProjectWattCubed`. To uninstall, run
+`chmod -R u+w ~/ProjectWattCubed && rm -rf ~/ProjectWattCubed` (the package store is read-only).
 
 ## Quick start
 

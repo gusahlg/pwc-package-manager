@@ -4,8 +4,8 @@
 #   curl -fsSL https://raw.githubusercontent.com/gusahlg/pwc-package-manager/main/scripts/play.sh | bash
 #
 # Run the same command again (or the "Project Watt Cubed" icon it installs) to update and play.
-# Everything lives in ~/ProjectWattCubed: the game, its worlds and settings, and the tools. Delete that
-# folder to uninstall. Linux only (x86_64 or arm64; Debian/Ubuntu, Fedora, Arch, openSUSE and their
+# Everything lives in ~/ProjectWattCubed: the game, its worlds and settings, and the tools. To uninstall,
+# run: chmod -R u+w ~/ProjectWattCubed && rm -rf ~/ProjectWattCubed. Linux only (x86_64 or arm64; Debian/Ubuntu, Fedora, Arch, openSUSE and their
 # derivatives install the needed system packages automatically).
 #
 # Environment (optional): PWC_PLAY_DIR (install folder), PWC_PLAY_NO_RUN=1 (set up, don't start).

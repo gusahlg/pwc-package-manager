@@ -1,5 +1,16 @@
 # Changelog — pwc.dev-toolkit
 
+## 2.1.0
+
+- `/bodies` lists every body by its name and class (start world, living world, cube moon, glowing
+  world, binary cube, ...), nearest first, with its distance, size and `/tp`: the game grows its
+  bodies from the seed since worldgen 11, so the old fixed kinds are gone.
+- `/tp <name>` lands on a body by name (any case, a unique prefix is enough); `/tp <class> [n]` on
+  the `n`th body of a class word. The old kind names (`home`, `twin`, `verdant`, `hollow`, `ember`,
+  `moon`) still work for one release.
+- The altitude note after a coordinate teleport names the body.
+- Requires `pwc-api ^3.1`.
+
 ## 2.0.0
 
 - The commands register through `pwc.commands` (a new dependency) and run from the chat:

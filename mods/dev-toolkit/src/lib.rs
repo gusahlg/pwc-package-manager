@@ -104,8 +104,8 @@ macro_rules! commands {
 
 commands! {
     ctx, args;
-    "tp" | "teleport" | "setpos", "<x y z|name>", "teleport to coordinates or a body" => travel::teleport(args, ctx.player, ctx.world);
-    "bodies", "", "list the worlds, nearest first" => travel::bodies(ctx.player, ctx.world);
+    "tp" | "teleport" | "setpos", "<x y z|name|class> [n]", "teleport to coordinates or a body" => travel::teleport(args, ctx.player, ctx.world);
+    "bodies", "", "list the worlds by name and class, nearest first" => travel::bodies(ctx.player, ctx.world);
     "noclip", "", "toggle flight through geometry" => travel::noclip(ctx.player);
     "pos" | "where", "", "show current coordinates" => shown(vec![format!("position: {}", fmt_pos(ctx.player.position))]);
     "inspect" | "look", "[x y z]", "describe a block's elements & properties" => inspect::inspect(args, ctx.player, ctx.world);

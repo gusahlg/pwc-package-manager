@@ -10,7 +10,7 @@ use pwc_mod_api::render_config::RenderConfig;
 use pwc_mod_api::settings::Settings;
 use pwc_mod_api::sky::Sky;
 use pwc_mod_api::world::generation::WorldgenKind;
-use pwc_mod_api::world::terrain::cosmos::{Kind, Shape, RELIEF};
+use pwc_mod_api::world::terrain::cosmos::{Form, Shape, RELIEF};
 use pwc_mod_api::world::World;
 use pwc_mod_api::{GameBuild, PackageInfo, PackageKind};
 
@@ -32,7 +32,7 @@ fn provide_commands(r: &mut ModRegistrar) {
 fn build() -> (Harness, CommandsHandle) {
     static PACKAGES: &[PackageInfo] = &[
         PackageInfo { id: "pwc.commands", name: "Commands", version: "1.0.0", description: "", kind: PackageKind::Mod, dependencies: &[], register: Some(provide_commands) },
-        PackageInfo { id: "pwc.dev-toolkit", name: "Developer Toolkit", version: "2.0.0", description: "", kind: PackageKind::Mod, dependencies: &["pwc.commands"], register: Some(register) },
+        PackageInfo { id: "pwc.dev-toolkit", name: "Developer Toolkit", version: "2.1.0", description: "", kind: PackageKind::Mod, dependencies: &["pwc.commands"], register: Some(register) },
     ];
     let mods = Harness::new(GameBuild::from_static("sha256:00", PACKAGES));
     (mods, PROVIDED.with(|p| p.borrow_mut().take()).expect("the registry was provided"))
@@ -287,11 +287,15 @@ fn a_far_coordinate_teleport_reports_the_altitude() {
     let mut w = diffusion();
     let mut p = player();
     let out = run("tp -1000000 200 1000000", &mut p, &mut w);
+    let cosmos = w.terrain().cosmos().expect("a cosmos");
+    let home = *cosmos.home();
+    let name = home.name().to_string();
     let note = out.get(1).expect("an altitude note").text();
-    assert!(note.contains("km above the ground of home (in space)"), "{note}");
-    assert!(note.contains("/tp home"), "{note}");
+    assert!(note.contains(&format!("km above the ground of {name} (in space)")), "{note}");
+    assert!(note.contains(&format!("/tp {name}")), "{note}");
     let km: f64 = note.split(' ').next().unwrap().parse().unwrap();
-    assert!((35.0..60.0).contains(&km), "about 52,600 blocks up: {km} km");
+    let want = w.terrain().cosmos().unwrap().altitude(&home, p.position) * pwc_mod_api::math::BLOCK_METERS / 1000.0;
+    assert!((km - want).abs() < 0.11, "{km} km, {want} km above its relaxed ground");
     // Near the ground: no note.
     let out = run("tp 0.5 60 0.5", &mut p, &mut w);
     assert_eq!(out.len(), 1, "{:?}", out.iter().map(|l| l.text()).collect::<Vec<_>>());
@@ -368,57 +372,81 @@ fn a_world_without_a_cosmos_has_no_bodies_to_find() {
 }
 
 #[test]
-fn bodies_lists_home_first_and_named_tp_lands_on_it() {
+fn bodies_lists_names_and_classes_and_tp_lands_by_name() {
     let (mut p, mut w) = (player(), diffusion());
     p.position = DVec3::new(0.5, 80.0, 0.5);
     let cosmos = w.terrain().cosmos().expect("diffusion has a cosmos");
-    let home = cosmos.bodies().iter().copied().find(|b| b.kind == Kind::Home).unwrap();
-    let verdant = cosmos.bodies().iter().copied().find(|b| b.kind == Kind::Verdant).unwrap();
-    let moons: Vec<_> = cosmos.bodies().iter().copied().filter(|b| b.kind == Kind::Moon).collect();
-    assert!(moons.len() >= 2, "catalog order has a second moon");
+    let home = *cosmos.home();
+    let bodies: Vec<_> = cosmos.bodies().to_vec();
+    let round = *bodies.iter().find(|b| b.id != 0 && matches!(b.shape, Shape::Ball { .. })).expect("a round world");
 
     let lines = run("bodies", &mut p, &mut w);
+    assert_eq!(lines.len(), bodies.len(), "one line per body");
     let first = lines[0].text();
-    assert!(first.starts_with("home 1"), "{first}");
+    assert!(first.starts_with(&format!("{} (start world)", home.name())), "{first}");
     let home_at = landing(&w, &home);
     assert!(first.contains(&format!("/tp {} {} {}", home_at[0], home_at[1], home_at[2])), "{first}");
     let text = joined(&lines);
-    assert!(text.contains("verdant 1"), "{text}");
-    assert!(text.contains("moon 2"), "{text}");
+    for b in &bodies {
+        assert!(text.contains(&format!("{} ({})", b.name(), b.traits.class())), "{} missing from {text}", b.name());
+    }
 
-    // The relaxed start world and a warped twin: the landing sits just above the real top.
+    // By name (any case), standing in its pull.
+    run(&format!("tp {}", round.name().to_ascii_lowercase()), &mut p, &mut w);
+    let want = landing_vec(&w, &round);
+    assert_eq!(p.position, want);
+    assert!((p.position - round.centre_f()).length() <= round.reach());
+    let pull = w.gravity_at(p.position).accel;
+    let toward = (round.centre_f() - p.position).normalize();
+    assert!(pull.normalize().dot(toward) > 0.99, "standing in its pull: {pull:?}");
+    assert!(p.up().dot(-pull.normalize()) > 0.99, "up faces away from the pull");
+
+    // The old kind names stay one release: `home` is the start world, landing just above its top.
     run("tp home", &mut p, &mut w);
     let alt = w.terrain().cosmos().expect("a cosmos").altitude(&home, p.position);
     assert!((1_000.0..4_100.0).contains(&alt), "home landing altitude {alt}");
-    run("tp twin", &mut p, &mut w);
-    let twin = w.terrain().cosmos().expect("a cosmos").bodies().iter().copied().find(|b| b.kind == Kind::Twin).unwrap();
-    let Shape::Cube { half } = twin.shape else { panic!("a twin is a cube") };
-    let rise = (p.position - twin.centre_f()).y / half as f64;
-    assert!((1.03..1.12).contains(&rise), "twin landing over the bowed face: {rise}");
-    run("tp verdant", &mut p, &mut w);
-    let want = landing_vec(&w, &verdant);
-    assert_eq!(p.position, want);
-    assert!((p.position - verdant.centre_f()).length() <= verdant.reach());
-    let pull = w.gravity_at(p.position).accel;
-    let toward = (verdant.centre_f() - p.position).normalize();
-    assert!(pull.normalize().dot(toward) > 0.99, "standing in Verdance's pull: {pull:?}");
-    assert!(p.up().dot(-pull.normalize()) > 0.99, "up faces away from the pull");
 
-    p.position = DVec3::ZERO;
-    run("tp ver", &mut p, &mut w);
-    assert_eq!(p.position, want, "a unique prefix selects the same body");
-
-    run("tp moon 2", &mut p, &mut w);
-    let moon = landing_vec(&w, &moons[1]);
-    assert_eq!(p.position, moon);
-    assert_ne!(moon, landing_vec(&w, &moons[0]));
+    // A class word lands on the nth body of that class, in catalog order.
+    let word = round.traits.class().split(' ').next().expect("a word").to_string();
+    let named = |key: &str| bodies.iter().any(|b| b.name().to_ascii_lowercase().starts_with(key));
+    if !named(&word) {
+        let of_class: Vec<_> = bodies.iter().filter(|b| b.traits.class().split(' ').any(|w| w == word)).collect();
+        run(&format!("tp {word}"), &mut p, &mut w);
+        assert_eq!(p.position, landing_vec(&w, of_class[0]), "/tp {word}");
+        if let Some(second) = of_class.get(1) {
+            run(&format!("tp {word} 2"), &mut p, &mut w);
+            assert_eq!(p.position, landing_vec(&w, second), "/tp {word} 2");
+        }
+    }
 
     let at = p.position;
     let bad = run("tp nope", &mut p, &mut w);
     assert_eq!(p.position, at);
     assert_eq!(role(&bad), Role::Danger);
     assert!(bad[0].text().contains("nope"), "{}", bad[0].text());
-    let ambiguous = run("tp h", &mut p, &mut w);
-    assert_eq!(p.position, at);
-    assert!(ambiguous[0].text().contains("more than one"), "{}", ambiguous[0].text());
+    // A letter two names start with, that no class word or old kind begins with, is ambiguous.
+    let classes: Vec<&str> = bodies.iter().flat_map(|b| b.traits.class().split(' ')).collect();
+    let shared = ('a'..='z').map(String::from).find(|k| {
+        bodies.iter().filter(|b| b.name().to_ascii_lowercase().starts_with(k.as_str())).count() > 1
+            && !classes.iter().any(|w| w.starts_with(k.as_str()))
+    });
+    if let Some(k) = shared {
+        let ambiguous = run(&format!("tp {k}"), &mut p, &mut w);
+        assert_eq!(p.position, at);
+        assert!(ambiguous[0].text().contains("more than one"), "{}", ambiguous[0].text());
+    }
+}
+
+/// On a sagging cube the landing sits just above its bowed face.
+#[test]
+fn tp_lands_over_a_warped_cube() {
+    let mut w = World::with_kind(240, RenderConfig::default(), WorldgenKind::Diffusion, false);
+    let mut p = player();
+    let cube = *w.terrain().cosmos().expect("a cosmos").bodies().iter().find(|b| b.traits.form == Form::Warped).expect("a warped cube");
+    let Shape::Cube { half } = cube.shape else { panic!("a warped body is a cube") };
+    run(&format!("tp {}", cube.name()), &mut p, &mut w);
+    assert_eq!(p.position, landing_vec(&w, &cube));
+    // The face bows out (by a seventh of the half-size on a cube as weak as this one's).
+    let rise = (p.position - cube.centre_f()).y - half as f64;
+    assert!(rise > 2_000.0 && rise < 2_000.0 + 0.25 * half as f64, "landing {rise} over the bowed face");
 }

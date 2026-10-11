@@ -9,7 +9,7 @@ use pwc_mod_api::world::World;
 
 use crate::{fmt_pos, rejected, shown};
 
-/// `tp <x> <y> <z>` or `tp <name> [n]` — move the player, clamped to the
+/// `tp <x> <y> <z>` or `tp <body> [n]` — move the player, clamped to the
 /// ±[`WORLD_BORDER`] cube (the same clamp movement applies, so no code path can
 /// carry a position that would overflow i32 block math). The output reports the
 /// position actually landed on, clamp included.
@@ -34,7 +34,7 @@ pub(crate) fn teleport(args: &[&str], player: &mut Player, world: &mut World) ->
 }
 
 fn tp_usage() -> Vec<Line> {
-    rejected(vec!["usage: /tp <x> <y> <z>  or  /tp <name> [n]".to_string()])
+    rejected(vec!["usage: /tp <x> <y> <z>  or  /tp <name|class> [n]".to_string()])
 }
 
 fn teleport_coords(args: &[&str], player: &mut Player, world: &mut World) -> Vec<Line> {
@@ -50,23 +50,59 @@ fn teleport_coords(args: &[&str], player: &mut Player, world: &mut World) -> Vec
     }
 }
 
-/// Land on the `n`th body of a kind (1-based, catalog order). A unique prefix of the kind name
-/// is enough. Worlds without a cosmos are left untouched.
-fn teleport_named(name: &str, n: usize, player: &mut Player, world: &mut World) -> Vec<Line> {
+/// Land on a body: the one named `query`; else, for one release, the `n`th (1-based, catalog
+/// order) of an old kind (`home`, `twin`, `verdant`, `hollow`, `ember`, `moon`); else the one whose
+/// name begins with `query`; else the `n`th whose class has a word beginning with it ("living",
+/// "cube", "moon", "glowing", ...). Worlds without a cosmos are left untouched.
+fn teleport_named(query: &str, n: usize, player: &mut Player, world: &mut World) -> Vec<Line> {
     let Some(cosmos) = world.terrain().cosmos() else {
         return no_cosmos();
     };
-    let kind = match resolve_kind(name) {
-        Ok(kind) => kind,
+    let found = match resolve(cosmos, query, n) {
+        Ok(body) => body,
         Err(lines) => return lines,
     };
-    match cosmos.bodies().iter().filter(|b| b.kind == kind).nth(n - 1) {
-        Some(body) => {
-            let at = landing_vec(world, body);
-            place(at, player, world)
-        }
-        None => rejected(vec![format!("no {} {n}", kind.name())]),
+    let at = landing_vec(world, &found);
+    place(at, player, world)
+}
+
+/// The body `query` and `n` pick (see [`teleport_named`]).
+fn resolve(cosmos: &Cosmos, query: &str, n: usize) -> Result<Body, Vec<Line>> {
+    let bodies = cosmos.bodies();
+    let nth = |of: Vec<&Body>| of.get(n - 1).map(|b| **b).ok_or_else(|| rejected(vec![format!("no {query} {n}")]));
+    if let Some(body) = bodies.iter().find(|b| b.name().eq_ignore_ascii_case(query)) {
+        return nth(vec![body]);
     }
+    let key = query.to_ascii_lowercase();
+    if let Some(kind) = kind_named(&key) {
+        return nth(bodies.iter().filter(|b| b.kind == kind).collect());
+    }
+    let named: Vec<&Body> = bodies.iter().filter(|b| b.name().to_ascii_lowercase().starts_with(&key)).collect();
+    if named.len() == 1 {
+        return nth(named);
+    }
+    let classed: Vec<&Body> = bodies.iter().filter(|b| class_matches(b, &key)).collect();
+    if !classed.is_empty() {
+        return nth(classed);
+    }
+    if named.len() > 1 {
+        return Err(rejected(vec![format!("'{query}' matches more than one body: {}", list(&named))]));
+    }
+    Err(rejected(vec![format!("unknown body '{query}'")]))
+}
+
+/// An old kind by its exact name (kept one release).
+fn kind_named(key: &str) -> Option<Kind> {
+    [Kind::Home, Kind::Twin, Kind::Verdant, Kind::Hollow, Kind::Ember, Kind::Moon].into_iter().find(|k| k.name() == key)
+}
+
+/// Whether a word of the body's class begins with `key` ("liv" finds every living world and moon).
+fn class_matches(body: &Body, key: &str) -> bool {
+    !key.is_empty() && body.traits.class().split(' ').any(|word| word.starts_with(key))
+}
+
+fn list(bodies: &[&Body]) -> String {
+    bodies.iter().map(|b| b.name()).collect::<Vec<_>>().join(", ")
 }
 
 /// Stand the player at `target` the way coordinate `/tp` does.
@@ -100,7 +136,7 @@ fn altitude_note(world: &World, p: DVec3) -> Option<String> {
     }
     let km = alt * BLOCK_METERS / 1000.0;
     let air = if world.in_air(p) { "in the air" } else { "in space" };
-    let name = body.kind.name();
+    let name = body.name();
     Some(format!("{km:.1} km above the ground of {name} ({air}); /tp {name} lands on its surface"))
 }
 
@@ -114,8 +150,8 @@ pub(crate) fn noclip(player: &mut Player) -> Vec<Line> {
     shown(vec![format!("noclip {}", if player.noclip() { "on" } else { "off" })])
 }
 
-/// `/bodies` — every cosmos body, nearest first. The number is 1-based within the kind, in
-/// catalog order. The `/tp` lands 2000 blocks above the +Y datum.
+/// `/bodies` — every cosmos body, nearest first: its name, what it is, how far, how big and the
+/// `/tp` that lands 2000 blocks above its +Y datum.
 pub(crate) fn bodies(player: &Player, world: &World) -> Vec<Line> {
     let Some(cosmos) = world.terrain().cosmos() else {
         return no_cosmos();
@@ -131,12 +167,12 @@ pub(crate) fn bodies(player: &Player, world: &World) -> Vec<Line> {
         .into_iter()
         .map(|i| {
             let body = &cosmos.bodies()[i];
-            let n = kind_number(cosmos, body);
             let dist = (body.centre_f() - origin).length();
             let at = landing(world, body);
             format!(
-                "{} {n}  {} away  {}  /tp {} {} {}",
-                body.kind.name(),
+                "{} ({})  {} away  {}  /tp {} {} {}",
+                body.name(),
+                body.traits.class(),
                 fmt_dist(dist),
                 fmt_size(body),
                 at[0],
@@ -146,25 +182,6 @@ pub(crate) fn bodies(player: &Player, world: &World) -> Vec<Line> {
         })
         .collect();
     shown(lines)
-}
-
-/// 1-based index of `body` among bodies of its kind, in catalog order.
-fn kind_number(cosmos: &Cosmos, body: &Body) -> usize {
-    cosmos.bodies().iter().filter(|b| b.kind == body.kind).position(|b| b.id == body.id).unwrap() + 1
-}
-
-fn resolve_kind(prefix: &str) -> Result<Kind, Vec<Line>> {
-    let key = prefix.to_ascii_lowercase();
-    let mut hit = None;
-    for kind in [Kind::Home, Kind::Twin, Kind::Verdant, Kind::Hollow, Kind::Ember, Kind::Moon] {
-        if kind.name().starts_with(&key) {
-            if hit.is_some() {
-                return Err(rejected(vec![format!("'{prefix}' matches more than one kind")]));
-            }
-            hit = Some(kind);
-        }
-    }
-    hit.ok_or_else(|| rejected(vec![format!("unknown body '{prefix}'")]))
 }
 
 /// Cube half-edge, ball radius, or shell outer radius, then 2000 blocks of clearance on +Y.

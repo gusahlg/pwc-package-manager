@@ -18,7 +18,19 @@ your password), downloads the game, builds it with all first-party mods and star
 curl -fsSL https://raw.githubusercontent.com/gusahlg/pwc-package-manager/main/scripts/play.sh | bash
 ```
 
-The first build takes 15-40 minutes. Afterwards, start the game from the "Project Watt Cubed" icon
+On Windows 10 or 11, press Win+R, paste this line and press Enter. It installs Git, the Visual Studio
+C++ build tools and Rust if they are missing (Windows asks you to allow each installer), then does the
+same:
+
+```text
+powershell -ExecutionPolicy Bypass -NoProfile -Command "irm https://raw.githubusercontent.com/gusahlg/pwc-package-manager/main/scripts/play.ps1 | iex"
+```
+
+On Windows the first build, including the tools, can take up to an hour, and everything lives in
+`%USERPROFILE%\ProjectWattCubed`; a "Project Watt Cubed" shortcut on the desktop and in the Start menu updates
+and plays.
+
+On Linux, the first build takes 15-40 minutes. Afterwards, start the game from the "Project Watt Cubed" icon
 or with `~/ProjectWattCubed/play`; both update to the latest version first. Everything, including
 your worlds, lives in `~/ProjectWattCubed`. To uninstall, run
 `chmod -R u+w ~/ProjectWattCubed && rm -rf ~/ProjectWattCubed` (the package store is read-only).

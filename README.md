@@ -9,6 +9,19 @@ This repository holds the tooling (a Rust workspace under [`crates/`](crates/)) 
 first-party mod packages (under [`mods/`](mods/)), which also serve as the first package
 repository. Read [docs/architecture.md](docs/architecture.md) for the design.
 
+## Just want to play?
+
+On Linux, open a terminal and paste this one line. It installs what the game needs (it may ask for
+your password), downloads the game, builds it with all first-party mods and starts it:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/gusahlg/pwc-package-manager/main/scripts/play.sh | bash
+```
+
+The first build takes 15-40 minutes. Afterwards, start the game from the "Project Watt Cubed" icon
+or with `~/ProjectWattCubed/play`; both update to the latest version first. Everything, including
+your worlds, lives in `~/ProjectWattCubed`.
+
 ## Quick start
 
 You need Rust 1.90 or newer and a checkout of the game. By default `pwc setup` looks for it next to

@@ -169,7 +169,7 @@ main() {
     say "Setting up the game with all first-party mods"
     "$pwc" setup -q --pwc "$dir/project_watt_cubed" --repository "$dir/pwc-package-manager/mods"
     "$pwc" instance create default --use -q 2>/dev/null || "$pwc" instance use default -q
-    "$pwc" mod add -q pwc.essentials
+    "$pwc" mod add -q pwc.essentials pwc.dev-toolkit
     "$pwc" mod update -q
 
     install_launcher "$dir"

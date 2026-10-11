@@ -6,7 +6,7 @@
 #
 # It installs what is missing (Git, the Visual Studio C++ build tools and Rust; Windows asks you to allow
 # the installers), downloads the game, the renderer and the package manager, builds the game with all
-# first-party mods and starts it. Afterwards the "Project Watt Cubed" shortcut on the desktop and in the
+# first-party mods (the essentials, chat and commands, and the developer toolkit) and starts it. Afterwards the "Project Watt Cubed" shortcut on the desktop and in the
 # Start menu updates everything and plays. Everything lives in %USERPROFILE%\ProjectWattCubed.
 #
 # Environment (optional): PWC_PLAY_DIR (install folder), PWC_PLAY_NO_RUN=1 (set up, don't start).
@@ -134,7 +134,7 @@ function Invoke-PwcPlay {
     } else {
         Run 'Creating the game instance' $pwc @('instance', 'create', 'default', '--use', '-q')
     }
-    Run 'Adding the mods' $pwc @('mod', 'add', '-q', 'pwc.essentials')
+    Run 'Adding the mods' $pwc @('mod', 'add', '-q', 'pwc.essentials', 'pwc.dev-toolkit')
     Run 'Updating the mods' $pwc @('mod', 'update', '-q')
 
     # Shortcuts that update and play.

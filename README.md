@@ -12,7 +12,8 @@ repository. Read [docs/architecture.md](docs/architecture.md) for the design.
 ## Just want to play?
 
 On Linux, open a terminal and paste this one line. It installs what the game needs (it may ask for
-your password), downloads the game, builds it with all first-party mods and starts it:
+your password), downloads the game, builds it with all first-party mods (including chat, commands and the
+developer toolkit for flying and travelling through space) and starts it:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/gusahlg/pwc-package-manager/main/scripts/play.sh | bash

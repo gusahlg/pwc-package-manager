@@ -23,8 +23,9 @@ A leading `/` is optional in singleplayer. In multiplayer a line without `/` is 
 | Command | Does |
 |---|---|
 | `/tp <x> <y> <z>` | Teleport to coordinates (clamped to the world border). Also `/teleport`, `/setpos`. |
-| `/tp <name> [n]` | Land 2,000 blocks above the `n`th body of a kind (`home`, `twin`, `verdant`, `hollow`, `ember`, `moon`; a unique prefix is enough), standing up along its pull. |
-| `/bodies` | List every body of the world, nearest first, with its distance, size and `/tp`. |
+| `/tp <name>` | Land 2,000 blocks above a body by its name (any case; a unique prefix is enough), standing up along its pull. Every seed grows its own bodies, and `/bodies` lists their names. |
+| `/tp <class> [n]` | Land on the `n`th body (catalog order) whose class has a word beginning with `class`: `living`, `glowing`, `airless`, `barren`, `cube`, `moon`, `binary`, `start`, ... For one release the old kind names also work: `home` (the start world), `twin`, `verdant`, `hollow`, `ember`, `moon`. |
+| `/bodies` | List every body of the world, nearest first: its name, its class (start world, living world, cube moon, ...), distance, size and `/tp`. |
 | `/noclip` | Toggle flight through geometry. |
 | `/cruise [km/s\|off]` | Space travel at any speed you type in km/s, up to ten times the speed of light (default 100,000 km/s), forward along your view, through everything, with the world held still. `/cruise off` (or `/cruise` while cruising) stops, clear of the ground. |
 | `/walkspeed [n]`, `/flyspeed [n]` | Show or set the walking or flying speed in blocks per second (at most 100 km/s). |

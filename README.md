@@ -196,7 +196,7 @@ policy accepts AGPL-compatible free licences instead, and the game's `MOD_POLICY
 | `pwc.proximity-chat` | Push-to-talk voice for people you can see. |
 | `pwc.essentials` | Bundle of all of the above: the default set of mods. |
 | `pwc.dev-toolkit` | Developer Toolkit: travel and inspection commands (`/tp`, `/cruise`, `/inspect`...) through `pwc.commands`, and flight on F. Not in the essentials. |
-| `pwc.physics-lab` | Physics Lab: run a candidate fundamental law on a copy of the terrain around you (`/law`, `/poke`, exact rewind), with a heat map of the slice you stand on. Never edits the world. Not in the essentials. |
+| `pwc.law-lab` | Law Lab: run a candidate fundamental law on a copy of the terrain around you (`/law`, `/poke`, exact rewind), with a heat map of the slice you stand on. Never edits the world. Not in the essentials. |
 | `pwc.law-core` | Library: the shared ground of the candidate laws — a box of real matter, its fit readings and bonds, and the `Candidate` interface. |
 | `pwc.law-demon`, `pwc.law-belousov`, `pwc.law-toda`, `pwc.law-margolus`, `pwc.law-zeldovich`, `pwc.law-polyakov` | Libraries: six candidate fundamental laws (energy-ledger chemistry, excitable medium, reversible wave field, reversible particle gas, unified chemistry and vibration, lattice gauge field), each with its experiments and verdict. The workbench and the design brief are in [physics-lab/](physics-lab/). |
 

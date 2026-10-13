@@ -1,4 +1,4 @@
-# Physics Lab (`pwc.physics-lab`)
+# Law Lab (`pwc.law-lab`)
 
 A window onto other universes. The lab runs the **candidate fundamental laws**
 (`pwc.law-demon`, `pwc.law-belousov`, `pwc.law-toda`, `pwc.law-margolus`, `pwc.law-zeldovich` and
@@ -12,8 +12,8 @@ slice you stand on as a heat map. The lab **never writes a cell**: the world, it
 law and every other mod carry on untouched. Recapture with `/law <id>` after you change the
 world.
 
-Mod id: `physics_lab`. It depends on `pwc.commands` for its commands. Add it with
-`pwc mod add pwc.physics-lab`; the law libraries come with it.
+Mod id: `law_lab`. It depends on `pwc.commands` for its commands. Add it with
+`pwc mod add pwc.law-lab`; the law libraries come with it.
 
 ## Controls and commands
 

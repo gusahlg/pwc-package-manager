@@ -1,4 +1,4 @@
-//! The Physics Lab: run a candidate fundamental law on the real terrain around the player.
+//! The Law Lab: run a candidate fundamental law on the real terrain around the player.
 //!
 //! `/law <id>` captures a box of the world centred on the player's feet into a
 //! `pwc_law_core::Matter` (the same configurations the world holds), builds that candidate on it and
@@ -84,7 +84,7 @@ pub type LabHandle = Rc<RefCell<Lab>>;
 pub fn register(registrar: &mut ModRegistrar) {
     let commands = registrar
         .get::<CommandsHandle>()
-        .expect("pwc.physics-lab needs the commands handle from pwc.commands (a declared dependency registered first)");
+        .expect("pwc.law-lab needs the commands handle from pwc.commands (a declared dependency registered first)");
     let lab = LabHandle::default();
     add_commands(&commands, &lab);
     registrar.add(PhysicsLab { lab });
@@ -109,18 +109,18 @@ pub fn add_commands(commands: &CommandsHandle, lab: &LabHandle) {
     );
 }
 
-/// The lab mod (id `physics_lab`).
+/// The lab mod (id `law_lab`).
 pub struct PhysicsLab {
     lab: LabHandle,
 }
 
 impl Mod for PhysicsLab {
     fn name(&self) -> &str {
-        "Physics Lab"
+        "Law Lab"
     }
 
     fn id(&self) -> &'static str {
-        "physics_lab"
+        "law_lab"
     }
 
     fn actions(&self) -> &[Action] {

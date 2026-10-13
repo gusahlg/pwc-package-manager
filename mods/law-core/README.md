@@ -14,7 +14,7 @@ library provides that ground:
   mean fit across a face between two configurations. Positive means attraction (a spring, a
   coupling, a conductor) and negative means repulsion (an insulator, an inhibition). Readings
   are in 1/256 of `QUANTUM`, the scale of `material::probe_response`.
-- `Candidate`: the interface the physics lab (`pwc.physics-lab`) and the experiments drive. It
+- `Candidate`: the interface the physics lab (`pwc.law-lab`) and the experiments drive. It
   covers `step`, the optional exact `unstep`, `poke` (the gameplay verb), `show` (a heat-map
   value), `ledger` (the books), `active`, `state_bytes_per_cell`, `hash_state` and `digest`.
   Equal digests on two peers mean equal futures.

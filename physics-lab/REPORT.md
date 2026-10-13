@@ -96,7 +96,7 @@ is the right way to carry light through void inside `zeldovich`.
 
 ## What is not settled
 
-None of this has met a player. `pwc.physics-lab` (`/law <id>`) runs every candidate on the real
+None of this has met a player. `pwc.law-lab` (`/law <id>`) runs every candidate on the real
 terrain so that the next judgement can be made in game, not on paper. The scores are the
 builders' own and should be treated as such. Nothing is wired into the server, saves or the
 network. The core extraction (`notes/2026-10-13-simulation/extraction-review.md` in the game) is

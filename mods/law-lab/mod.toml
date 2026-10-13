@@ -1,8 +1,8 @@
 format = 1
 
 [package]
-id = "pwc.physics-lab"
-name = "Physics Lab"
+id = "pwc.law-lab"
+name = "Law Lab"
 version = "0.1.0"
 description = "Run the candidate fundamental laws on the real terrain around you: capture a box of the world, step a law, poke it, rewind it, and watch a heat map of the slice you stand on. A window onto other universes; it never edits the world."
 authors = ["Project Watt Cubed contributors"]

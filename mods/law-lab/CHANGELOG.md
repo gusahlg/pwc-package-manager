@@ -1,4 +1,4 @@
-# Changelog — pwc.physics-lab
+# Changelog — pwc.law-lab
 
 ## 0.1.0
 

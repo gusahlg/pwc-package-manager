@@ -1,0 +1,20 @@
+format = 1
+
+[package]
+id = "pwc.law-belousov"
+name = "Law: Belousov"
+version = "0.1.0"
+description = "Candidate physics law: the excitable medium. Every cell holds a phase (rest, excited, refractory); a resting cell fires when its glow plus the bonds to its excited neighbours crosses the line where matter starts to shine."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "library"
+pwc-api = "^3.1"
+readme = "README.md"
+icon = "assets/icon.svg"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["physics", "simulation", "law", "excitable", "signals"]
+categories = ["library"]
+
+[dependencies]
+"pwc.law-core" = "^0.1"

@@ -1,0 +1,12 @@
+[package]
+name = "pwc_law_core"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+path = "../../../mods/law-core/src/lib.rs"
+
+[dependencies]
+pwc-mod-api = { path = "../../shim" }

@@ -1,0 +1,27 @@
+format = 1
+
+[package]
+id = "pwc.physics-lab"
+name = "Physics Lab"
+version = "0.1.0"
+description = "Run the candidate fundamental laws on the real terrain around you: capture a box of the world, step a law, poke it, rewind it, and watch a heat map of the slice you stand on. A window onto other universes; it never edits the world."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "mod"
+pwc-api = "^3.1"
+readme = "README.md"
+icon = "assets/icon.svg"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["physics", "simulation", "research", "law", "commands"]
+categories = ["tools"]
+
+[dependencies]
+"pwc.commands" = "^1.0"
+"pwc.law-core" = "^0.1"
+"pwc.law-demon" = "^0.1"
+"pwc.law-belousov" = "^0.1"
+"pwc.law-toda" = "^0.1"
+"pwc.law-margolus" = "^0.1"
+"pwc.law-zeldovich" = "^0.1"
+"pwc.law-polyakov" = "^0.1"

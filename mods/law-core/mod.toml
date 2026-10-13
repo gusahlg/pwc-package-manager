@@ -1,0 +1,17 @@
+format = 1
+
+[package]
+id = "pwc.law-core"
+name = "Law Core"
+version = "0.1.0"
+description = "The shared ground of the candidate physics packages: a box of real matter, the fit readings every law derives its constants from, and the Candidate interface the physics lab drives."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "library"
+pwc-api = "^3.1"
+readme = "README.md"
+icon = "assets/icon.svg"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["physics", "simulation", "law", "library", "research"]
+categories = ["library"]

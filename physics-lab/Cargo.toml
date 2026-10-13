@@ -1,0 +1,19 @@
+# The physics workbench: compiles the candidate-law packages under mods/ unchanged, against a
+# stand-in `pwc_mod_api` that re-exports only the game's pure `material` crate, so the laws build,
+# test and benchmark in seconds without the game. Not a package and not part of the tooling
+# workspace. Expects the game checkout next to this repository (../project_watt_cubed).
+[workspace]
+resolver = "2"
+members = ["shim", "laws/*"]
+
+[workspace.package]
+edition = "2024"
+license = "AGPL-3.0-or-later"
+publish = false
+
+[profile.release]
+debug = 1
+codegen-units = 1
+
+[profile.test]
+opt-level = 3

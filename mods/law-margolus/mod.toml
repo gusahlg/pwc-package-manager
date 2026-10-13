@@ -1,0 +1,20 @@
+format = 1
+
+[package]
+id = "pwc.law-margolus"
+name = "Law: Margolus Billiards"
+version = "0.1.0"
+description = "Candidate physics law: a reversible particle universe. One bit per open cell; every 2×2×2 block of an alternating partition applies one rule derived from the symmetry of the cube: fly across, collide, or mirror off walls."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "library"
+pwc-api = "^3.1"
+readme = "README.md"
+icon = "assets/icon.svg"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["physics", "simulation", "law", "reversible", "cellular-automaton"]
+categories = ["library"]
+
+[dependencies]
+"pwc.law-core" = "^0.1"

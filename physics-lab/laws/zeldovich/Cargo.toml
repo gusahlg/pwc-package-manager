@@ -1,0 +1,13 @@
+[package]
+name = "pwc_law_zeldovich"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+path = "../../../mods/law-zeldovich/src/lib.rs"
+
+[dependencies]
+pwc-mod-api = { path = "../../shim" }
+pwc_law_core = { path = "../core" }

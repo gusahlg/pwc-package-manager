@@ -1,0 +1,20 @@
+format = 1
+
+[package]
+id = "pwc.law-toda"
+name = "Law: Toda"
+version = "0.1.0"
+description = "Candidate physics law: every block is a mass on springs whose stiffness is the fit across its faces; two integer shears per tick make the universe exactly time-reversible, so sound, resonance, solitons and rewind emerge."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "library"
+pwc-api = "^3.1"
+readme = "README.md"
+icon = "assets/icon.svg"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["physics", "simulation", "law", "reversible", "waves"]
+categories = ["library"]
+
+[dependencies]
+"pwc.law-core" = "^0.1"

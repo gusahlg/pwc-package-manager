@@ -1,0 +1,20 @@
+format = 1
+
+[package]
+id = "pwc.law-polyakov"
+name = "Law: Polyakov"
+version = "0.1.0"
+description = "Candidate physics law: the universe remembers relations. Integer electric flux on every face, magnetic flux on every edge, charge in every cell; one tick is Ohm then the exact Yee shears of compact Z_65536 lattice electromagnetism, so Gauss's law and div B = 0 can never break."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "library"
+pwc-api = "^3.1"
+readme = "README.md"
+icon = "assets/icon.svg"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["physics", "simulation", "law", "gauge", "electromagnetism"]
+categories = ["library"]
+
+[dependencies]
+"pwc.law-core" = "^0.1"

@@ -1,0 +1,20 @@
+format = 1
+
+[package]
+id = "pwc.law-demon"
+name = "Law: Demon"
+version = "0.1.0"
+description = "Candidate physics law: selective transfer's chemistry with an exact energy ledger. Every cell holds heat; a contact makes the most exothermic move its heat can pay for, and heat conducts across bonded faces."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "library"
+pwc-api = "^3.1"
+readme = "README.md"
+icon = "assets/icon.svg"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["physics", "simulation", "law", "heat", "chemistry"]
+categories = ["library"]
+
+[dependencies]
+"pwc.law-core" = "^0.1"

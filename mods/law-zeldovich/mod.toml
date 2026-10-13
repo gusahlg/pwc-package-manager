@@ -1,0 +1,20 @@
+format = 1
+
+[package]
+id = "pwc.law-zeldovich"
+name = "Law: Zeldovich"
+version = "0.1.0"
+description = "Candidate physics law: one exactly conserved energy for chemistry and vibration. Energy is a count of quanta that travel through bonded matter; at a face, the quanta striking it can carry one occurrence across, paying its barrier and taking or giving its binding."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "library"
+pwc-api = "^3.1"
+readme = "README.md"
+icon = "assets/icon.svg"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["physics", "simulation", "law", "energy", "chemistry"]
+categories = ["library"]
+
+[dependencies]
+"pwc.law-core" = "^0.1"

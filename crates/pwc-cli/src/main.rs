@@ -225,6 +225,9 @@ struct BuildArgs {
     /// Generate the build workspace and print its directory instead of compiling.
     #[arg(long)]
     print_dir: bool,
+    /// Also build the golden-harness executable (`pwc run --golden` builds it when needed).
+    #[arg(long)]
+    golden: bool,
 }
 
 #[derive(Subcommand, Debug)]
@@ -314,6 +317,7 @@ fn run(cli: Cli) -> anyhow::Result<ExitCode> {
             args.profile.map(Into::into),
             args.force,
             args.print_dir,
+            args.golden,
         )?,
         Command::Run {
             golden,

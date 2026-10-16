@@ -923,9 +923,10 @@ esac
         let calls = std::fs::read_to_string(&log).unwrap();
         assert_eq!(calls.lines().count(), 1);
         assert!(
-            calls.contains("--bins -p pwc-game-instance --release"),
+            calls.contains("-p pwc-game-instance --bin pwc-game --release"),
             "{calls}"
         );
+        assert!(!calls.contains("pwc-golden"), "{calls}");
 
         let second = env.ok(&["build"]);
         assert_eq!(second.stdout, first.stdout);
@@ -957,7 +958,7 @@ esac
                 .lines()
                 .nth(2)
                 .unwrap()
-                .ends_with("-p pwc-game-instance")
+                .ends_with("-p pwc-game-instance --bin pwc-game")
         );
 
         // `pwc run`: the game runs with the instance's environment, arguments after `--`, its
@@ -1004,9 +1005,23 @@ esac
             golden.stdout
         );
         assert!(goldens.is_dir());
+        // The golden harness is built the first time it is needed, into the same build...
+        let calls = std::fs::read_to_string(&log).unwrap();
+        assert_eq!(calls.lines().count(), 4, "{calls}");
+        assert!(
+            calls
+                .lines()
+                .nth(3)
+                .unwrap()
+                .contains("--bin pwc-game --bin pwc-golden --release"),
+            "{calls}"
+        );
+        // ...and reused afterwards, for the game and the harness alike.
+        assert_eq!(env.run(&["run", "--golden"]).code, 7);
+        assert_eq!(env.run(&["run"]).code, 7);
         assert_eq!(
             std::fs::read_to_string(&log).unwrap().lines().count(),
-            3,
+            4,
             "run reuses the cached build"
         );
 

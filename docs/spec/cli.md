@@ -30,8 +30,8 @@ Exit status `0` on success, `1` on a reported error, `2` on a usage error. Error
 | `pwc mod list` | The locked packages, marking direct requirements. |
 | `pwc lock` | Re-resolve conservatively and write `pwc.lock`. |
 | `pwc env` | Print the environment hash of the existing lock (no re-locking; an error if there is none). |
-| `pwc build [--profile release\|dev] [--force] [--print-dir]` | Build the instance (re-locking conservatively first); print the executable path, or the build directory with `--print-dir`. |
-| `pwc run [--golden] [--profile release\|dev] [-- <args>…]` | Build if needed, then run the game (or the golden harness) behind the build wrapper. |
+| `pwc build [--profile release\|dev] [--force] [--print-dir] [--golden]` | Build the instance (re-locking conservatively first); print the executable path, or the build directory with `--print-dir`. `--golden` also builds the golden harness. |
+| `pwc run [--golden] [--profile release\|dev] [-- <args>…]` | Build if needed, then run the game (or the golden harness, building it on first use) behind the build wrapper. |
 | `pwc store list` / `store verify` / `store gc [--dry-run]` | Inspect and maintain the store (`gc` refuses to run if any instance's lock is unreadable). |
 | `pwc cache clean` | Delete build outputs and the shared target directory. |
 

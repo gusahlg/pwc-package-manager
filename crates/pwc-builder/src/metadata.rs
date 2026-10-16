@@ -48,7 +48,9 @@ pub(crate) struct PwcMetadata {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct Outputs {
     pub game: String,
-    pub golden: String,
+    /// Only when the golden harness was built.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub golden: Option<String>,
 }
 
 /// One `[[package]]` input.
@@ -62,7 +64,7 @@ pub(crate) struct PackageMetadata {
 }
 
 /// Whether `prepared.dir` holds a finished build of exactly `prepared.build_id`.
-pub(crate) fn is_finished(prepared: &PreparedBuild) -> bool {
+pub(crate) fn is_finished(prepared: &PreparedBuild, golden: bool) -> bool {
     let Ok(text) = std::fs::read_to_string(prepared.dir.join(FILE)) else {
         return false;
     };
@@ -72,7 +74,7 @@ pub(crate) fn is_finished(prepared: &PreparedBuild) -> bool {
     meta.build_id == prepared.build_id
         && meta.finished.is_some()
         && prepared.game().is_file()
-        && prepared.golden().is_file()
+        && (!golden || prepared.golden().is_file())
 }
 
 /// Write `build.toml`; `finished` is the completion time once Cargo succeeded.
@@ -106,7 +108,10 @@ pub(crate) fn write(
         },
         outputs: finished.map(|_| Outputs {
             game: format!("bin/{}", exe_name(GAME_BIN)),
-            golden: format!("bin/{}", exe_name(GOLDEN_BIN)),
+            golden: prepared
+                .golden()
+                .is_file()
+                .then(|| format!("bin/{}", exe_name(GOLDEN_BIN))),
         }),
         package: request
             .lock

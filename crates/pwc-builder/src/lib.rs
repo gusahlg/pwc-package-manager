@@ -64,6 +64,9 @@ pub struct BuildRequest {
     pub jobs: u32,
     /// Rebuild even when cached.
     pub force: bool,
+    /// Also build the golden-harness executable. Off for playing: it is a second fat-LTO link of
+    /// the whole game, and only `pwc run --golden` needs it.
+    pub golden: bool,
 }
 
 /// A finished (or cached) build.
@@ -75,7 +78,8 @@ pub struct BuildOutput {
     pub dir: PathBuf,
     /// The game executable.
     pub game: PathBuf,
-    /// The golden-harness executable.
+    /// The golden-harness executable (exists when this or an earlier build of the same Build ID
+    /// asked for it with [`BuildRequest::golden`]).
     pub golden: PathBuf,
     /// Whether the cache answered.
     pub cached: bool,
@@ -173,7 +177,7 @@ pub fn prepare(
         rustc: rustc.to_owned(),
         target: target.to_owned(),
     };
-    if !request.force && metadata::is_finished(&prepared) {
+    if !request.force && metadata::is_finished(&prepared, request.golden) {
         prepared.cached = true;
         return Ok(prepared);
     }

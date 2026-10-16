@@ -108,7 +108,10 @@ pub(crate) fn compile(request: &BuildRequest, prepared: &PreparedBuild) -> Resul
         .arg("build")
         .arg("--manifest-path")
         .arg(&manifest)
-        .args(["--bins", "-p", INSTANCE_PACKAGE]);
+        .args(["-p", INSTANCE_PACKAGE, "--bin", GAME_BIN]);
+    if request.golden {
+        command.args(["--bin", GOLDEN_BIN]);
+    }
     if request.profile == BuildProfile::Release {
         command.arg("--release");
     }
@@ -134,8 +137,15 @@ pub(crate) fn compile(request: &BuildRequest, prepared: &PreparedBuild) -> Resul
     }
 
     let from = target_dir.join(profile_dir(request.profile));
-    for name in [GAME_BIN, GOLDEN_BIN] {
-        install(&from.join(exe_name(name)), &bin_path(&prepared.dir, name))?;
+    install(
+        &from.join(exe_name(GAME_BIN)),
+        &bin_path(&prepared.dir, GAME_BIN),
+    )?;
+    if request.golden {
+        install(
+            &from.join(exe_name(GOLDEN_BIN)),
+            &bin_path(&prepared.dir, GOLDEN_BIN),
+        )?;
     }
     drop(lock);
     Ok(())

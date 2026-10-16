@@ -3,6 +3,15 @@
 Notable changes to the `pwc` tooling and this repository. Each first-party package in `mods/`
 carries its own version in its `mod.toml`.
 
+## Unreleased
+
+### Builder
+
+- The golden harness is built only when asked for (`pwc run --golden`, `pwc build --golden`,
+  `BuildRequest::golden`). Every build used to link `pwc-golden` as well as `pwc-game`, a second
+  fat-LTO link of the whole game: about a third of a cold release build, never run by players. An
+  earlier build without it is completed with it, in place, on first use.
+
 ## 0.2.0
 
 ### First-party packages (mods-v3, pwc-api 3.0)

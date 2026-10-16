@@ -63,6 +63,7 @@ $XDG_CACHE_HOME/pwc/builds/<first 32 hex digits of the build id>/
 │   └── src/bin/{pwc-game.rs,pwc-golden.rs}
 ├── build.toml            metadata: build id, environment, inputs, finished time, outputs
 └── bin/pwc-game, bin/pwc-golden   copied from the target directory when the build succeeds
+                                  (pwc-golden only when asked for, see below)
 ```
 
 `mods/<crate>/Cargo.toml` (crate = the package's crate name):
@@ -155,20 +156,27 @@ dependency or cycle, and that no two ids map to the same crate name (`a.b-c` and
 
 ## Running Cargo
 
-`cargo build --manifest-path <build>/Cargo.toml --bins -p pwc-game-instance [--release] [-j N]`,
+`cargo build --manifest-path <build>/Cargo.toml -p pwc-game-instance --bin pwc-game [--bin pwc-golden] [--release] [-j N]`,
 run in the build directory with `CARGO_TARGET_DIR=$XDG_CACHE_HOME/pwc/target` (shared by every
 build so unchanged crates are not recompiled), behind the configured wrapper (see filesystem.md).
 Cargo's output goes to stderr, so `pwc build` prints only the executable path on stdout. An
 exclusive lock on `target/.pwc-build.lock` is held while Cargo runs and the executables are
 copied (atomically) into `bin/`, so concurrent builds never swap binaries.
 
+Only `pwc-game` is built by default. The golden harness (`--bin pwc-golden`) is a second
+executable linked from the whole game with the same fat LTO, minutes of work players never use; it
+is built when a request asks for it (`pwc run --golden`, `pwc build --golden`), into the same
+build directory, and kept there for later requests.
+
 `build.toml` records `build-id`, `environment`, the inputs (PWC source, revision, dirty digest,
-rustc, profile, target, builder version), the generated and finished times and the output paths.
+rustc, profile, target, builder version), the generated and finished times and the output paths
+(`golden` only once the golden harness was built).
 
 ## Cache
 
-If `build.toml` matches the Build ID and records a finished build, and both `bin/pwc-game` and
-`bin/pwc-golden` exist, `pwc build` returns it without invoking Cargo. `pwc cache clean` deletes `builds/` and `target/` (always safe:
+If `build.toml` matches the Build ID and records a finished build, and `bin/pwc-game` exists (and
+`bin/pwc-golden`, when the request asks for the golden harness), `pwc build` returns it without
+invoking Cargo. `pwc cache clean` deletes `builds/` and `target/` (always safe:
 everything can be rebuilt from the store and the PWC source). `pwc build --force` rebuilds.
 
 ## Running

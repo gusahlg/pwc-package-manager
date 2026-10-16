@@ -24,7 +24,14 @@ struct Built {
 
 /// Re-lock the selected instance (conservatively: this picks up changed `path:` packages and a
 /// moved PWC checkout, and validates everything), then build it or reuse the cached build.
-fn build_instance(ctx: &Ctx, profile: Option<BuildProfile>, force: bool) -> Result<Built> {
+/// The golden harness is built only when `golden` asks for it: it is a second fat-LTO link of the
+/// whole game that playing never runs.
+fn build_instance(
+    ctx: &Ctx,
+    profile: Option<BuildProfile>,
+    force: bool,
+    golden: bool,
+) -> Result<Built> {
     let instance = ctx.open_instance(None)?;
     let (report, pwc) = relock(ctx, &instance, &LockOptions::default())?;
     let lock = report.lock;
@@ -61,6 +68,7 @@ fn build_instance(ctx: &Ctx, profile: Option<BuildProfile>, force: bool) -> Resu
         wrapper: wrapper.clone(),
         jobs: ctx.config.jobs,
         force,
+        golden,
     };
     let (rustc, target) = pwc_builder::rustc_info(&request.wrapper)?;
     let prepared = pwc_builder::prepare(&request, &rustc, &target)?;
@@ -94,8 +102,9 @@ pub(crate) fn build(
     profile: Option<BuildProfile>,
     force: bool,
     print_dir: bool,
+    golden: bool,
 ) -> Result<()> {
-    let built = build_instance(ctx, profile, force)?;
+    let built = build_instance(ctx, profile, force, golden)?;
     if print_dir {
         println!("{}", built.output.dir.display());
     } else {
@@ -114,7 +123,7 @@ pub(crate) fn run(
     profile: Option<BuildProfile>,
     args: &[OsString],
 ) -> Result<ExitCode> {
-    let built = build_instance(ctx, profile, false)?;
+    let built = build_instance(ctx, profile, false, golden)?;
     let exe = if golden {
         &built.output.golden
     } else {

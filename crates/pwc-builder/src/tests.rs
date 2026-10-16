@@ -177,6 +177,7 @@ impl World {
             wrapper: Vec::new(),
             jobs: 0,
             force: false,
+            golden: false,
         }
     }
 }
@@ -880,9 +881,11 @@ case "$tool" in
     {fail}
     manifest=""
     profile=debug
+    bins=""
     while [ $# -gt 0 ]; do
       case "$1" in
         --manifest-path) manifest="$2"; shift ;;
+        --bin) bins="$bins $2"; shift ;;
         --release) profile=release ;;
       esac
       shift
@@ -890,7 +893,7 @@ case "$tool" in
     test -f "$manifest"
     test -f "$(dirname "$manifest")/bundle/src/lib.rs"
     mkdir -p "$CARGO_TARGET_DIR/$profile"
-    for bin in pwc-game pwc-golden; do
+    for bin in $bins; do
       printf '#!/bin/sh\necho %s\n' "$bin" > "$CARGO_TARGET_DIR/$profile/$bin"
       chmod +x "$CARGO_TARGET_DIR/$profile/$bin"
     done
@@ -939,14 +942,15 @@ esac
             std::fs::read_to_string(&first.game).unwrap(),
             "#!/bin/sh\necho pwc-game\n"
         );
-        assert!(first.golden.is_file());
+        // The golden harness is not built unless asked for.
+        assert!(!first.golden.exists());
         let calls = cargo_calls(&world);
         assert_eq!(calls.len(), 1);
         let manifest = first.dir.join("Cargo.toml");
         assert_eq!(
             calls[0],
             format!(
-                "cargo build --manifest-path {} --bins -p pwc-game-instance --release -j 3 | cwd={}",
+                "cargo build --manifest-path {} -p pwc-game-instance --bin pwc-game --release -j 3 | cwd={}",
                 manifest.display(),
                 first.dir.display()
             )
@@ -989,15 +993,39 @@ esac
 
         // A missing executable invalidates the cache entry.
         request.force = false;
-        std::fs::remove_file(&first.golden).unwrap();
+        std::fs::remove_file(&first.game).unwrap();
         assert!(!build(&request).unwrap().cached);
         assert_eq!(cargo_calls(&world).len(), 3);
+
+        // Asking for the golden harness builds it into the same directory once...
+        request.golden = true;
+        let golden = build(&request).unwrap();
+        assert!(!golden.cached);
+        assert_eq!(golden.dir, first.dir);
+        assert!(golden.golden.is_file() && golden.game.is_file());
+        let calls = cargo_calls(&world);
+        assert_eq!(calls.len(), 4);
+        assert!(
+            calls[3].contains("--bin pwc-game --bin pwc-golden --release"),
+            "{}",
+            calls[3]
+        );
+        let meta: toml::Table = std::fs::read_to_string(first.dir.join("build.toml"))
+            .unwrap()
+            .parse()
+            .unwrap();
+        assert_eq!(meta["outputs"]["golden"].as_str(), Some("bin/pwc-golden"));
+        // ...after which both kinds of request are cache hits.
+        assert!(build(&request).unwrap().cached);
+        request.golden = false;
+        assert!(build(&request).unwrap().cached);
+        assert_eq!(cargo_calls(&world).len(), 4);
 
         // Another profile is another build.
         request.profile = BuildProfile::Dev;
         let dev = build(&request).unwrap();
         assert_ne!(dev.build_id, first.build_id);
-        assert!(cargo_calls(&world)[3].contains("-p pwc-game-instance -j 3 |"));
+        assert!(cargo_calls(&world)[4].contains("--bin pwc-game -j 3 |"));
 
         clean(&request.builds_dir, &request.target_dir).unwrap();
         assert!(!request.builds_dir.exists() && !request.target_dir.exists());
@@ -1130,6 +1158,7 @@ fn real_game_builds_with_an_example_mod() {
         jobs: 0,
         // The digest above is a constant, so always compile (incrementally) on the first call.
         force: true,
+        golden: true,
     };
     let output = build(&request).expect("build");
     assert!(!output.cached && output.game.is_file() && output.golden.is_file());

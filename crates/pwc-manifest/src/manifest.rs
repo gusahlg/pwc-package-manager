@@ -1340,6 +1340,13 @@ categories = ["bundle"]
             r#"["LICENSE", "LICENSE"]"#,
             r#"[""]"#,
             r#"["dir/"]"#,
+            r#"["C:/x"]"#,
+            r#"["C:/Windows/System32/drivers/etc/hosts"]"#,
+            r#"["LICENSES/con.txt"]"#,
+            r#"["LICENSES/NUL.tar.gz"]"#,
+            r#"["file:stream"]"#,
+            r#"["LICENSES/foo."]"#,
+            r#"["has<angle"]"#,
         ] {
             assert_invalid(
                 &with_package_line("license-files", &format!("license-files = {bad}")),
@@ -1385,6 +1392,12 @@ categories = ["bundle"]
             &with_package_line("readme", "readme = \"\""),
             "package.readme",
         );
+        for bad in ["C:/x", "con.txt", "README ", "file:stream", "notes?.md"] {
+            assert_invalid(
+                &with_package_line("readme", &format!("readme = \"{bad}\"")),
+                "package.readme",
+            );
+        }
         for ok in ["assets/icon.svg", "assets/img/icon.png"] {
             assert!(
                 ModManifest::parse(&with_package_line("icon", &format!("icon = \"{ok}\""))).is_ok(),
@@ -1399,6 +1412,9 @@ categories = ["bundle"]
             "assets/../icon.svg",
             "assets/",
             "/assets/icon.svg",
+            "assets/con.svg",
+            "assets/AUX.png",
+            "assets/file:stream.svg",
         ] {
             assert_invalid(
                 &with_package_line("icon", &format!("icon = \"{bad}\"")),

@@ -11,7 +11,8 @@ survival/
 └── game/           the game's data directory for this instance (worlds, settings)
 ```
 
-Instance names: `[a-z0-9][a-z0-9-]{0,63}`.
+Instance names: `[a-z0-9][a-z0-9-]{0,63}`, and not a Windows reserved device name (`con`, `prn`,
+`aux`, `nul`, `com1`–`com9`, `lpt1`–`lpt9`). The name is a directory name.
 
 Implemented by `crates/pwc-manifest` (types) and `crates/pwc-instance` (operations).
 

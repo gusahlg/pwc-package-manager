@@ -83,11 +83,64 @@ pub(crate) fn has_control(s: &str) -> bool {
     s.chars().any(char::is_control)
 }
 
+/// Windows reserved device names. Compared ASCII-case-insensitively against the stem before the
+/// first `.`, so `con`, `CON.txt` and `nul.tar.gz` are all reserved. `console` and `com10` are not.
+const RESERVED_WINDOWS_DEVICES: &[&str] = &[
+    "con", "prn", "aux", "nul", "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8",
+    "com9", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
+];
+
+/// Whether `name` is a Windows reserved device name, ignoring ASCII case and any extension.
+///
+/// The stem is the text before the first `.`, with trailing dots and spaces removed (`con.txt`,
+/// `CON`, `nul.tar.gz`). An empty stem (a hidden name such as `.git`) is not a device name.
+pub fn is_reserved_windows_device(name: &str) -> bool {
+    let stem = name.split('.').next().unwrap_or(name);
+    let stem = stem.trim_end_matches([' ', '.']);
+    !stem.is_empty()
+        && RESERVED_WINDOWS_DEVICES
+            .iter()
+            .any(|device| stem.eq_ignore_ascii_case(device))
+}
+
+/// Check one `/`-separated component of a package path or archive file name.
+pub(crate) fn check_portable_component(component: &str) -> Result<(), &'static str> {
+    if component.is_empty() {
+        return Err("a package path must not contain empty components (`//` or a trailing `/`)");
+    }
+    if component == "." || component == ".." {
+        return Err("a package path must not contain `.` or `..` components");
+    }
+    if component.ends_with('.') || component.ends_with(' ') {
+        return Err("a package path component must not end with a dot or a space");
+    }
+    if component.contains(':') {
+        return Err(
+            "a package path must not contain `:` (no drive prefixes such as `C:` or `C:/...`, and no alternate data streams)",
+        );
+    }
+    if component.contains(['<', '>', '"', '|', '?', '*']) {
+        return Err("a package path must not contain `<`, `>`, `\"`, `|`, `?` or `*`");
+    }
+    if has_control(component) {
+        return Err("a package path must not contain control characters");
+    }
+    if is_reserved_windows_device(component) {
+        return Err(
+            "a package path must not use a Windows reserved device name (`CON`, `PRN`, `AUX`, `NUL`, `COM1`-`COM9`, `LPT1`-`LPT9`), including with an extension such as `con.txt`",
+        );
+    }
+    Ok(())
+}
+
 /// Check a package-relative path (`src/lib.rs`, `assets/icon.svg`, `LICENSE-MIT`): non-empty UTF-8,
-/// relative, `/`-separated, without empty, `.` or `..` components, without `\`, NUL or other
-/// control characters, at most [`MAX_PATH_BYTES`] bytes. This is the path rule of both `mod.toml`
-/// path keys and `.pwcmod` entries (docs/spec/package-format.md); it does not decide whether the
-/// path is *part of* a package (that is `pwc-package`'s contents rule).
+/// relative, `/`-separated, without empty, `.` or `..` components, without `\`, `:`, NUL or other
+/// control characters, without `< > " | ? *`, without a component that ends in a dot or a space,
+/// and without a Windows reserved device name, at most [`MAX_PATH_BYTES`] bytes. The same rules
+/// apply on every platform, so a package that extracts on Windows cannot escape the destination
+/// with a drive prefix (`C:/...`) or an alternate data stream (`file:stream`). This is the path
+/// rule of both `mod.toml` path keys and `.pwcmod` entries (docs/spec/package-format.md); it does
+/// not decide whether the path is *part of* a package (that is `pwc-package`'s contents rule).
 pub fn check_package_path(path: &str) -> Result<(), &'static str> {
     if path.is_empty() {
         return Err("a package path must not be empty");
@@ -95,7 +148,7 @@ pub fn check_package_path(path: &str) -> Result<(), &'static str> {
     if path.len() > MAX_PATH_BYTES {
         return Err("a package path must be at most 1024 bytes");
     }
-    if path.starts_with('/') {
+    if path.starts_with('/') || path.starts_with('\\') {
         return Err("a package path must be relative (no leading `/`)");
     }
     if path.contains('\\') {
@@ -105,15 +158,7 @@ pub fn check_package_path(path: &str) -> Result<(), &'static str> {
         return Err("a package path must not contain control characters");
     }
     for component in path.split('/') {
-        match component {
-            "" => {
-                return Err(
-                    "a package path must not contain empty components (`//` or a trailing `/`)",
-                );
-            }
-            "." | ".." => return Err("a package path must not contain `.` or `..` components"),
-            _ => {}
-        }
+        check_portable_component(component)?;
     }
     Ok(())
 }
@@ -218,5 +263,76 @@ mod tests {
         ] {
             assert!(check_package_path(bad).is_err(), "{bad:?}");
         }
+    }
+
+    #[test]
+    fn package_paths_reject_windows_escapes_and_device_names() {
+        for bad in [
+            "C:/x",
+            "C:/Windows/System32/drivers/etc/hosts",
+            "c:/x",
+            "C:x",
+            "C:",
+            r"\\server\share\x",
+            "//server/share/x",
+            "assets/file:stream",
+            "foo:bar",
+            "assets/foo.",
+            "assets/foo ",
+            "assets/foo...",
+            "foo./bar",
+            "has<angle",
+            "has>angle",
+            "has\"quote",
+            "has|pipe",
+            "has?wild",
+            "has*wild",
+            "con",
+            "CON",
+            "con.txt",
+            "CON.TXT",
+            "assets/nul.tar.gz",
+            "src/AUX",
+            "src/prn",
+            "data/com1",
+            "data/COM1.bin",
+            "data/lpt9.txt",
+            "data/Lpt3",
+            "con .txt",
+        ] {
+            assert!(
+                check_package_path(bad).is_err(),
+                "{bad:?} should be rejected"
+            );
+        }
+        // The drive-qualified form is the extraction escape: joining `C:/x` onto a
+        // destination replaces that destination on Windows.
+        let drive = check_package_path("C:/x").unwrap_err();
+        assert!(drive.contains(':') || drive.contains("drive"), "{drive}");
+        assert!(
+            check_package_path("assets/con.txt")
+                .unwrap_err()
+                .contains("reserved"),
+            "con.txt"
+        );
+
+        for ok in [
+            "src/lib.rs",
+            "console/log.txt",
+            "null.txt",
+            "com10/data.bin",
+            "lpt10.txt",
+            "file.con",
+            "assets/a b/ü.png",
+            "aux1/note.txt",
+            "src/commit.rs",
+        ] {
+            check_package_path(ok).unwrap_or_else(|e| panic!("{ok:?}: {e}"));
+        }
+        assert!(is_reserved_windows_device("con.txt"));
+        assert!(is_reserved_windows_device("NUL.tar.gz"));
+        assert!(!is_reserved_windows_device("console"));
+        assert!(!is_reserved_windows_device("commit.rs"));
+        assert!(!is_reserved_windows_device(".git"));
     }
 }

@@ -1,7 +1,7 @@
 //! The package contents rules (docs/spec/mod-manifest.md, "Package contents"): which paths form a
 //! package, which are forbidden, which are required, and the size limits.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use pwc_manifest::{ManifestError, ModManifest, check_package_path};
 
@@ -39,18 +39,70 @@ pub(crate) fn is_package_path(path: &str, named: &BTreeSet<&str>) -> bool {
 }
 
 /// Why `path` may never be in a package (checked on every component), if it may not.
+///
+/// `build.rs`, `Cargo.toml` and `Cargo.lock` match without regard to ASCII case, so `Build.rs`
+/// is the same forbidden file on Windows as on Linux.
 pub(crate) fn forbidden_reason(path: &str) -> Option<&'static str> {
     path.split('/').find_map(|component| {
         if component.starts_with('.') {
             Some("hidden files and directories are not allowed in a package")
+        } else if component.eq_ignore_ascii_case("build.rs") {
+            Some("build scripts are not allowed (compiling a package runs no code from it)")
+        } else if component.eq_ignore_ascii_case("Cargo.toml")
+            || component.eq_ignore_ascii_case("Cargo.lock")
+        {
+            Some("packages do not ship Cargo manifests (the builder generates them from mod.toml)")
         } else {
-            match component {
-                "build.rs" => Some("build scripts are not allowed (compiling a package runs no code from it)"),
-                "Cargo.toml" | "Cargo.lock" => Some("packages do not ship Cargo manifests (the builder generates them from mod.toml)"),
-                _ => None,
-            }
+            None
         }
     })
+}
+
+/// Unicode-lowercase form of a `/`-separated path, one component at a time.
+fn case_fold_path(path: &str) -> String {
+    let mut key = String::with_capacity(path.len());
+    for (i, component) in path.split('/').enumerate() {
+        if i > 0 {
+            key.push('/');
+        }
+        key.extend(component.chars().flat_map(char::to_lowercase));
+    }
+    key
+}
+
+/// Reject exact duplicates, paths that differ only by case, and a file whose path is a directory
+/// prefix of another file when case is ignored. Nothing has been written yet.
+fn reject_case_collisions(files: &[PackageFile]) -> Result<(), PackageError> {
+    let mut seen = BTreeMap::<String, &str>::new();
+    for file in files {
+        let key = case_fold_path(&file.path);
+        if let Some(previous) = seen.insert(key, file.path.as_str()) {
+            if previous == file.path {
+                return Err(forbidden(&file.path, "the path appears more than once"));
+            }
+            let reason = format!("collides with `{previous}` on a case-insensitive filesystem");
+            return Err(forbidden(&file.path, &reason));
+        }
+    }
+    let mut dirs = BTreeSet::new();
+    for file in files {
+        let folded = case_fold_path(&file.path);
+        let mut rest = folded.as_str();
+        while let Some((parent, _)) = rest.rsplit_once('/') {
+            dirs.insert(parent.to_string());
+            rest = parent;
+        }
+    }
+    if let Some(file) = files
+        .iter()
+        .find(|file| dirs.contains(&case_fold_path(&file.path)))
+    {
+        return Err(forbidden(
+            &file.path,
+            "the path is both a file and a directory",
+        ));
+    }
+    Ok(())
 }
 
 /// Parse `mod.toml` bytes.
@@ -64,34 +116,15 @@ pub(crate) fn parse_manifest(bytes: &[u8]) -> Result<ModManifest, PackageError> 
 pub(crate) fn validate(files: &mut [PackageFile]) -> Result<ModManifest, PackageError> {
     check_sizes(files)?;
     files.sort_unstable_by(|a, b| a.path.cmp(&b.path));
-    for pair in files.windows(2) {
-        if pair[0].path == pair[1].path {
-            return Err(forbidden(&pair[1].path, "the path appears more than once"));
-        }
-    }
     for file in files.iter() {
         check_package_path(&file.path).map_err(|reason| forbidden(&file.path, reason))?;
         if let Some(reason) = forbidden_reason(&file.path) {
             return Err(forbidden(&file.path, reason));
         }
     }
-    // A path cannot be both a file and a directory (`src/a` and `src/a/b.rs`).
-    let mut dirs = BTreeSet::new();
-    for file in files.iter() {
-        let mut path = file.path.as_str();
-        while let Some((parent, _)) = path.rsplit_once('/') {
-            if !dirs.insert(parent) {
-                break;
-            }
-            path = parent;
-        }
-    }
-    if let Some(file) = files.iter().find(|f| dirs.contains(f.path.as_str())) {
-        return Err(forbidden(
-            &file.path,
-            "the path is both a file and a directory",
-        ));
-    }
+    // Exact duplicates, case-only collisions (`assets/A` and `assets/a`) and a file that is also
+    // a directory ignoring case (`src/A` and `src/a/b.rs`) are rejected before any byte is written.
+    reject_case_collisions(files)?;
 
     let manifest_file = files
         .iter()

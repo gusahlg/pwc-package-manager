@@ -28,7 +28,7 @@ build-id = hex(SHA-256(
     "builder <pwc-builder crate version>\n"
     "environment <lock environment>\n"
     "pwc-source <revision> <dirty-digest>\n"
-    "rustc <full `rustc -vV` output, newlines replaced by ' '>\n"
+    "rustc <full `rustc -vV` output, line endings normalized to LF, then newlines replaced by ' '>\n"
     "profile <profile>\n"
     "target <target triple>\n"
 ))
@@ -43,6 +43,10 @@ build-id = hex(SHA-256(
 - when the PWC source has path dependencies outside its own tree (the sibling `../voxel-engine`),
   the SHA-256 over every such tree's path, git revision and per-tree state, so an engine commit or
   edit also changes the Build ID.
+
+`rustc -vV` text is normalized to LF before newlines become spaces, so CR LF from a Windows
+toolchain hashes the same as LF from a Unix one. The target triple is the `host:` line of that
+text, unless `CARGO_BUILD_TARGET` names a triple (see Running Cargo).
 
 The first 32 hex digits name the directory.
 
@@ -159,9 +163,19 @@ dependency or cycle, and that no two ids map to the same crate name (`a.b-c` and
 `cargo build --manifest-path <build>/Cargo.toml -p pwc-game-instance --bin pwc-game [--bin pwc-golden] [--release] [-j N]`,
 run in the build directory with `CARGO_TARGET_DIR=$XDG_CACHE_HOME/pwc/target` (shared by every
 build so unchanged crates are not recompiled), behind the configured wrapper (see filesystem.md).
+When `CARGO_BUILD_TARGET` is set to a triple — ASCII letters, digits, `_`, `-` and `.`, with no
+empty `.` segment, no path and no space — that value is also passed as `--target`, it is the
+triple in the Build ID, and the executables are read from
+`$CARGO_TARGET_DIR/<triple>/<profile>/`. Unset or blank keeps the host triple and
+`$CARGO_TARGET_DIR/<profile>/`. Anything else (a path, `..`, a space) is an error. Cargo
+configuration files are not read for this.
+
 Cargo's output goes to stderr, so `pwc build` prints only the executable path on stdout. An
 exclusive lock on `target/.pwc-build.lock` is held while Cargo runs and the executables are
-copied (atomically) into `bin/`, so concurrent builds never swap binaries.
+copied (atomically) into `bin/`, so concurrent builds never swap binaries. On Windows the
+toolchain processes (Cargo, rustc, Git, and a configured wrapper) are created with
+`CREATE_NO_WINDOW`, so they do not open a console. The game process started by `pwc run` does
+not get that flag.
 
 Only `pwc-game` is built by default. The golden harness (`--bin pwc-golden`) is a second
 executable linked from the whole game with the same fat LTO, minutes of work players never use; it

@@ -7,7 +7,7 @@ use pwc_manifest::{LockedPwc, Version};
 use sha2::{Digest, Sha256};
 
 use crate::InstanceError;
-use crate::fsutil::io;
+use crate::fsutil::{canonicalize, io};
 
 /// A PWC source checkout: its version, mod API version and git state.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -33,7 +33,7 @@ impl PwcSource {
     /// `dir` is canonicalised. Versions may be inherited with `version.workspace = true` from the
     /// root manifest's `[workspace.package]`.
     pub fn open(dir: &Path) -> Result<Self, InstanceError> {
-        let dir = std::fs::canonicalize(dir)
+        let dir = canonicalize(dir)
             .map_err(|e| InstanceError::PwcSource(format!("{}: {e}", dir.display())))?;
         let root_manifest = dir.join("Cargo.toml");
         let api_manifest = dir.join("crates/pwc-mod-api/Cargo.toml");
@@ -130,14 +130,14 @@ fn external_path_dependencies(root: &Path) -> Result<Vec<PathBuf>, InstanceError
             continue;
         }
         for dep in manifest_path_dependencies(&read_toml(&manifest)?) {
-            let Ok(dep) = std::fs::canonicalize(dir.join(dep)) else {
+            let Ok(dep) = canonicalize(dir.join(dep)) else {
                 continue;
             };
             if !dep.starts_with(root) {
                 // An external dependency: hash its whole repository (or tree).
                 let top = git(&dep, &["rev-parse", "--show-toplevel"])
                     .map(|out| PathBuf::from(String::from_utf8_lossy(&out).trim()))
-                    .and_then(|p| std::fs::canonicalize(p).ok())
+                    .and_then(|p| canonicalize(p).ok())
                     .filter(|top| !root.starts_with(top))
                     .unwrap_or_else(|| dep.clone());
                 found.insert(top);
@@ -232,9 +232,25 @@ fn tree_state(dir: &Path) -> Result<String, InstanceError> {
     Ok(format!("sha256:{}", hex(&hasher.finalize())))
 }
 
+/// `git` without a console window on Windows (`CREATE_NO_WINDOW`).
+fn git_command() -> Command {
+    let command = Command::new("git");
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt as _;
+        /// `CREATE_NO_WINDOW`.
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let mut command = command;
+        command.creation_flags(CREATE_NO_WINDOW);
+        return command;
+    }
+    #[cfg(not(windows))]
+    command
+}
+
 /// Run git in `dir`; stdout on success, `None` if git is missing or fails (not a repository).
 fn git(dir: &Path, args: &[&str]) -> Option<Vec<u8>> {
-    let out = Command::new("git")
+    let out = git_command()
         .arg("-C")
         .arg(dir)
         .args(args)
@@ -336,18 +352,20 @@ fn hex(bytes: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
+    use super::git_command;
     use super::*;
+    use crate::fsutil::canonicalize;
     use crate::testutil::fake_pwc;
 
     fn git_available() -> bool {
-        Command::new("git")
+        git_command()
             .arg("--version")
             .output()
             .is_ok_and(|o| o.status.success())
     }
 
     fn run_git(dir: &Path, args: &[&str]) {
-        let out = Command::new("git")
+        let out = git_command()
             .arg("-C")
             .arg(dir)
             .args([
@@ -373,7 +391,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let dir = fake_pwc(tmp.path(), "2.1.0", "1.0.0");
         let src = PwcSource::open(&dir).unwrap();
-        assert_eq!(src.dir, std::fs::canonicalize(&dir).unwrap());
+        assert_eq!(src.dir, canonicalize(&dir).unwrap());
         assert_eq!(src.version, Version::new(2, 1, 0));
         assert_eq!(src.api, Version::new(1, 0, 0));
         assert_eq!(src.revision, "unknown");
@@ -438,7 +456,7 @@ mod tests {
         let source = PwcSource::open(&dir).unwrap();
         assert_eq!(
             external_path_dependencies(&source.dir).unwrap(),
-            [std::fs::canonicalize(&engine).unwrap()]
+            [canonicalize(&engine).unwrap()]
         );
         let before = source.dirty_digest().unwrap();
         std::fs::write(tmp.path().join("other/x"), "unrelated").unwrap();

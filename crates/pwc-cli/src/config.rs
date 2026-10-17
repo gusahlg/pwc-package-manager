@@ -14,12 +14,12 @@ const FIRST_PARTY: &str = "first-party";
 /// The pwc-package-manager checkout this binary was built from (compile-time guess).
 fn tooling_repo() -> PathBuf {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..");
-    dir.canonicalize().unwrap_or(dir)
+    dunce::canonicalize(&dir).unwrap_or(dir)
 }
 
 /// `path` made absolute with symlinks resolved; it must exist.
 pub(crate) fn canonical(path: &Path) -> Result<PathBuf> {
-    path.canonicalize()
+    dunce::canonicalize(path)
         .with_context(|| format!("{}: no such file or directory", path.display()))
 }
 

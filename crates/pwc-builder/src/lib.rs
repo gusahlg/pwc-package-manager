@@ -132,15 +132,16 @@ pub struct GeneratedWorkspace {
 /// Compute the Build ID (needs `rustc -vV` output; pass it in for determinism in tests).
 ///
 /// The formula is fixed by docs/spec/build.md: the SHA-256 of the builder version, the lock's
-/// environment, the PWC revision and dirty digest, the `rustc -vV` output (newlines replaced by
-/// spaces), the profile and the target triple.
+/// environment, the PWC revision and dirty digest, the `rustc -vV` output (line endings
+/// normalized to LF, then newlines replaced by spaces), the profile and the target triple.
 pub fn build_id(request: &BuildRequest, rustc_version: &str, target: &str) -> String {
+    let rustc = cargo::normalize_line_endings(rustc_version);
     let text = format!(
         "pwc-build 1\nbuilder {BUILDER_VERSION}\nenvironment {}\npwc-source {} {}\nrustc {}\nprofile {}\ntarget {}\n",
         request.lock.environment,
         request.lock.pwc.revision,
         request.pwc_dirty_digest,
-        rustc_version.replace('\n', " "),
+        rustc.replace('\n', " "),
         request.profile.as_str(),
         target,
     );
@@ -204,9 +205,24 @@ pub fn compile(
 
 /// Build (or return the cached build).
 pub fn build(request: &BuildRequest) -> Result<BuildOutput, BuildError> {
-    let (rustc, target) = rustc_info(&request.wrapper)?;
+    let (rustc, host) = rustc_info(&request.wrapper)?;
+    let target = build_target(&host)?;
     let prepared = prepare(request, &rustc, &target)?;
     compile(request, &prepared)
+}
+
+/// The target triple recorded in the Build ID: `cargo_build_target` when it is a plain triple,
+/// otherwise `host` (the `host:` line of `rustc -vV`).
+///
+/// Blank is unset. A path, a space or `..` is an error rather than a directory Cargo might write
+/// outside the shared target directory.
+pub fn selected_target(host: &str, cargo_build_target: Option<&str>) -> Result<String, BuildError> {
+    Ok(cargo::explicit_build_target(cargo_build_target)?.unwrap_or_else(|| host.to_owned()))
+}
+
+/// [`selected_target`] reading `CARGO_BUILD_TARGET` from the process environment.
+pub fn build_target(host: &str) -> Result<String, BuildError> {
+    Ok(cargo::cargo_build_target_from_env()?.unwrap_or_else(|| host.to_owned()))
 }
 
 /// `rustc -vV` (via the wrapper) and the host target triple.

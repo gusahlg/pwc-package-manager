@@ -70,7 +70,8 @@ fn build_instance(
         force,
         golden,
     };
-    let (rustc, target) = pwc_builder::rustc_info(&request.wrapper)?;
+    let (rustc, host) = pwc_builder::rustc_info(&request.wrapper)?;
+    let target = pwc_builder::build_target(&host)?;
     let prepared = pwc_builder::prepare(&request, &rustc, &target)?;
     let name = &instance.manifest.name;
     let short = &prepared.build_id[..12];

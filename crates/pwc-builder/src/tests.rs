@@ -257,6 +257,12 @@ fn build_id_changes_with_every_input() {
         "target"
     );
 
+    // CR LF and a bare CR hash the same as LF. The existing id above is the LF formula.
+    let crlf = RUSTC.replace('\n', "\r\n");
+    let cr = RUSTC.replace('\n', "\r");
+    assert_eq!(id, build_id(&base, &crlf, TARGET), "crlf");
+    assert_eq!(id, build_id(&base, &cr, TARGET), "bare cr");
+
     // Inputs that are not part of the formula do not matter.
     let mut other = base.clone();
     other.jobs = 8;
@@ -854,6 +860,69 @@ fn rustc_output_is_parsed_after_wrapper_noise() {
     assert_eq!(parse_rustc_verbose(RUSTC).unwrap().0, RUSTC);
     assert!(parse_rustc_verbose("no rustc here\n").is_none());
     assert!(parse_rustc_verbose("rustc 1.0\nbinary: rustc\n").is_none());
+
+    let crlf = RUSTC.replace('\n', "\r\n");
+    assert_eq!(
+        parse_rustc_verbose(&crlf).unwrap(),
+        (RUSTC.to_owned(), TARGET.to_owned())
+    );
+    assert_eq!(
+        parse_rustc_verbose(&RUSTC.replace('\n', "\r")).unwrap().0,
+        RUSTC
+    );
+    let noisy_crlf = format!("project_watt_cubed dev shell\r\n{crlf}");
+    assert_eq!(parse_rustc_verbose(&noisy_crlf).unwrap().0, RUSTC);
+}
+
+#[test]
+fn cargo_build_target_selects_a_triple_or_refuses_a_path() {
+    assert_eq!(selected_target(TARGET, None).unwrap(), TARGET);
+    assert_eq!(selected_target(TARGET, Some("")).unwrap(), TARGET);
+    assert_eq!(selected_target(TARGET, Some("  \t")).unwrap(), TARGET);
+    assert_eq!(
+        selected_target(TARGET, Some("x86_64-pc-windows-msvc")).unwrap(),
+        "x86_64-pc-windows-msvc"
+    );
+    assert_eq!(
+        selected_target(TARGET, Some("  aarch64-apple-darwin \n")).unwrap(),
+        "aarch64-apple-darwin"
+    );
+    assert_eq!(
+        selected_target(TARGET, Some("thumbv7em-none-eabihf")).unwrap(),
+        "thumbv7em-none-eabihf"
+    );
+    for bad in [
+        "..",
+        "../x",
+        "foo/bar",
+        r"foo\bar",
+        "has space",
+        "C:",
+        "foo..bar",
+        ".hidden",
+        "triple\nname",
+    ] {
+        let err = selected_target(TARGET, Some(bad)).unwrap_err().to_string();
+        assert!(err.contains("CARGO_BUILD_TARGET"), "{bad}: {err}");
+    }
+}
+
+#[test]
+fn artifacts_follow_an_explicit_target() {
+    use crate::cargo::artifact_dir;
+    let root = Path::new("/tmp/pwc-target");
+    assert_eq!(
+        artifact_dir(root, BuildProfile::Release, None),
+        root.join("release")
+    );
+    assert_eq!(
+        artifact_dir(root, BuildProfile::Dev, None),
+        root.join("debug")
+    );
+    assert_eq!(
+        artifact_dir(root, BuildProfile::Release, Some("x86_64-pc-windows-gnu")),
+        root.join("x86_64-pc-windows-gnu").join("release")
+    );
 }
 
 #[cfg(unix)]

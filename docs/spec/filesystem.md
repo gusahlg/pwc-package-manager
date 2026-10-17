@@ -1,11 +1,22 @@
 # Filesystem layout, configuration, store and repositories
 
 Installed PWC state lives outside every source repository. On Unix it follows the XDG base
-directory conventions (environment variable, else the default below). On Windows, when neither
-`HOME` nor the corresponding absolute XDG variable is set, it uses
-`%LOCALAPPDATA%\pwc\{data,cache,config}`; `%USERPROFILE%\AppData\Local` is the fallback when
-`LOCALAPPDATA` is unavailable. `PWC_HOME=<dir>` overrides all three roots on every platform
-(`<dir>/data`, `<dir>/cache`, `<dir>/config`) — used by tests and portable setups.
+directory conventions (environment variable, else the default below `HOME`). On Windows, `HOME`
+is not consulted — Git Bash sets it — and nothing is migrated from a `HOME`-based layout, because
+there are no existing Windows installs. The order on Windows is:
+
+1. `PWC_HOME=<dir>` — all three roots (`<dir>/data`, `<dir>/cache`, `<dir>/config`), on every
+   platform. A relative value is taken from the current directory.
+2. An absolute `XDG_DATA_HOME`, `XDG_CACHE_HOME` or `XDG_CONFIG_HOME` for that one directory
+   (`<dir>/pwc`). A relative value is ignored, as the XDG specification requires.
+3. Otherwise one state root: `%LOCALAPPDATA%`, else `%APPDATA%`, else
+   `%USERPROFILE%\AppData\Local`, then `<root>\pwc\{data,cache,config}`.
+
+Those variables are the Known Folder locations Windows already publishes (`LocalAppData`, then
+`RoamingAppData`). pwc reads the variables; it does not call the shell.
+
+Paths that are stored (the PWC checkout, `path` and `file` entries) or handed to Git and Cargo are
+canonical. On Windows that is the ordinary `C:\...` form, not the `\\?\` verbatim prefix.
 
 ```text
 $XDG_DATA_HOME/pwc/          ~/.local/share/pwc/   persistent: survives cache deletion
@@ -34,10 +45,12 @@ name = "first-party"
 path = "/home/alice/src/pwc-package-manager/mods"
 
 [build]
-# Command prefix for Cargo. "auto" (default): if the PWC source has a flake.nix and `nix` is on
-# PATH, run `nix develop <pwc-source> --command` (nested shells are fine; the game's shell provides
-# its native libraries). `PWC_NO_WRAPPER=1` disables it. [] runs cargo directly; any other list is
-# used verbatim ("{pwc}" expands to pwc-source).
+# Command prefix for Cargo. "auto" (default): on Unix, if the PWC source has a flake.nix and `nix`
+# is on PATH, run `nix develop <pwc-source> --command` (nested shells are fine; the game's shell
+# provides its native libraries). On Windows "auto" never selects a wrapper. An explicit list
+# still runs on every platform. `PWC_NO_WRAPPER=1` disables every wrapper. [] runs cargo directly;
+# any other list is used verbatim ("{pwc}" expands to pwc-source). Looking up a program on Windows
+# tries `<name>.exe` only, never `.cmd` or `.bat`.
 wrapper = "auto"
 jobs = 0                                                  # 0 = Cargo's default
 ```

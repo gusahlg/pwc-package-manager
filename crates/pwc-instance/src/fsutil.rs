@@ -5,6 +5,12 @@ use std::path::{Path, PathBuf};
 
 use crate::InstanceError;
 
+/// Canonical path. On Windows this is the ordinary `C:\...` form, not the `\\?\` prefix that
+/// `std::fs::canonicalize` returns; on Unix it is `std::fs::canonicalize`.
+pub(crate) fn canonicalize(path: impl AsRef<Path>) -> std::io::Result<PathBuf> {
+    dunce::canonicalize(path.as_ref())
+}
+
 pub(crate) fn io(path: &Path, source: std::io::Error) -> InstanceError {
     InstanceError::Io {
         path: path.to_path_buf(),

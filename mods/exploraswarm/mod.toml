@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 Project Watt Cubed contributors
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+format = 1
+
+[package]
+id = "pwc.exploraswarm"
+name = "Exploraswarm"
+version = "0.1.0"
+description = "A swarm of learning neural-network players that join a server headlessly and explore the game, kept diverse by a MAP-Elites archive."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "mod"
+pwc-api = "^3.3"
+readme = "README.md"
+icon = "assets/icon.svg"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["ai", "neural-network", "exploration", "testing", "bots"]
+categories = ["tools"]

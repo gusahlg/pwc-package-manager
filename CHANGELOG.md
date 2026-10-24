@@ -5,6 +5,13 @@ carries its own version in its `mod.toml`.
 
 ## Unreleased
 
+### First-party packages
+
+- `pwc.exploraswarm` 0.1.0 (`pwc-api ^3.3`): N neural-network players join a server through the
+  game's headless client and explore it. A MAP-Elites archive keeps networks that play differently;
+  rule sets (`explorer`, `builder`) decide fitness, behaviour axes and novelty, apart from the
+  machinery. Driven by the mod-registered `swarm` command (`pwc run -- swarm …`).
+
 ### Builder
 
 - The golden harness is built only when asked for (`pwc run --golden`, `pwc build --golden`,

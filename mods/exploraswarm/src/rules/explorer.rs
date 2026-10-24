@@ -7,7 +7,9 @@
 //! `signatures`, which steer parent selection, and never into who keeps a cell.
 //!
 //! A reaction signature is `mix(cell, tool, cell_after, tool_after)` for a tool that reacted, plus
-//! `mix(before, after)` for a mutation within 2 s and 6 m of the agent's own edit. Snap-backs are
+//! `mix(before, after)` for a mutation within 2 s and 6 m of the agent's own edit that turns one
+//! material into another. A mutation to or from air is left out: it is usually a nearby player
+//! breaking or placing, which the client reports the same way as a reaction. Snap-backs are
 //! counted and not penalised.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -165,7 +167,7 @@ impl Episode for ExplorerEpisode {
                 ..
             } => {
                 let close = since_own_edit.is_some_and(|dt| dt < 2.0) && *distance < 6.0;
-                if close {
+                if close && !before.is_air() && !after.is_air() {
                     let sig = common::mix(&[before.key, after.key]);
                     let label = format!("mutation c:{:x} -> c:{:x}", before.key, after.key);
                     self.credit_reaction(self.last_step, sig, label);

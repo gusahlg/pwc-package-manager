@@ -250,7 +250,7 @@ pub fn mask(legal: &mut [bool], target: bool, placeable: bool, hands: &HandTable
     if legal.is_empty() {
         return;
     }
-    legal[0] = true;
+    legal[IDLE as usize] = true;
     for a in 1..ACTION_COUNT.min(legal.len()) {
         legal[a] = action_legal(a as u16, target, placeable, hands, cd);
     }

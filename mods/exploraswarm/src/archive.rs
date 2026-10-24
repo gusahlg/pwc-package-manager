@@ -137,6 +137,7 @@ impl Elite {
         }
     }
 
+    #[cfg(test)]
     pub fn std(&self) -> f32 {
         sample_std(self.fitness_m2, self.evals)
     }
@@ -444,7 +445,11 @@ impl Archive {
 
     /// Put a challenger whose evaluation was discarded back in line.
     pub fn release_challenger(&mut self, genome_id: u64) {
-        if let Some(c) = self.challengers.iter_mut().find(|c| c.genome.id == genome_id) {
+        if let Some(c) = self
+            .challengers
+            .iter_mut()
+            .find(|c| c.genome.id == genome_id)
+        {
             c.in_flight = false;
         }
     }

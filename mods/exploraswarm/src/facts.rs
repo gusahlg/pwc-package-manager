@@ -61,6 +61,8 @@ pub enum ActionKind {
     Swing,
 }
 
+// Rule vocabulary: each rule set reads what it needs.
+#[allow(dead_code)]
 impl ActionKind {
     /// Whether the action tries to change the world.
     pub fn acts_on_world(self) -> bool {
@@ -73,6 +75,8 @@ impl ActionKind {
 
 /// One decision: what the agent chose and where it was.
 #[derive(Clone, Debug)]
+// Rule vocabulary: each rule set reads what it needs.
+#[allow(dead_code)]
 pub struct Decision {
     /// Decision index within the episode, from 0.
     pub step: u32,
@@ -126,6 +130,8 @@ pub enum EndReason {
 /// One thing that happened to the agent. `step` names the decision that caused it, so delayed
 /// answers (server confirmations, reactions) can be credited to the right decision.
 #[derive(Clone, Debug)]
+// Rule vocabulary: each rule set reads what it needs.
+#[allow(dead_code)]
 pub enum Fact {
     Start {
         pose: Pose,

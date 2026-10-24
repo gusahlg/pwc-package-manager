@@ -638,17 +638,6 @@ fn close(
     st: Loop,
     reason: EndReason,
 ) {
-    if std::env::var_os("XSWARM_DEBUG").is_some() {
-        let n = st.traj.actions.len().max(1);
-        let brk = st.traj.masks.iter().filter(|m| *m & (1 << actions::BREAK) != 0).count();
-        let mut hist = [0u32; actions::ACTION_COUNT];
-        for &a in &st.traj.actions {
-            hist[a as usize] += 1;
-        }
-        let mut top: Vec<(u32, &str)> = hist.iter().zip(actions::NAMES).map(|(c, n)| (*c, n)).collect();
-        top.sort_by(|a, b| b.0.cmp(&a.0));
-        eprintln!("XSWARM_DEBUG {} break_legal={:.3} top={:?}", launch.name, brk as f32 / n as f32, &top[..6]);
-    }
     drive.discoveries().set_context(&launch.name, episode_id);
     rules.observe(&Fact::End { reason }, drive.discoveries());
     let verdict = rules.finish(drive.discoveries());

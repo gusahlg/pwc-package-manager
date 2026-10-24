@@ -19,7 +19,6 @@ use crate::swarm::{self, Config, Replay, ServerArgs};
 pub struct Invocation {
     pub args: Vec<String>,
     pub data_dir: PathBuf,
-    pub mods: Vec<(String, String)>,
 }
 
 /// Parse `inv` and run it. `connect` is called only for `run` and `replay`, and only after the
@@ -127,6 +126,12 @@ fn parse(inv: &Invocation) -> Result<Action, String> {
     }
     let sub = inv.args[0].as_str();
     let rest = &inv.args[1..];
+    if sub == "help" {
+        return Ok(Action::Help(match rest.first() {
+            Some(name) => subcommand_help(name)?,
+            None => usage(),
+        }));
+    }
     if rest.iter().any(|a| is_help(a)) {
         return Ok(Action::Help(subcommand_help(sub)?));
     }
@@ -530,8 +535,8 @@ usage:
   swarm rules
   swarm replay      [--rules R | --run-dir DIR] best|CELL --server HOST[:PORT]
 
-`swarm <command> --help` prints that command. The archive and logs go under
-<data_dir>/exploraswarm/<rules>/ unless --run-dir is set."
+`swarm help <command>` or `swarm <command> --help` prints that command. The archive and
+logs go under <data_dir>/exploraswarm/<rules>/ unless --run-dir is set."
         .to_string()
 }
 
@@ -780,7 +785,6 @@ mod tests {
         Invocation {
             args: args.iter().map(|s| (*s).to_string()).collect(),
             data_dir: PathBuf::from("/tmp/xswarm-data"),
-            mods: Vec::new(),
         }
     }
 
@@ -872,6 +876,8 @@ mod tests {
         assert_eq!(run(inv(&[]), &connect), 0);
         assert_eq!(run(inv(&["--help"]), &connect), 0);
         assert_eq!(run(inv(&["run", "--help"]), &connect), 0);
+        assert_eq!(run(inv(&["help"]), &connect), 0);
+        assert_eq!(run(inv(&["help", "ctl"]), &connect), 0);
         assert_eq!(run(inv(&["rules"]), &connect), 0);
         assert_eq!(run(inv(&["run"]), &connect), 2);
         assert_eq!(run(inv(&["nope"]), &connect), 2);

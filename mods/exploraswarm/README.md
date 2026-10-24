@@ -29,7 +29,7 @@ While a run is going, type `pause`, `resume`, `status`, `save`, `agents N` or `q
 
 ## Command reference
 
-`swarm` with no subcommand prints usage. `--help` on a subcommand prints that command. Default port is 5555. Default rules are `explorer`. Default run directory is `<data_dir>/exploraswarm/<rules>/`.
+`swarm` or `swarm help` prints usage. `swarm help <command>`, or `--help` on a subcommand, prints that command. Default port is 5555. Default rules are `explorer`. Default run directory is `<data_dir>/exploraswarm/<rules>/`.
 
 ```text
 swarm run     --server HOST[:PORT] [--password P] [--agents 8] [--rules explorer]
@@ -163,7 +163,7 @@ All of these live in the run directory:
 | `archive.bin` | elites, challengers, counters, network shape, random state |
 | `discoveries.bin` | signatures the swarm has already seen, so a resume does not announce them again |
 | `discoveries.log` | `episode`, agent, label, for the first sight of a signature |
-| `episodes.log` | one TSV row per evaluation |
+| `episodes.log` | one TSV row per evaluation, ending with its three most chosen actions |
 | `status.txt` | `key=value` snapshot, rewritten every few seconds |
 | `control` | commands from `swarm ctl` or anything else; the run reads it, then truncates it |
 

@@ -197,6 +197,7 @@ policy accepts AGPL-compatible free licences instead, and the game's `MOD_POLICY
 | `pwc.proximity-chat` | Push-to-talk voice for people you can see. |
 | `pwc.essentials` | Default experience, including the extracted selective-transfer law; experimental physics is opt-in. |
 | `pwc.dev-toolkit` | Developer Toolkit: travel and inspection commands (`/tp`, `/cruise`, `/inspect`...) through `pwc.commands`, and flight on F. Not in the essentials. |
+| `pwc.exploraswarm` | Learning headless players: `pwc run -- swarm run --server HOST` joins a server as N neural-network agents that explore it (MAP-Elites; the rules are separate from the machinery). Connects to the server you name and writes its archive under the instance's data directory. |
 | `pwc.physics-selective` | The extracted original contact and tool law; enabled when installed. |
 | `pwc.physics-wave` | Integer wave laboratory with reversible kicks and drift. |
 | `pwc.physics-packets` | Directional occupancy packets with nonlinear conservative scattering. |

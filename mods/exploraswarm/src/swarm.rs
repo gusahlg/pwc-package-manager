@@ -14,6 +14,7 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use crate::actions;
 use crate::agent::{self, Drive, Launch};
 use crate::archive::{Archive, Candidate, CandidateKind, Partition, Settle};
 use crate::body::Connect;
@@ -96,7 +97,7 @@ impl Config {
 }
 
 const EPISODE_HEADER: &str =
-    "episode\tagent\temitter\tkind\tfitness\tbonus\tdescriptor\tcell\toutcome\tend";
+    "episode\tagent\temitter\tkind\tfitness\tbonus\tdescriptor\tcell\toutcome\tend\tactions";
 const MAX_AGENTS: u32 = 128;
 
 /// Run until quit, the minute limit, or (for replay) the requested episodes. `0` is a clean stop.
@@ -551,7 +552,10 @@ impl Drive for Shared {
                 if let CandidateKind::Challenge(_) = eval.candidate.kind {
                     archive.release_challenger(eval.candidate.genome.id);
                 }
-                (Settle::Discarded, archive.grid.cell(&eval.verdict.descriptor))
+                (
+                    Settle::Discarded,
+                    archive.grid.cell(&eval.verdict.descriptor),
+                )
             } else {
                 settle(&mut archive, &eval)
             };
@@ -616,7 +620,7 @@ fn write_episode_line(shared: &Shared, eval: &Evaluation, outcome: Settle, cell:
         let _ = store::append_lines(&path, &[EPISODE_HEADER.to_string()]);
     }
     let line = format!(
-        "{}\t{}\t{}\t{}\t{:.4}\t{:.4}\t{}\t{}\t{}\t{}",
+        "{}\t{}\t{}\t{}\t{:.4}\t{:.4}\t{}\t{}\t{}\t{}\t{}",
         eval.episode,
         eval.agent,
         emitter::name_of(eval.candidate.emitter),
@@ -626,11 +630,39 @@ fn write_episode_line(shared: &Shared, eval: &Evaluation, outcome: Settle, cell:
         fmt_desc(&eval.verdict.descriptor),
         cell,
         outcome.as_str(),
-        end_name(eval.end_reason)
+        end_name(eval.end_reason),
+        top_actions(&eval.trajectory.actions)
     );
     if let Err(err) = store::append_lines(&path, &[line]) {
         eprintln!("episodes.log: {err}");
     }
+}
+
+/// The three most chosen actions and their shares, e.g. `forward:31%,break:12%,turn-left:9%`.
+fn top_actions(actions: &[u16]) -> String {
+    let mut counts = [0u32; actions::ACTION_COUNT];
+    for &a in actions {
+        if let Some(c) = counts.get_mut(a as usize) {
+            *c += 1;
+        }
+    }
+    let mut order: Vec<usize> = (0..actions::ACTION_COUNT)
+        .filter(|&i| counts[i] > 0)
+        .collect();
+    order.sort_by_key(|&i| std::cmp::Reverse(counts[i]));
+    let total = actions.len().max(1) as f32;
+    order
+        .iter()
+        .take(3)
+        .map(|&i| {
+            format!(
+                "{}:{:.0}%",
+                actions::NAMES[i],
+                100.0 * counts[i] as f32 / total
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",")
 }
 
 fn fmt_desc(values: &[f32]) -> String {

@@ -22,7 +22,7 @@ use crate::body::{
     Act, Body, BodyEvent, Connect, Controls, PeerView, RayBasis, RayDir, RayHit, Snapshot, Target,
 };
 use crate::cli::{self, Invocation};
-use crate::facts::{Cell, EditKind, MATERIAL_FEATURES, Material, Outcome, Pose, Refusal};
+use crate::facts::{Cell, EditKind, Material, Outcome, Pose, Refusal};
 use crate::swarm::ServerArgs;
 
 const JOIN_TIMEOUT: Duration = Duration::from_secs(20);
@@ -75,7 +75,6 @@ pub fn entry(ctx: &CliContext) -> i32 {
     let invocation = Invocation {
         args: ctx.args.clone(),
         data_dir: ctx.data_dir.clone(),
-        mods: mods.clone(),
     };
     cli::run(invocation, &|server: &ServerArgs| {
         Box::new(ClientConnect {

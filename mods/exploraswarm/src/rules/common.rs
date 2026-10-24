@@ -15,20 +15,12 @@ pub struct CoarseCells {
 }
 
 impl CoarseCells {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     pub fn enter(&mut self, eye: [f64; 3]) -> bool {
         self.seen.insert(coarse_key(eye))
     }
 
     pub fn len(&self) -> usize {
         self.seen.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.seen.is_empty()
     }
 }
 

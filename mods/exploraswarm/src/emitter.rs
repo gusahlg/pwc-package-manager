@@ -39,7 +39,6 @@ const SIGMA_ISO: f32 = 0.01;
 const SIGMA_LINE: f32 = 0.2;
 
 pub trait Emitter: Send {
-    fn name(&self) -> &'static str;
     fn id(&self) -> u8;
     fn ask(&mut self, archive: &Archive, rng: &mut Rng) -> Option<Genome>;
     fn tell(&mut self, eval: &Evaluation, outcome: Settle);
@@ -56,9 +55,6 @@ impl Random {
 }
 
 impl Emitter for Random {
-    fn name(&self) -> &'static str {
-        "random"
-    }
     fn id(&self) -> u8 {
         ID_RANDOM
     }
@@ -85,9 +81,6 @@ impl Gaussian {
 }
 
 impl Emitter for Gaussian {
-    fn name(&self) -> &'static str {
-        "gaussian"
-    }
     fn id(&self) -> u8 {
         ID_GAUSSIAN
     }
@@ -124,9 +117,6 @@ impl IsoLine {
 }
 
 impl Emitter for IsoLine {
-    fn name(&self) -> &'static str {
-        "isoline"
-    }
     fn id(&self) -> u8 {
         ID_ISOLINE
     }
@@ -296,10 +286,6 @@ impl Scheduler {
             return;
         }
         self.record(id, outcome.bandit_success());
-    }
-
-    pub fn emitter_name(&self, id: u8) -> &'static str {
-        name_of(id)
     }
 
     fn pick(&self, rng: &mut Rng) -> usize {

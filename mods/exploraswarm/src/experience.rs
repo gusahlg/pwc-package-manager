@@ -15,7 +15,10 @@ use crate::rules::Verdict;
 /// One finished episode, stored densely.
 #[derive(Clone, Debug)]
 pub struct Trajectory {
+    // Read by the planned gradient learner (see README).
+    #[allow(dead_code)]
     pub seed: u64,
+    #[allow(dead_code)]
     pub obs_len: usize,
     /// `T * obs_len` floats, decision by decision.
     pub obs: Vec<f32>,
@@ -32,6 +35,8 @@ pub struct Trajectory {
 }
 
 impl Trajectory {
+    // Read by the planned gradient learner (see README).
+    #[allow(dead_code)]
     pub fn steps(&self) -> usize {
         self.actions.len()
     }
@@ -60,6 +65,7 @@ pub struct Evaluation {
     pub verdict: Verdict,
     pub trajectory: Trajectory,
     pub end_reason: EndReason,
+    #[allow(dead_code)]
     pub decisions: u32,
     /// Id assigned when the episode started. The log and the archive share it.
     pub episode: u64,
@@ -92,14 +98,18 @@ impl Experience {
         self.buf.push_back(trajectory);
     }
 
+    // Read by the planned gradient learner (see README).
+    #[allow(dead_code)]
     pub fn len(&self) -> usize {
         self.buf.len()
     }
 
+    #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
         self.buf.is_empty()
     }
 
+    #[allow(dead_code)]
     pub fn iter(&self) -> impl Iterator<Item = &Trajectory> {
         self.buf.iter()
     }

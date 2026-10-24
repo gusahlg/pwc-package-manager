@@ -66,10 +66,6 @@ impl Discoveries {
         lock(&self.inner).map.len()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
     /// Lines queued since the last take, in the order they were first seen.
     pub fn take_log(&self) -> Vec<String> {
         std::mem::take(&mut lock(&self.inner).log)

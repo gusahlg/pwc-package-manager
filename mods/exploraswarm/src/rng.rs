@@ -37,12 +37,6 @@ impl Rng {
         self.s
     }
 
-    /// A child generator whose seed is the next draw. The parent sequence stays independent of
-    /// how many numbers the child then draws.
-    pub fn split(&mut self) -> Self {
-        Self::from_seed(self.u64())
-    }
-
     pub fn u64(&mut self) -> u64 {
         let result = self.s[1].wrapping_mul(5).rotate_left(7).wrapping_mul(9);
         let t = self.s[1] << 17;
@@ -61,10 +55,6 @@ impl Rng {
         (x as f64) * (1.0 / ((1u64 << 53) as f64))
     }
 
-    pub fn uniform(&mut self, lo: f64, hi: f64) -> f64 {
-        lo + (hi - lo) * self.f64()
-    }
-
     /// Standard normal, via Box-Muller. One sample per call (the paired sample is discarded) so
     /// the checkpoint stays the four state words.
     pub fn normal(&mut self) -> f64 {
@@ -78,6 +68,7 @@ impl Rng {
         if n == 0 { 0 } else { (self.u64() as usize) % n }
     }
 
+    #[cfg(test)]
     pub fn choose<'a, T>(&mut self, items: &'a [T]) -> Option<&'a T> {
         if items.is_empty() {
             None

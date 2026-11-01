@@ -19,7 +19,7 @@ mod source;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use pwc_manifest::{BuildProfile, Lockfile, ModManifest, PackageId};
+use pwc_manifest::{BuildProfile, Lockfile, PackageId, PackageManifest};
 use sha2::{Digest, Sha256};
 
 pub use cargo::wrapped_command;
@@ -46,7 +46,7 @@ pub struct BuildRequest {
     /// The exact lock.
     pub lock: Lockfile,
     /// Store directory and manifest of every package in the lock.
-    pub packages: BTreeMap<PackageId, (PathBuf, ModManifest)>,
+    pub packages: BTreeMap<PackageId, (PathBuf, PackageManifest)>,
     /// PWC source checkout (`lock.pwc.source`, possibly overridden).
     pub pwc_source: PathBuf,
     /// Digest of uncommitted PWC changes (`clean` for a clean checkout); computed by the caller
@@ -155,7 +155,7 @@ pub fn build_dir_name(build_id: &str) -> &str {
 
 /// Generate the workspace files for `request` (registration order: dependencies first, ties by id).
 ///
-/// Reads the PWC source's `Cargo.toml` (profiles, version), `crates/pwc-mod-api/Cargo.toml` (API
+/// Reads the PWC source's `Cargo.toml` (profiles, version), `crates/pwc-module-api/Cargo.toml` (API
 /// version) and `Cargo.lock` (the seed), and checks them and every package against the lock.
 pub fn generate(request: &BuildRequest) -> Result<GeneratedWorkspace, BuildError> {
     generate::generate(request)

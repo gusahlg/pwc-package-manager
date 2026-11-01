@@ -5,13 +5,13 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use pwc_manifest::{
-    BuildProfile, Edition, LockedPackage, LockedPwc, Lockfile, ModKind, ModManifest, PackageHash,
-    PackageId, PackageMetadata, PackageSource, Version, VersionReq,
+    BuildProfile, Edition, LockedPackage, LockedPwc, Lockfile, PackageHash, PackageId, PackageKind,
+    PackageManifest, PackageMetadata, PackageSource, Version, VersionReq,
 };
 
 use super::*;
 use crate::cargo::parse_rustc_verbose;
-use crate::generate::{rust_str, toml_str};
+use crate::generate::{rust_str, toml_str, write_workspace};
 use crate::metadata::{civil_from_days, rfc3339};
 
 const RUSTC: &str = "rustc 1.95.0 (59807616e 2026-04-14)\nbinary: rustc\nhost: x86_64-unknown-linux-gnu\nrelease: 1.95.0\n";
@@ -55,16 +55,16 @@ fn hash_of(s: &str) -> PackageHash {
 /// A test package: id, kind and dependency ids (version 1.0.0).
 struct Pkg {
     id: &'static str,
-    kind: ModKind,
+    kind: PackageKind,
     deps: &'static [&'static str],
 }
 
-const fn pkg(id: &'static str, kind: ModKind, deps: &'static [&'static str]) -> Pkg {
+const fn pkg(id: &'static str, kind: PackageKind, deps: &'static [&'static str]) -> Pkg {
     Pkg { id, kind, deps }
 }
 
-fn manifest(p: &Pkg) -> ModManifest {
-    ModManifest {
+fn manifest(p: &Pkg) -> PackageManifest {
+    PackageManifest {
         package: PackageMetadata {
             id: id(p.id),
             name: "Test package".to_owned(),
@@ -74,7 +74,7 @@ fn manifest(p: &Pkg) -> ModManifest {
             license: "AGPL-3.0-or-later".to_owned(),
             license_files: vec!["LICENSE".to_owned()],
             kind: p.kind,
-            pwc_api: (p.kind != ModKind::Bundle).then(|| VersionReq::parse("^2.0").unwrap()),
+            pwc_api: (p.kind != PackageKind::Bundle).then(|| VersionReq::parse("^2.0").unwrap()),
             edition: if p.id.ends_with("old") {
                 Edition::E2021
             } else {
@@ -129,11 +129,33 @@ impl World {
         Self { root, pwc, api }
     }
 
+    /// Turn the source into one from after the rename: the real API crate is
+    /// `crates/pwc-module-api`, and (with `shim`) `crates/pwc-mod-api` is the compatibility shim,
+    /// which deliberately carries another version.
+    fn rename_api(&self, shim: bool) {
+        let old = self.pwc.join("crates/pwc-mod-api");
+        let new = self.pwc.join("crates/pwc-module-api");
+        std::fs::rename(&old, &new).unwrap();
+        write(
+            &new.join("Cargo.toml"),
+            &format!(
+                "[package]\nname = \"pwc-module-api\"\nversion = \"{}\"\nedition = \"2024\"\n",
+                self.api
+            ),
+        );
+        if shim {
+            write(
+                &old.join("Cargo.toml"),
+                "[package]\nname = \"pwc-mod-api\"\nversion = \"9.9.9\"\nedition = \"2024\"\n",
+            );
+        }
+    }
+
     fn store_dir(&self, p: &Pkg) -> PathBuf {
         self.root.path().join("store").join(hash_of(p.id).hex())
     }
 
-    /// A request for `pkgs`, with store directories populated (mod/library: `src/lib.rs`).
+    /// A request for `pkgs`, with store directories populated (module/library: `src/lib.rs`).
     fn request(&self, pkgs: &[Pkg]) -> BuildRequest {
         let locked: Vec<LockedPackage> = pkgs
             .iter()
@@ -158,7 +180,7 @@ impl World {
         for p in pkgs {
             let dir = self.store_dir(p);
             std::fs::create_dir_all(&dir).unwrap();
-            if p.kind != ModKind::Bundle {
+            if p.kind != PackageKind::Bundle {
                 write(
                     &dir.join("src/lib.rs"),
                     "pub fn register(_: &mut pwc_mod_api::ModRegistrar) {}\n",
@@ -188,16 +210,20 @@ fn write(path: &Path, contents: &str) {
 }
 
 const MODS: &[Pkg] = &[
-    pkg("pwc.inventory", ModKind::Mod, &["pwc.hotbar", "pwc.names"]),
-    pkg("pwc.hotbar", ModKind::Mod, &[]),
-    pkg("pwc.names", ModKind::Library, &[]),
+    pkg(
+        "pwc.inventory",
+        PackageKind::Module,
+        &["pwc.hotbar", "pwc.names"],
+    ),
+    pkg("pwc.hotbar", PackageKind::Module, &[]),
+    pkg("pwc.names", PackageKind::Library, &[]),
     pkg(
         "pwc.essentials",
-        ModKind::Bundle,
+        PackageKind::Bundle,
         &["pwc.inventory", "pwc.zoom"],
     ),
-    pkg("pwc.zoom", ModKind::Mod, &[]),
-    pkg("pwc.alpha", ModKind::Mod, &["pwc.essentials"]),
+    pkg("pwc.zoom", PackageKind::Module, &[]),
+    pkg("pwc.alpha", PackageKind::Module, &["pwc.essentials"]),
 ];
 
 // ---------------------------------------------------------------------------------------------
@@ -304,7 +330,7 @@ fn bundle_lists_every_package_in_topological_order_with_ties_by_id() {
     let world = World::new();
     let ws = generate(&world.request(MODS)).unwrap();
     let lib = &ws.files["bundle/src/lib.rs"];
-    // Dependencies first; among ready packages the smallest id. Every kind is listed; only mods
+    // Dependencies first; among ready packages the smallest id. Every kind is listed; only modules
     // have an entry point, and only their crates are named.
     let entries = listed(lib);
     let expect = |id: &str, kind: &str, deps: &str, register: &str| {
@@ -356,9 +382,9 @@ fn bundle_lists_every_package_in_topological_order_with_ties_by_id() {
 fn bundle_lib_has_the_spec_shape() {
     let world = World::new();
     let mut request = world.request(&[
-        pkg("pwc.names", ModKind::Library, &[]),
-        pkg("pwc.hotbar", ModKind::Mod, &["pwc.names"]),
-        pkg("pwc.essentials", ModKind::Bundle, &["pwc.hotbar"]),
+        pkg("pwc.names", PackageKind::Library, &[]),
+        pkg("pwc.hotbar", PackageKind::Module, &["pwc.names"]),
+        pkg("pwc.essentials", PackageKind::Bundle, &["pwc.hotbar"]),
     ]);
     let hotbar = &mut request
         .packages
@@ -410,9 +436,9 @@ fn bundle_lib_has_the_spec_shape() {
 fn dependencies_are_listed_sorted_and_once() {
     let world = World::new();
     let mut request = world.request(&[
-        pkg("pwc.b", ModKind::Mod, &[]),
-        pkg("pwc.a", ModKind::Library, &[]),
-        pkg("pwc.c", ModKind::Mod, &["pwc.b", "pwc.a"]),
+        pkg("pwc.b", PackageKind::Module, &[]),
+        pkg("pwc.a", PackageKind::Library, &[]),
+        pkg("pwc.c", PackageKind::Module, &["pwc.b", "pwc.a"]),
     ]);
     request.lock.packages[2].dependencies = vec![id("pwc.b"), id("pwc.a"), id("pwc.b")];
     let ws = generate(&request).unwrap();
@@ -425,9 +451,9 @@ fn dependencies_are_listed_sorted_and_once() {
 fn sources_before_the_package_list_get_the_2x_bundle() {
     let world = World::with_api("2.1.0");
     let request = world.request(&[
-        pkg("pwc.names", ModKind::Library, &[]),
-        pkg("pwc.hotbar", ModKind::Mod, &["pwc.names"]),
-        pkg("pwc.essentials", ModKind::Bundle, &["pwc.hotbar"]),
+        pkg("pwc.names", PackageKind::Library, &[]),
+        pkg("pwc.hotbar", PackageKind::Module, &["pwc.names"]),
+        pkg("pwc.essentials", PackageKind::Bundle, &["pwc.hotbar"]),
     ]);
     let ws = generate(&request).unwrap();
     let expected = format!(
@@ -462,7 +488,7 @@ fn every_mod_and_library_gets_a_crate_and_bundles_none() {
         .files
         .keys()
         .filter_map(|k| {
-            k.strip_prefix("mods/")
+            k.strip_prefix("modules/")
                 .and_then(|k| k.strip_suffix("/Cargo.toml"))
         })
         .collect();
@@ -480,7 +506,7 @@ fn every_mod_and_library_gets_a_crate_and_bundles_none() {
         .files
         .keys()
         .map(String::as_str)
-        .filter(|k| !k.starts_with("mods/"))
+        .filter(|k| !k.starts_with("modules/"))
         .collect();
     paths.sort_unstable();
     assert_eq!(
@@ -509,11 +535,11 @@ fn every_mod_and_library_gets_a_crate_and_bundles_none() {
         [
             "bundle",
             "instance",
-            "mods/pwc_alpha",
-            "mods/pwc_hotbar",
-            "mods/pwc_inventory",
-            "mods/pwc_names",
-            "mods/pwc_zoom"
+            "modules/pwc_alpha",
+            "modules/pwc_hotbar",
+            "modules/pwc_inventory",
+            "modules/pwc_names",
+            "modules/pwc_zoom"
         ]
     );
     assert_eq!(root["workspace"]["resolver"].as_str(), Some("2"));
@@ -526,7 +552,9 @@ fn mod_crates_depend_on_the_api_and_their_code_dependencies() {
     let ws = generate(&request).unwrap();
     let api = world.pwc.join("crates/pwc-mod-api");
 
-    let inventory: toml::Table = ws.files["mods/pwc_inventory/Cargo.toml"].parse().unwrap();
+    let inventory: toml::Table = ws.files["modules/pwc_inventory/Cargo.toml"]
+        .parse()
+        .unwrap();
     assert_eq!(inventory["package"]["name"].as_str(), Some("pwc_inventory"));
     assert_eq!(inventory["package"]["version"].as_str(), Some("1.0.0"));
     assert_eq!(inventory["package"]["edition"].as_str(), Some("2024"));
@@ -548,7 +576,7 @@ fn mod_crates_depend_on_the_api_and_their_code_dependencies() {
     assert_eq!(deps["pwc_hotbar"]["path"].as_str(), Some("../pwc_hotbar"));
 
     // A mod depending on a bundle gets no crate dependency for it (bundles have no code).
-    let alpha: toml::Table = ws.files["mods/pwc_alpha/Cargo.toml"].parse().unwrap();
+    let alpha: toml::Table = ws.files["modules/pwc_alpha/Cargo.toml"].parse().unwrap();
     assert_eq!(
         alpha["dependencies"]
             .as_table()
@@ -578,7 +606,7 @@ fn mod_crates_depend_on_the_api_and_their_code_dependencies() {
     );
     assert_eq!(
         bundle["dependencies"]["pwc_zoom"]["path"].as_str(),
-        Some("../mods/pwc_zoom")
+        Some("../modules/pwc_zoom")
     );
 
     // The instance crate: two binaries, the runtime by absolute path, the bundle.
@@ -612,8 +640,8 @@ fn mod_crates_depend_on_the_api_and_their_code_dependencies() {
 #[test]
 fn edition_follows_the_manifest() {
     let world = World::new();
-    let ws = generate(&world.request(&[pkg("pwc.old", ModKind::Mod, &[])])).unwrap();
-    let old: toml::Table = ws.files["mods/pwc_old/Cargo.toml"].parse().unwrap();
+    let ws = generate(&world.request(&[pkg("pwc.old", PackageKind::Module, &[])])).unwrap();
+    let old: toml::Table = ws.files["modules/pwc_old/Cargo.toml"].parse().unwrap();
     assert_eq!(old["package"]["edition"].as_str(), Some("2021"));
 }
 
@@ -764,7 +792,7 @@ fn workspace_inherited_versions_are_followed() {
 fn a_source_without_the_api_crate_is_rejected() {
     let world = World::new();
     std::fs::remove_dir_all(world.pwc.join("crates")).unwrap();
-    assert!(generate_err(&world.request(MODS)).contains("has no `pwc-mod-api` crate"));
+    assert!(generate_err(&world.request(MODS)).contains("has no `pwc-module-api` crate"));
 
     let world = World::new();
     write(
@@ -803,10 +831,9 @@ fn store_manifests_must_match_the_lock() {
         .1
         .package
         .version = Version::new(1, 0, 1);
-    assert!(
-        generate_err(&request)
-            .contains("store entry is pwc.zoom 1.0.1 (mod) but the lock says pwc.zoom 1.0.0 (mod)")
-    );
+    assert!(generate_err(&request).contains(
+        "store entry is pwc.zoom 1.0.1 (module) but the lock says pwc.zoom 1.0.0 (module)"
+    ));
 
     let mut request = world.request(MODS);
     request.packages.remove(&id("pwc.zoom"));
@@ -817,18 +844,18 @@ fn store_manifests_must_match_the_lock() {
 fn clashing_and_reserved_crate_names_are_rejected() {
     let world = World::new();
     let request = world.request(&[
-        pkg("foo.bar-baz", ModKind::Mod, &[]),
-        pkg("foo.bar.baz", ModKind::Mod, &[]),
+        pkg("foo.bar-baz", PackageKind::Module, &[]),
+        pkg("foo.bar.baz", PackageKind::Module, &[]),
     ]);
     assert!(generate_err(&request).contains("have the same crate name `foo_bar_baz`"));
 
-    let request = world.request(&[pkg("pwc.mod-api", ModKind::Library, &[])]);
+    let request = world.request(&[pkg("pwc.mod-api", PackageKind::Library, &[])]);
     assert!(generate_err(&request).contains("crate name `pwc_mod_api` is reserved"));
 
     // A bundle has no crate, so its name cannot clash.
     let request = world.request(&[
-        pkg("pwc.bundle", ModKind::Bundle, &["pwc.x"]),
-        pkg("pwc.x", ModKind::Mod, &[]),
+        pkg("pwc.bundle", PackageKind::Bundle, &["pwc.x"]),
+        pkg("pwc.x", PackageKind::Module, &[]),
     ]);
     generate(&request).unwrap();
 }
@@ -837,13 +864,13 @@ fn clashing_and_reserved_crate_names_are_rejected() {
 fn cycles_and_dangling_dependencies_are_rejected() {
     let world = World::new();
     let mut request = world.request(&[
-        pkg("pwc.a", ModKind::Mod, &["pwc.b"]),
-        pkg("pwc.b", ModKind::Mod, &[]),
+        pkg("pwc.a", PackageKind::Module, &["pwc.b"]),
+        pkg("pwc.b", PackageKind::Module, &[]),
     ]);
     request.lock.packages[1].dependencies = vec![id("pwc.a")];
     assert!(generate_err(&request).contains("dependency cycle among pwc.a, pwc.b"));
 
-    let mut request = world.request(&[pkg("pwc.a", ModKind::Mod, &[])]);
+    let mut request = world.request(&[pkg("pwc.a", PackageKind::Module, &[])]);
     request.lock.packages[0].dependencies = vec![id("pwc.gone")];
     assert!(generate_err(&request).contains("pwc.a depends on pwc.gone, which is not in the lock"));
 }
@@ -1026,7 +1053,7 @@ esac
         );
 
         // The generated files are on disk; build.toml records the finished build.
-        assert!(first.dir.join("mods/pwc_inventory/Cargo.toml").is_file());
+        assert!(first.dir.join("modules/pwc_inventory/Cargo.toml").is_file());
         assert_eq!(
             std::fs::read_to_string(first.dir.join("Cargo.lock")).unwrap(),
             "# seed lock\nversion = 4\n"
@@ -1126,9 +1153,9 @@ esac
         let world = World::new();
         let request = world.request(MODS);
         let prepared = prepare(&request, RUSTC, TARGET).unwrap();
-        let hotbar = prepared.dir.join("mods/pwc_hotbar/Cargo.toml");
+        let hotbar = prepared.dir.join("modules/pwc_hotbar/Cargo.toml");
         let stamp = std::fs::metadata(&hotbar).unwrap().modified().unwrap();
-        let stale = prepared.dir.join("mods/pwc_stale/Cargo.toml");
+        let stale = prepared.dir.join("modules/pwc_stale/Cargo.toml");
         write(&stale, "stale");
         std::fs::write(prepared.dir.join("Cargo.lock"), "# cargo updated this\n").unwrap();
         std::thread::sleep(std::time::Duration::from_millis(20));
@@ -1170,33 +1197,43 @@ fn timestamps_are_rfc3339_utc() {
 
 /// End-to-end against the real game: `cargo test -p pwc-builder -- --ignored real_game`.
 /// Uses `PWC_SOURCE` (default: the sibling `project_watt_cubed` checkout), which must provide
-/// `crates/pwc-mod-api` and `examples/mods/hello-hud`; compiles the full game (minutes, about
+/// `crates/pwc-module-api` (or `crates/pwc-mod-api` before the rename) and `examples/modules/hello-hud`; compiles the full game (minutes, about
 /// 3 GB). The cache goes to `PWC_TEST_CACHE` (default: `target/pwc-builder-e2e` of this
 /// workspace) so reruns are incremental.
 #[test]
 #[ignore = "compiles the real game"]
-fn real_game_builds_with_an_example_mod() {
+fn real_game_builds_with_an_example_module() {
     let pwc = std::env::var_os("PWC_SOURCE")
         .map(PathBuf::from)
         .unwrap_or_else(|| {
             Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../project_watt_cubed")
         });
     let pwc = pwc.canonicalize().expect("PWC source");
-    let example = pwc.join("examples/mods/hello-hud");
+    let example = pwc.join("examples/modules/hello-hud");
     let read = |p: &Path| -> toml::Table { std::fs::read_to_string(p).unwrap().parse().unwrap() };
     // The builder does not look at licences; keep the example usable whatever it declares.
-    let mut text = read(&example.join("mod.toml"));
+    let manifest_path = pwc_manifest::find_manifest_file(&example)
+        .unwrap()
+        .expect("example manifest file");
+    let mut text = read(&manifest_path);
     text["package"]
         .as_table_mut()
         .unwrap()
         .insert("license".into(), "AGPL-3.0-or-later".into());
-    let manifest = ModManifest::parse(&toml::to_string(&text).unwrap()).expect("example manifest");
+    let manifest =
+        PackageManifest::parse(&toml::to_string(&text).unwrap()).expect("example manifest");
     let version =
         |t: &toml::Table| Version::parse(t["package"]["version"].as_str().unwrap()).unwrap();
     let lock = Lockfile::new(
         LockedPwc {
             version: version(&read(&pwc.join("Cargo.toml"))),
-            api: version(&read(&pwc.join("crates/pwc-mod-api/Cargo.toml"))),
+            api: version(&read(&pwc.join(
+                if pwc.join("crates/pwc-module-api").is_dir() {
+                    "crates/pwc-module-api/Cargo.toml"
+                } else {
+                    "crates/pwc-mod-api/Cargo.toml"
+                },
+            ))),
             source: pwc.clone(),
             revision: "test".to_owned(),
             dirty: true,
@@ -1233,4 +1270,92 @@ fn real_game_builds_with_an_example_mod() {
     assert!(!output.cached && output.game.is_file() && output.golden.is_file());
     request.force = false;
     assert!(build(&request).unwrap().cached);
+}
+
+#[test]
+fn a_renamed_source_gets_module_names_and_both_api_crates() {
+    let world = World::new();
+    world.rename_api(true);
+    let ws = generate(&world.request(MODS)).unwrap();
+
+    // Every package crate depends on the real API and on the shim, so both paths compile.
+    let inventory: toml::Table = ws.files["modules/pwc_inventory/Cargo.toml"]
+        .parse()
+        .unwrap();
+    let deps = inventory["dependencies"].as_table().unwrap();
+    let api = world.pwc.join("crates/pwc-module-api");
+    let shim = world.pwc.join("crates/pwc-mod-api");
+    assert_eq!(deps["pwc-module-api"]["path"].as_str(), api.to_str());
+    assert_eq!(deps["pwc-mod-api"]["path"].as_str(), shim.to_str());
+    let bundle: toml::Table = ws.files["bundle/Cargo.toml"].parse().unwrap();
+    assert_eq!(
+        bundle["dependencies"]["pwc-module-api"]["path"].as_str(),
+        api.to_str()
+    );
+
+    // The bundle code uses the new names.
+    let lib = &ws.files["bundle/src/lib.rs"];
+    assert!(lib.contains("pwc_module_api::PackageInfo"), "{lib}");
+    assert!(
+        lib.contains("pwc_module_api::PackageKind::Module,"),
+        "{lib}"
+    );
+    assert!(
+        lib.contains("pwc_module_api::GameBuild::from_static"),
+        "{lib}"
+    );
+    assert!(
+        !lib.contains("pwc_mod_api") && !lib.contains("Kind::Mod,"),
+        "{lib}"
+    );
+    // Crate names of the generated crates cannot shadow either API crate.
+    assert!(
+        generate_err(&world.request(&[pkg("pwc.module-api", PackageKind::Library, &[])]))
+            .contains("reserved")
+    );
+}
+
+#[test]
+fn a_renamed_source_without_the_shim_depends_on_the_real_api_only() {
+    let world = World::new();
+    world.rename_api(false);
+    let ws = generate(&world.request(MODS)).unwrap();
+    let hotbar: toml::Table = ws.files["modules/pwc_hotbar/Cargo.toml"].parse().unwrap();
+    let deps = hotbar["dependencies"].as_table().unwrap();
+    assert!(deps.contains_key("pwc-module-api") && !deps.contains_key("pwc-mod-api"));
+}
+
+#[test]
+fn the_api_version_comes_from_the_real_api_crate_not_the_shim() {
+    let world = World::new();
+    world.rename_api(true);
+    // The shim says 9.9.9; the lock pins the real crate's version, so the build is accepted.
+    generate(&world.request(MODS)).unwrap();
+    let mut request = world.request(MODS);
+    request.lock.pwc.api = Version::new(9, 9, 9);
+    request.lock = Lockfile::new(request.lock.pwc.clone(), request.lock.packages.clone());
+    assert!(generate_err(&request).contains("pwc-module-api 2.2.0 but the lock pins 9.9.9"));
+}
+
+#[test]
+fn a_source_from_before_the_rename_generates_the_old_code() {
+    let world = World::new();
+    let ws = generate(&world.request(MODS)).unwrap();
+    let hotbar: toml::Table = ws.files["modules/pwc_hotbar/Cargo.toml"].parse().unwrap();
+    let deps = hotbar["dependencies"].as_table().unwrap();
+    assert!(deps.contains_key("pwc-mod-api") && !deps.contains_key("pwc-module-api"));
+    let lib = &ws.files["bundle/src/lib.rs"];
+    assert!(lib.contains("pwc_mod_api::PackageKind::Mod,"), "{lib}");
+    assert!(!lib.contains("pwc_module_api"), "{lib}");
+}
+
+#[test]
+fn a_workspace_generated_before_the_rename_loses_its_mods_directory() {
+    let world = World::new();
+    let ws = generate(&world.request(MODS)).unwrap();
+    let dir = world.root.path().join("generated");
+    write(&dir.join("mods/pwc_stale/Cargo.toml"), "x");
+    write_workspace(&dir, &ws).unwrap();
+    assert!(!dir.join("mods").exists());
+    assert!(dir.join("modules/pwc_hotbar/Cargo.toml").is_file());
 }

@@ -1,6 +1,6 @@
 [package]
 name = "pwc-cli"
-description = "The `pwc` command: package, instance, build and run PWC mods."
+description = "The `pwc` command: package, instance, build and run PWC modules."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -3,7 +3,7 @@
 use std::fmt::Write as _;
 
 use pwc_instance::AvailableSource;
-use pwc_manifest::{ModRequirement, ModSource, VersionReq};
+use pwc_manifest::{ModuleRequirement, ModuleSource, VersionReq};
 
 /// Print rows under a header, columns padded to their widest cell (the last column is not padded).
 pub(crate) fn print_table(header: &[&str], rows: &[Vec<String>]) {
@@ -51,17 +51,17 @@ pub(crate) fn available_source(source: &AvailableSource) -> String {
     }
 }
 
-/// An instance `[mods]` entry: `^1.0`, `path ../x`, `file x.pwcmod (=1.2.0)`.
-pub(crate) fn requirement(req: &ModRequirement) -> String {
+/// An instance `[modules]` entry: `^1.0`, `path ../x`, `file x.pwcmodule (=1.2.0)`.
+pub(crate) fn requirement(req: &ModuleRequirement) -> String {
     let version = if req.version == VersionReq::STAR {
         String::new()
     } else {
         format!(" ({})", req.version)
     };
     match &req.source {
-        ModSource::Registry => req.version.to_string(),
-        ModSource::Path(p) => format!("path {}{version}", p.display()),
-        ModSource::File(p) => format!("file {}{version}", p.display()),
+        ModuleSource::Registry => req.version.to_string(),
+        ModuleSource::Path(p) => format!("path {}{version}", p.display()),
+        ModuleSource::File(p) => format!("file {}{version}", p.display()),
     }
 }
 

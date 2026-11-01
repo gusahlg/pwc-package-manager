@@ -8,7 +8,7 @@ use pwc_instance::{PwcSource, RepositoryConfig, Wrapper};
 use crate::context::Ctx;
 use crate::output::print_table;
 
-/// The name `pwc setup` gives this tooling checkout's own `mods/` repository.
+/// The name `pwc setup` gives this tooling checkout's own `modules/` repository.
 const FIRST_PARTY: &str = "first-party";
 
 /// The pwc-package-manager checkout this binary was built from (compile-time guess).
@@ -25,7 +25,7 @@ pub(crate) fn canonical(path: &Path) -> Result<PathBuf> {
 
 /// A repository name derived from its directory, unique among `taken`.
 fn repository_name(path: &Path, taken: &[RepositoryConfig]) -> String {
-    let base = if path == tooling_repo().join("mods") {
+    let base = if path == tooling_repo().join("modules") {
         FIRST_PARTY.to_owned()
     } else {
         path.file_name().map_or_else(
@@ -66,7 +66,7 @@ pub(crate) fn setup(mut ctx: Ctx, pwc: Option<PathBuf>, repositories: Vec<PathBu
     ctx.config.pwc_source = Some(pwc_dir.clone());
 
     if repositories.is_empty() {
-        let first_party = tooling.join("mods");
+        let first_party = tooling.join("modules");
         if first_party.is_dir()
             && !ctx
                 .config
@@ -98,7 +98,7 @@ pub(crate) fn setup(mut ctx: Ctx, pwc: Option<PathBuf>, repositories: Vec<PathBu
 
     println!("config      {}", ctx.dirs.config_file().display());
     println!(
-        "pwc-source  {} (PWC {}, pwc-mod-api {})",
+        "pwc-source  {} (PWC {}, pwc-module-api {})",
         pwc_dir.display(),
         source.version,
         source.api

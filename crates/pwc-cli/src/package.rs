@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context as _, Result, bail};
 use pwc_instance::{Available, AvailablePackage};
-use pwc_manifest::{ModManifest, PackageHash, PackageId};
+use pwc_manifest::{PackageHash, PackageId, PackageManifest};
 use pwc_package::Package;
 
 use crate::context::Ctx;
@@ -70,7 +70,7 @@ pub(crate) fn search(ctx: &Ctx, text: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-fn matches(manifest: &ModManifest, needle: &str) -> bool {
+fn matches(manifest: &PackageManifest, needle: &str) -> bool {
     let p = &manifest.package;
     p.id.as_str().contains(needle)
         || p.name.to_lowercase().contains(needle)

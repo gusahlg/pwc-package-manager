@@ -1,4 +1,4 @@
-//! `pwc` — package, instance, build and run PWC mods (docs/spec/cli.md). A thin front end: every
+//! `pwc` — package, instance, build and run PWC modules (docs/spec/cli.md). A thin front end: every
 //! command calls the library crates.
 //!
 //! Output conventions: a command's result (tables, paths, hashes) goes to stdout; progress,
@@ -22,7 +22,7 @@ use pwc_manifest::BuildProfile;
 
 use crate::context::Ctx;
 
-/// Package, instance, build and run Project Watt Cubed mods.
+/// Package, instance, build and run Project Watt Cubed modules.
 #[derive(Parser, Debug)]
 #[command(
     name = "pwc",
@@ -77,9 +77,9 @@ enum Command {
     /// Manage instances.
     #[command(subcommand)]
     Instance(InstanceCommand),
-    /// Manage the mods of the instance.
-    #[command(subcommand)]
-    Mod(ModCommand),
+    /// Manage the modules of the instance.
+    #[command(subcommand, alias = "mod")]
+    Module(ModuleCommand),
     /// Re-resolve conservatively and write pwc.lock.
     Lock,
     /// Print the instance's environment hash.
@@ -110,7 +110,7 @@ enum Command {
 enum RepoCommand {
     /// Add a repository directory.
     Add {
-        /// Directory whose children are package source directories or .pwcmod files.
+        /// Directory whose children are package source directories or .pwcmodule files.
         dir: PathBuf,
         /// Name (default: the directory name).
         #[arg(long)]
@@ -132,7 +132,7 @@ enum PackageCommand {
         /// Package source directory (default: the current directory).
         dir: Option<PathBuf>,
     },
-    /// Write `<out-dir>/<id>-<version>.pwcmod` and print its hash.
+    /// Write `<out-dir>/<id>-<version>.pwcmodule` and print its hash.
     Build {
         /// Package source directory (default: the current directory).
         dir: Option<PathBuf>,
@@ -140,17 +140,17 @@ enum PackageCommand {
         #[arg(short = 'o', long = "out-dir", value_name = "OUT_DIR")]
         out_dir: Option<PathBuf>,
     },
-    /// Fully verify a .pwcmod.
+    /// Fully verify a .pwcmodule.
     Verify {
-        /// The .pwcmod file.
+        /// The .pwcmodule file.
         file: PathBuf,
         /// Expected hash (`sha256:…`).
         #[arg(long)]
         hash: Option<String>,
     },
-    /// Print the manifest summary, hash and file list of a .pwcmod.
+    /// Print the manifest summary, hash and file list of a .pwcmodule.
     Inspect {
-        /// The .pwcmod file.
+        /// The .pwcmodule file.
         file: PathBuf,
     },
 }
@@ -191,14 +191,14 @@ enum InstanceCommand {
 }
 
 #[derive(Subcommand, Debug)]
-enum ModCommand {
-    /// Add mods (id, id@req, source directory or .pwcmod) and re-lock.
+enum ModuleCommand {
+    /// Add modules (id, id@req, source directory or .pwcmodule) and re-lock.
     Add {
         /// What to add.
         #[arg(required = true, value_name = "SPEC")]
         specs: Vec<String>,
     },
-    /// Remove mods and re-lock.
+    /// Remove modules and re-lock.
     Remove {
         /// Package ids.
         #[arg(required = true, value_name = "ID")]
@@ -306,10 +306,10 @@ fn run(cli: Cli) -> anyhow::Result<ExitCode> {
         Command::Instance(InstanceCommand::Remove { name, yes }) => {
             instance::remove(ctx, &name, yes)?
         }
-        Command::Mod(ModCommand::Add { specs }) => instance::mod_add(&ctx, &specs)?,
-        Command::Mod(ModCommand::Remove { ids }) => instance::mod_remove(&ctx, &ids)?,
-        Command::Mod(ModCommand::Update { ids }) => instance::mod_update(&ctx, &ids)?,
-        Command::Mod(ModCommand::List) => instance::mod_list(&ctx)?,
+        Command::Module(ModuleCommand::Add { specs }) => instance::module_add(&ctx, &specs)?,
+        Command::Module(ModuleCommand::Remove { ids }) => instance::module_remove(&ctx, &ids)?,
+        Command::Module(ModuleCommand::Update { ids }) => instance::module_update(&ctx, &ids)?,
+        Command::Module(ModuleCommand::List) => instance::module_list(&ctx)?,
         Command::Lock => instance::lock(&ctx)?,
         Command::Env => instance::env(&ctx)?,
         Command::Build(args) => build::build(
@@ -333,7 +333,7 @@ fn run(cli: Cli) -> anyhow::Result<ExitCode> {
 }
 
 /// `error: <what>` then one `  cause: …` line per underlying error. A cause whose text the
-/// previous line already contains (wrappers such as `mod.toml: <cause>`) is not repeated.
+/// previous line already contains (wrappers such as `module.toml: <cause>`) is not repeated.
 fn report(err: &anyhow::Error) {
     eprintln!("error: {err}");
     let mut previous = err.to_string();
@@ -376,7 +376,7 @@ mod tests {
     fn global_options_work_after_the_subcommand() {
         let cli = <Cli as clap::Parser>::try_parse_from([
             "pwc",
-            "mod",
+            "module",
             "list",
             "--instance",
             "survival",
@@ -385,5 +385,16 @@ mod tests {
         .unwrap();
         assert_eq!(cli.instance.as_deref(), Some("survival"));
         assert!(cli.quiet);
+    }
+
+    #[test]
+    fn mod_is_an_alias_of_module() {
+        for word in ["module", "mod"] {
+            let cli = <Cli as clap::Parser>::try_parse_from(["pwc", word, "list"]).unwrap();
+            assert!(matches!(
+                cli.command,
+                super::Command::Module(super::ModuleCommand::List)
+            ));
+        }
     }
 }

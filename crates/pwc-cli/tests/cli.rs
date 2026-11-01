@@ -29,7 +29,7 @@ fn write(path: &Path, contents: &str) {
 }
 
 /// Write a package source directory.
-fn write_mod(dir: &Path, id: &str, version: &str, kind: &str, deps: &[(&str, &str)]) {
+fn write_module(dir: &Path, id: &str, version: &str, kind: &str, deps: &[(&str, &str)]) {
     let api = if kind == "bundle" {
         String::new()
     } else {
@@ -40,7 +40,7 @@ fn write_mod(dir: &Path, id: &str, version: &str, kind: &str, deps: &[(&str, &st
         deps_toml.push_str(&format!("\"{dep}\" = \"{req}\"\n"));
     }
     write(
-        &dir.join("mod.toml"),
+        &dir.join("module.toml"),
         &format!(
             "format = 1\n\n[package]\nid = \"{id}\"\nname = \"Test {id}\"\nversion = \"{version}\"\n\
              description = \"The {id} test package.\"\nauthors = [\"Tester\"]\nlicense = \"AGPL-3.0-or-later\"\n\
@@ -53,9 +53,9 @@ fn write_mod(dir: &Path, id: &str, version: &str, kind: &str, deps: &[(&str, &st
         "GNU AFFERO GENERAL PUBLIC LICENSE, Version 3\n",
     );
     match kind {
-        "mod" => write(
+        "module" => write(
             &dir.join("src/lib.rs"),
-            "pub fn register(_registrar: &mut pwc_mod_api::ModRegistrar) {}\n",
+            "pub fn register(_registrar: &mut pwc_module_api::ModuleRegistrar) {}\n",
         ),
         "library" => write(
             &dir.join("src/lib.rs"),
@@ -73,28 +73,34 @@ impl Env {
         write(
             &pwc.join("Cargo.toml"),
             "[package]\nname = \"project_watt_cubed\"\nversion = \"2.0.0\"\nedition = \"2024\"\n\n\
-             [workspace]\nresolver = \"2\"\nmembers = [\"crates/pwc-mod-api\"]\n\n\
+             [workspace]\nresolver = \"2\"\nmembers = [\"crates/pwc-module-api\"]\n\n\
              [profile.release]\nlto = \"fat\"\ncodegen-units = 1\n\n[profile.dev.package.\"*\"]\nopt-level = 2\n",
         );
         write(&pwc.join("Cargo.lock"), "version = 4\n");
         write(
-            &pwc.join("crates/pwc-mod-api/Cargo.toml"),
-            "[package]\nname = \"pwc-mod-api\"\nversion = \"1.0.0\"\nedition = \"2024\"\n",
+            &pwc.join("crates/pwc-module-api/Cargo.toml"),
+            "[package]\nname = \"pwc-module-api\"\nversion = \"1.0.0\"\nedition = \"2024\"\n",
         );
         write(&pwc.join("assets/readme.txt"), "assets\n");
 
         let repo = root.join("repo");
-        write_mod(&repo.join("hotbar"), "pwc.hotbar", "1.0.0", "mod", &[]);
-        write_mod(&repo.join("hotbar-next"), "pwc.hotbar", "1.1.0", "mod", &[]);
-        write_mod(&repo.join("names"), "pwc.names", "1.0.0", "library", &[]);
-        write_mod(
+        write_module(&repo.join("hotbar"), "pwc.hotbar", "1.0.0", "module", &[]);
+        write_module(
+            &repo.join("hotbar-next"),
+            "pwc.hotbar",
+            "1.1.0",
+            "module",
+            &[],
+        );
+        write_module(&repo.join("names"), "pwc.names", "1.0.0", "library", &[]);
+        write_module(
             &repo.join("inventory"),
             "pwc.inventory",
             "1.0.0",
-            "mod",
+            "module",
             &[("pwc.hotbar", "^1.0"), ("pwc.names", "^1.0")],
         );
-        write_mod(
+        write_module(
             &repo.join("essentials"),
             "pwc.essentials",
             "1.0.0",
@@ -238,7 +244,11 @@ fn usage_errors_exit_with_status_2() {
     let env = Env::new();
     assert_eq!(env.run(&[]).code, 2);
     assert_eq!(env.run(&["frobnicate"]).code, 2);
-    assert_eq!(env.run(&["mod", "add"]).code, 2, "mod add needs a spec");
+    assert_eq!(
+        env.run(&["module", "add"]).code,
+        2,
+        "module add needs a spec"
+    );
     assert_eq!(env.run(&["build", "--profile", "fast"]).code, 2);
     let help = env.ok(&["--help"]);
     assert!(help.stdout.contains("instance") && help.stdout.contains("package"));
@@ -256,7 +266,7 @@ fn setup_config_and_repositories() {
     ]);
     assert!(
         out.stdout.contains(&format!(
-            "pwc-source  {} (PWC 2.0.0, pwc-mod-api 1.0.0)",
+            "pwc-source  {} (PWC 2.0.0, pwc-module-api 1.0.0)",
             env.pwc.display()
         )),
         "{}",
@@ -341,14 +351,14 @@ fn setup_rejects_a_directory_that_is_not_a_pwc_source() {
 fn package_check_build_verify_inspect() {
     let env = Env::new();
     let src = env.root.join("src-hotbar");
-    write_mod(&src, "pwc.hotbar", "1.0.0", "mod", &[]);
+    write_module(&src, "pwc.hotbar", "1.0.0", "module", &[]);
     write(&src.join("notes.txt"), "not part of the package");
 
     let check = env.ok(&["package", "check", src.to_str().unwrap()]);
     assert!(
         check
             .stdout
-            .starts_with("ok: pwc.hotbar 1.0.0 (mod), 4 files"),
+            .starts_with("ok: pwc.hotbar 1.0.0 (module), 4 files"),
         "{}",
         check.stdout
     );
@@ -364,7 +374,7 @@ fn package_check_build_verify_inspect() {
 
     // Default output directory: <dir>/dist.
     let built = env.ok(&["package", "build", src.to_str().unwrap()]);
-    let file = src.join("dist/pwc.hotbar-1.0.0.pwcmod");
+    let file = src.join("dist/pwc.hotbar-1.0.0.pwcmodule");
     assert_eq!(built.stdout, format!("{hash}  {}\n", file.display()));
     assert!(file.is_file());
 
@@ -382,7 +392,7 @@ fn package_check_build_verify_inspect() {
         "-q silences status: {}",
         built.stderr
     );
-    let file = out_dir.join("pwc.hotbar-1.0.0.pwcmod");
+    let file = out_dir.join("pwc.hotbar-1.0.0.pwcmodule");
     assert!(built.stdout.starts_with(&hash));
 
     let verify = env.ok(&["package", "verify", file.to_str().unwrap(), "--hash", &hash]);
@@ -411,11 +421,11 @@ fn package_check_build_verify_inspect() {
     let inspect = env.ok(&["package", "inspect", file.to_str().unwrap()]);
     for needle in [
         "id            pwc.hotbar",
-        "kind          mod",
+        "kind          module",
         "pwc-api       ^1.0",
         &format!("hash          {hash}"),
         "src/lib.rs",
-        "mod.toml",
+        "module.toml",
     ] {
         assert!(
             inspect.stdout.contains(needle),
@@ -425,7 +435,7 @@ fn package_check_build_verify_inspect() {
     }
 
     // A corrupt archive fails verification.
-    let corrupt = env.root.join("corrupt.pwcmod");
+    let corrupt = env.root.join("corrupt.pwcmodule");
     std::fs::write(&corrupt, b"not zstd").unwrap();
     env.fail(&["package", "verify", corrupt.to_str().unwrap()]);
 }
@@ -434,11 +444,11 @@ fn package_check_build_verify_inspect() {
 fn package_check_reports_the_cause() {
     let env = Env::new();
     let src = env.root.join("bad");
-    write_mod(&src, "pwc.bad", "1.0.0", "mod", &[]);
-    let text = std::fs::read_to_string(src.join("mod.toml"))
+    write_module(&src, "pwc.bad", "1.0.0", "module", &[]);
+    let text = std::fs::read_to_string(src.join("module.toml"))
         .unwrap()
         .replace("AGPL-3.0-or-later", "LicenseRef-Proprietary");
-    write(&src.join("mod.toml"), &text);
+    write(&src.join("module.toml"), &text);
     let out = env.fail(&["package", "check", src.to_str().unwrap()]);
     assert!(
         out.stderr.starts_with(&format!(
@@ -464,7 +474,7 @@ fn instance_create_list_use_show_remove() {
     let env = Env::new();
     env.setup();
     assert!(
-        env.fail(&["mod", "list"])
+        env.fail(&["module", "list"])
             .stderr
             .contains("no instance selected")
     );
@@ -536,11 +546,11 @@ fn instance_create_list_use_show_remove() {
 }
 
 #[test]
-fn mod_add_remove_update_list_lock_env() {
+fn module_add_remove_update_list_lock_env() {
     let env = Env::new();
     env.with_instance();
 
-    let added = env.ok(&["mod", "add", "pwc.essentials"]);
+    let added = env.ok(&["module", "add", "pwc.essentials"]);
     assert!(
         added.stderr.contains("+ pwc.hotbar 1.1.0"),
         "{}",
@@ -562,11 +572,11 @@ fn mod_add_remove_update_list_lock_env() {
     );
     // Like `cargo add`, a bare id is written as a caret requirement on the selected version.
     assert_eq!(
-        env.instance_toml()["mods"]["pwc.essentials"].as_str(),
+        env.instance_toml()["modules"]["pwc.essentials"].as_str(),
         Some("^1.0.0")
     );
 
-    let list = env.ok(&["mod", "list"]);
+    let list = env.ok(&["module", "list"]);
     let essentials = list
         .stdout
         .lines()
@@ -597,17 +607,17 @@ fn mod_add_remove_update_list_lock_env() {
     assert!(env.ok(&["lock"]).stderr.contains("Lock unchanged"));
     assert_eq!(env.ok(&["env"]).stdout, environment);
 
-    // An explicit requirement downgrades; `mod update` respects it.
-    env.ok(&["mod", "add", "pwc.hotbar@=1.0.0"]);
+    // An explicit requirement downgrades; `module update` respects it.
+    env.ok(&["module", "add", "pwc.hotbar@=1.0.0"]);
     assert_eq!(
-        env.instance_toml()["mods"]["pwc.hotbar"].as_str(),
+        env.instance_toml()["modules"]["pwc.hotbar"].as_str(),
         Some("=1.0.0")
     );
     assert!(
         env.locked()
             .contains(&("pwc.hotbar".to_owned(), "1.0.0".to_owned()))
     );
-    env.ok(&["mod", "update", "pwc.hotbar"]);
+    env.ok(&["module", "update", "pwc.hotbar"]);
     assert!(
         env.locked()
             .contains(&("pwc.hotbar".to_owned(), "1.0.0".to_owned()))
@@ -615,52 +625,55 @@ fn mod_add_remove_update_list_lock_env() {
     assert_ne!(env.ok(&["env"]).stdout, environment);
 
     // Removing the pin keeps the locked version (conservative) until an update.
-    env.ok(&["mod", "remove", "pwc.hotbar"]);
+    env.ok(&["module", "remove", "pwc.hotbar"]);
     assert!(
         env.locked()
             .contains(&("pwc.hotbar".to_owned(), "1.0.0".to_owned()))
     );
-    env.ok(&["mod", "update"]);
+    env.ok(&["module", "update"]);
     assert!(
         env.locked()
             .contains(&("pwc.hotbar".to_owned(), "1.1.0".to_owned()))
     );
-    env.fail(&["mod", "update", "pwc.unknown"]);
+    env.fail(&["module", "update", "pwc.unknown"]);
 
     // Failures leave instance.toml untouched.
     let before =
         std::fs::read_to_string(env.instance_dir("default").join("instance.toml")).unwrap();
-    let unknown = env.fail(&["mod", "add", "pwc.nope"]);
+    let unknown = env.fail(&["module", "add", "pwc.nope"]);
     assert!(unknown.stderr.contains("pwc.nope"), "{}", unknown.stderr);
     assert_eq!(
         std::fs::read_to_string(env.instance_dir("default").join("instance.toml")).unwrap(),
         before
     );
-    let indirect = env.fail(&["mod", "remove", "pwc.inventory"]);
+    let indirect = env.fail(&["module", "remove", "pwc.inventory"]);
     assert!(
-        indirect.stderr.contains("dependency of another mod"),
+        indirect.stderr.contains("dependency of another module"),
         "{}",
         indirect.stderr
     );
-    env.fail(&["mod", "add", "Not An Id"]);
-    env.fail(&["mod", "add", "./missing-dir"]);
+    env.fail(&["module", "add", "Not An Id"]);
+    env.fail(&["module", "add", "./missing-dir"]);
 
-    env.ok(&["mod", "remove", "pwc.essentials"]);
+    env.ok(&["module", "remove", "pwc.essentials"]);
     assert!(env.locked().is_empty());
-    assert!(env.ok(&["mod", "list"]).stderr.contains("No mods"));
+    assert!(env.ok(&["module", "list"]).stderr.contains("No modules"));
 }
 
 #[test]
-fn mod_add_accepts_source_directories_and_archives() {
+fn module_add_accepts_source_directories_and_archives() {
     let env = Env::new();
     env.with_instance();
 
     // A relative source directory is stored as an absolute path.
-    let dev = env.work.join("dev-mod");
-    write_mod(&dev, "me.dev", "0.1.0", "mod", &[("pwc.hotbar", "^1.0")]);
-    env.ok(&["mod", "add", "dev-mod"]);
-    let mods = env.instance_toml()["mods"].clone();
-    assert_eq!(mods["me.dev"]["path"].as_str(), Some(dev.to_str().unwrap()));
+    let dev = env.work.join("dev-module");
+    write_module(&dev, "me.dev", "0.1.0", "module", &[("pwc.hotbar", "^1.0")]);
+    env.ok(&["module", "add", "dev-module"]);
+    let modules = env.instance_toml()["modules"].clone();
+    assert_eq!(
+        modules["me.dev"]["path"].as_str(),
+        Some(dev.to_str().unwrap())
+    );
     assert!(
         env.locked()
             .contains(&("me.dev".to_owned(), "0.1.0".to_owned()))
@@ -678,12 +691,12 @@ fn mod_add_accepts_source_directories_and_archives() {
     );
 
     let src = env.root.join("archived");
-    write_mod(&src, "me.archived", "2.0.0", "mod", &[]);
+    write_module(&src, "me.archived", "2.0.0", "module", &[]);
     let out = env.ok(&["package", "build", src.to_str().unwrap()]);
     let file = out.stdout.split("  ").nth(1).unwrap().trim().to_owned();
-    env.ok(&["mod", "add", &file]);
+    env.ok(&["module", "add", &file]);
     assert_eq!(
-        env.instance_toml()["mods"]["me.archived"]["file"].as_str(),
+        env.instance_toml()["modules"]["me.archived"]["file"].as_str(),
         Some(file.as_str())
     );
     assert!(
@@ -718,7 +731,7 @@ fn search_and_info() {
     assert_eq!(lines.len(), 5, "one row per id:\n{}", search.stdout);
     let hotbar = lines.iter().find(|l| l.starts_with("pwc.hotbar")).unwrap();
     assert!(
-        hotbar.contains("1.1.0") && hotbar.contains("mod"),
+        hotbar.contains("1.1.0") && hotbar.contains("module"),
         "newest version: {hotbar}"
     );
 
@@ -738,11 +751,11 @@ fn search_and_info() {
     );
     let v11 = info
         .stdout
-        .find("pwc.hotbar 1.1.0 (mod)")
+        .find("pwc.hotbar 1.1.0 (module)")
         .expect("1.1.0 listed");
     let v10 = info
         .stdout
-        .find("pwc.hotbar 1.0.0 (mod)")
+        .find("pwc.hotbar 1.0.0 (module)")
         .expect("1.0.0 listed");
     assert!(v11 < v10, "newest first:\n{}", info.stdout);
     let inventory = env.ok(&["info", "pwc.inventory"]);
@@ -762,7 +775,7 @@ fn store_list_verify_gc() {
     let env = Env::new();
     env.with_instance();
     assert!(env.ok(&["store", "list"]).stderr.contains("empty"));
-    env.ok(&["mod", "add", "pwc.essentials"]);
+    env.ok(&["module", "add", "pwc.essentials"]);
 
     let list = env.ok(&["store", "list"]);
     let rows: Vec<&str> = list.stdout.lines().skip(1).collect();
@@ -780,7 +793,7 @@ fn store_list_verify_gc() {
     // Still referenced: nothing to collect.
     assert!(env.ok(&["store", "gc"]).stdout.is_empty());
 
-    env.ok(&["mod", "remove", "pwc.essentials"]);
+    env.ok(&["module", "remove", "pwc.essentials"]);
     let dry = env.ok(&["store", "gc", "--dry-run"]);
     assert_eq!(
         dry.stdout
@@ -886,7 +899,7 @@ esac
     fn build_cache_run_and_clean() {
         let env = Env::new();
         env.with_instance();
-        env.ok(&["mod", "add", "pwc.essentials"]);
+        env.ok(&["module", "add", "pwc.essentials"]);
         let log = install_fake_toolchain(&env);
 
         let first = env.ok(&["build"]);
@@ -1034,16 +1047,16 @@ esac
     fn build_relocks_when_a_path_package_changes() {
         let env = Env::new();
         env.with_instance();
-        let dev = env.root.join("dev-mod");
-        write_mod(&dev, "me.dev", "0.1.0", "mod", &[]);
-        env.ok(&["mod", "add", dev.to_str().unwrap()]);
+        let dev = env.root.join("dev-module");
+        write_module(&dev, "me.dev", "0.1.0", "module", &[]);
+        env.ok(&["module", "add", dev.to_str().unwrap()]);
         let log = install_fake_toolchain(&env);
         let before = env.ok(&["env"]).stdout;
         let first = env.ok(&["build"]).stdout;
 
         write(
             &dev.join("src/lib.rs"),
-            "pub fn register(_r: &mut pwc_mod_api::ModRegistrar) { /* edited */ }\n",
+            "pub fn register(_r: &mut pwc_module_api::ModuleRegistrar) { /* edited */ }\n",
         );
         let second = env.ok(&["build"]);
         assert_ne!(
@@ -1057,4 +1070,67 @@ esac
         );
         assert_eq!(std::fs::read_to_string(&log).unwrap().lines().count(), 2);
     }
+}
+
+#[test]
+fn the_older_spellings_still_work() {
+    let env = Env::new();
+    env.with_instance();
+
+    // `pwc mod …` is an alias of `pwc module …`.
+    env.ok(&["mod", "add", "pwc.hotbar"]);
+    assert!(env.ok(&["mod", "list"]).stdout.contains("pwc.hotbar"));
+
+    // An older `[mods]` table in instance.toml is read, and rewritten as `[modules]`.
+    let path = env.instance_dir("default").join("instance.toml");
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(
+        text.contains("[modules]") && !text.contains("[mods]"),
+        "{text}"
+    );
+    std::fs::write(&path, text.replace("[modules]", "[mods]")).unwrap();
+    assert!(env.ok(&["module", "list"]).stdout.contains("pwc.hotbar"));
+    env.ok(&["module", "add", "pwc.names"]);
+    let rewritten = std::fs::read_to_string(&path).unwrap();
+    assert!(
+        rewritten.contains("[modules]") && !rewritten.contains("[mods]"),
+        "{rewritten}"
+    );
+
+    // An older source directory (`mod.toml`, `kind = "mod"`) checks, packs to `.pwcmodule`, and
+    // the archive keeps `mod.toml`.
+    let old = env.root.join("old-package");
+    write_module(&old, "pwc.old", "1.0.0", "module", &[]);
+    std::fs::rename(old.join("module.toml"), old.join("mod.toml")).unwrap();
+    let text = std::fs::read_to_string(old.join("mod.toml")).unwrap();
+    write(
+        &old.join("mod.toml"),
+        &text.replace("kind = \"module\"", "kind = \"mod\""),
+    );
+    env.ok(&["package", "check", old.to_str().unwrap()]);
+    let out = env.work.join("out");
+    env.ok(&[
+        "package",
+        "build",
+        old.to_str().unwrap(),
+        "--out-dir",
+        out.to_str().unwrap(),
+    ]);
+    let archive = out.join("pwc.old-1.0.0.pwcmodule");
+    assert!(archive.is_file());
+    let inspect = env.ok(&["package", "inspect", archive.to_str().unwrap()]);
+    assert!(inspect.stdout.contains("mod.toml"), "{}", inspect.stdout);
+    // An older `.pwcmod` archive name is read as well.
+    let legacy_name = out.join("pwc.old-1.0.0.pwcmod");
+    std::fs::copy(&archive, &legacy_name).unwrap();
+    env.ok(&["package", "verify", legacy_name.to_str().unwrap()]);
+
+    // Both manifests in one directory is an error naming both.
+    std::fs::write(old.join("module.toml"), "x").unwrap();
+    let both = env.fail(&["package", "check", old.to_str().unwrap()]);
+    assert!(
+        both.stderr.contains("module.toml") && both.stderr.contains("mod.toml"),
+        "{}",
+        both.stderr
+    );
 }

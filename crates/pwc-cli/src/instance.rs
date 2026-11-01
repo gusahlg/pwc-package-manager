@@ -1,4 +1,4 @@
-//! `pwc instance …`, `pwc mod …`, `pwc lock`, `pwc env`.
+//! `pwc instance …`, `pwc module …`, `pwc lock`, `pwc env`.
 
 use std::collections::BTreeSet;
 use std::io::{BufRead as _, IsTerminal as _, Write as _};
@@ -7,7 +7,8 @@ use std::path::Path;
 use anyhow::{Context as _, Result, bail};
 use pwc_instance::{Instance, LockOptions, LockReport, PwcSource, lock_instance};
 use pwc_manifest::{
-    InstanceManifest, InstanceName, ModManifest, ModRequirement, ModSource, PackageId, VersionReq,
+    InstanceManifest, InstanceName, ModuleRequirement, ModuleSource, PackageId, PackageManifest,
+    VersionReq,
 };
 use pwc_package::Package;
 
@@ -39,7 +40,7 @@ pub(crate) fn relock(
 }
 
 /// Save `instance` (already modified) and re-lock; on failure restore `original` so a failed
-/// `mod add/remove` leaves `instance.toml` as it was.
+/// `module add/remove` leaves `instance.toml` as it was.
 fn save_and_relock(
     ctx: &Ctx,
     instance: &mut Instance,
@@ -110,13 +111,13 @@ pub(crate) fn list(ctx: &Ctx) -> Result<()> {
             vec![
                 marker.to_owned(),
                 m.name.to_string(),
-                m.mods.len().to_string(),
+                m.modules.len().to_string(),
                 m.pwc.to_string(),
                 m.description.clone().unwrap_or_default(),
             ]
         })
         .collect();
-    print_table(&["", "NAME", "MODS", "PWC", "DESCRIPTION"], &rows);
+    print_table(&["", "NAME", "MODULES", "PWC", "DESCRIPTION"], &rows);
     Ok(())
 }
 
@@ -147,12 +148,12 @@ pub(crate) fn show(ctx: &Ctx, name: Option<&str>) -> Result<()> {
     println!("pwc       {}", m.pwc);
     println!("profile   {}", m.profile.as_str());
     println!();
-    if m.mods.is_empty() {
+    if m.modules.is_empty() {
         println!("requirements: none");
     } else {
         println!("requirements:");
         let rows: Vec<Vec<String>> = m
-            .mods
+            .modules
             .iter()
             .map(|(id, req)| vec![format!("  {id}"), requirement(req)])
             .collect();
@@ -169,7 +170,7 @@ pub(crate) fn show(ctx: &Ctx, name: Option<&str>) -> Result<()> {
                 ""
             };
             println!(
-                "locked: PWC {} (pwc-mod-api {}, revision {}{dirty})",
+                "locked: PWC {} (pwc-module-api {}, revision {}{dirty})",
                 pwc.version, pwc.api, pwc.revision
             );
             println!("environment {}", lock.environment);
@@ -186,7 +187,7 @@ fn print_locked(instance: &Instance, lock: &pwc_manifest::Lockfile) {
         .packages
         .iter()
         .map(|p| {
-            let direct = if instance.manifest.mods.contains_key(&p.id) {
+            let direct = if instance.manifest.modules.contains_key(&p.id) {
                 "*"
             } else {
                 ""
@@ -235,43 +236,48 @@ pub(crate) fn remove(mut ctx: Ctx, name: &str, yes: bool) -> Result<()> {
     Ok(())
 }
 
-/// One `pwc mod add` argument.
-struct ModSpec {
+/// One `pwc module add` argument.
+struct ModuleSpec {
     id: PackageId,
-    requirement: ModRequirement,
+    requirement: ModuleRequirement,
     /// An id without `@req`: written as `^<locked version>` once resolved.
     pin_to_locked: bool,
 }
 
-fn parse_mod_spec(spec: &str) -> Result<ModSpec> {
+fn parse_module_spec(spec: &str) -> Result<ModuleSpec> {
     let path = Path::new(spec);
     if path.exists() {
         let path = canonical(path)?;
         if path.is_dir() {
-            let manifest_path = path.join("mod.toml");
-            let manifest = ModManifest::from_file(&manifest_path)
+            let manifest_path = pwc_manifest::find_manifest_file(&path)?
+                .unwrap_or_else(|| path.join(pwc_manifest::MANIFEST_FILE));
+            let manifest = PackageManifest::from_file(&manifest_path)
                 .with_context(|| format!("{} is not a package source directory", path.display()))?;
-            return Ok(ModSpec {
+            return Ok(ModuleSpec {
                 id: manifest.id().clone(),
-                requirement: ModRequirement {
+                requirement: ModuleRequirement {
                     version: VersionReq::STAR,
-                    source: ModSource::Path(path),
+                    source: ModuleSource::Path(path),
                 },
                 pin_to_locked: false,
             });
         }
         let package = Package::from_archive_file(&path)
-            .with_context(|| format!("{} is not a valid .pwcmod", path.display()))?;
-        return Ok(ModSpec {
+            .with_context(|| format!("{} is not a valid .pwcmodule", path.display()))?;
+        return Ok(ModuleSpec {
             id: package.manifest().id().clone(),
-            requirement: ModRequirement {
+            requirement: ModuleRequirement {
                 version: VersionReq::STAR,
-                source: ModSource::File(path),
+                source: ModuleSource::File(path),
             },
             pin_to_locked: false,
         });
     }
-    if spec.contains('/') || spec.contains(std::path::MAIN_SEPARATOR) || spec.ends_with(".pwcmod") {
+    if spec.contains('/')
+        || spec.contains(std::path::MAIN_SEPARATOR)
+        || spec.ends_with(".pwcmodule")
+        || spec.ends_with(".pwcmod")
+    {
         bail!("{spec}: no such file or directory");
     }
     let (id, req) = match spec.split_once('@') {
@@ -279,31 +285,31 @@ fn parse_mod_spec(spec: &str) -> Result<ModSpec> {
         None => (spec, None),
     };
     let id = PackageId::parse(id).with_context(|| {
-        format!("`{spec}` is not a package id, id@requirement, source directory or .pwcmod file")
+        format!("`{spec}` is not a package id, id@requirement, source directory or .pwcmodule file")
     })?;
     let version = match req {
         Some(req) => VersionReq::parse(req)
             .with_context(|| format!("invalid version requirement `{req}`"))?,
         None => VersionReq::STAR,
     };
-    Ok(ModSpec {
+    Ok(ModuleSpec {
         id,
-        requirement: ModRequirement {
+        requirement: ModuleRequirement {
             version,
-            source: ModSource::Registry,
+            source: ModuleSource::Registry,
         },
         pin_to_locked: req.is_none(),
     })
 }
 
-pub(crate) fn mod_add(ctx: &Ctx, specs: &[String]) -> Result<()> {
+pub(crate) fn module_add(ctx: &Ctx, specs: &[String]) -> Result<()> {
     let mut instance = ctx.open_instance(None)?;
     let original = instance.manifest.clone();
     let mut added = Vec::new();
     for spec in specs {
-        let spec = parse_mod_spec(spec)?;
+        let spec = parse_module_spec(spec)?;
         added.push((spec.id.clone(), spec.pin_to_locked));
-        instance.manifest.mods.insert(spec.id, spec.requirement);
+        instance.manifest.modules.insert(spec.id, spec.requirement);
     }
     let report = save_and_relock(ctx, &mut instance, original)?;
     let mut pinned = false;
@@ -311,7 +317,7 @@ pub(crate) fn mod_add(ctx: &Ctx, specs: &[String]) -> Result<()> {
         if *pin && let Some(locked) = report.lock.package(id) {
             let req = VersionReq::parse(&format!("^{}", locked.version))
                 .context("cannot pin the locked version")?;
-            if let Some(entry) = instance.manifest.mods.get_mut(id) {
+            if let Some(entry) = instance.manifest.modules.get_mut(id) {
                 entry.version = req;
                 pinned = true;
             }
@@ -323,7 +329,7 @@ pub(crate) fn mod_add(ctx: &Ctx, specs: &[String]) -> Result<()> {
     for (id, _) in &added {
         let req = instance
             .manifest
-            .mods
+            .modules
             .get(id)
             .map(requirement)
             .unwrap_or_default();
@@ -333,20 +339,20 @@ pub(crate) fn mod_add(ctx: &Ctx, specs: &[String]) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn mod_remove(ctx: &Ctx, ids: &[String]) -> Result<()> {
+pub(crate) fn module_remove(ctx: &Ctx, ids: &[String]) -> Result<()> {
     let mut instance = ctx.open_instance(None)?;
     let original = instance.manifest.clone();
     for id in ids {
         let id = PackageId::parse(id).with_context(|| format!("`{id}` is not a package id"))?;
-        if instance.manifest.mods.remove(&id).is_none() {
+        if instance.manifest.modules.remove(&id).is_none() {
             let hint = match instance.lockfile().ok().flatten() {
                 Some(lock) if lock.package(&id).is_some() => {
-                    " (it is locked as a dependency of another mod)"
+                    " (it is locked as a dependency of another module)"
                 }
                 _ => "",
             };
             bail!(
-                "`{id}` is not a mod of instance `{}`{hint}",
+                "`{id}` is not a module of instance `{}`{hint}",
                 instance.manifest.name
             );
         }
@@ -359,14 +365,14 @@ pub(crate) fn mod_remove(ctx: &Ctx, ids: &[String]) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn mod_update(ctx: &Ctx, ids: &[String]) -> Result<()> {
+pub(crate) fn module_update(ctx: &Ctx, ids: &[String]) -> Result<()> {
     let instance = ctx.open_instance(None)?;
     let mut update = BTreeSet::new();
     if !ids.is_empty() {
         let lock = instance.lockfile()?;
         for id in ids {
             let id = PackageId::parse(id).with_context(|| format!("`{id}` is not a package id"))?;
-            let known = instance.manifest.mods.contains_key(&id)
+            let known = instance.manifest.modules.contains_key(&id)
                 || lock.as_ref().is_some_and(|l| l.package(&id).is_some());
             if !known {
                 bail!(
@@ -386,7 +392,7 @@ pub(crate) fn mod_update(ctx: &Ctx, ids: &[String]) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn mod_list(ctx: &Ctx) -> Result<()> {
+pub(crate) fn module_list(ctx: &Ctx) -> Result<()> {
     let instance = ctx.open_instance(None)?;
     if let Some(lock) = instance.lockfile()?
         && !lock.packages.is_empty()
@@ -394,14 +400,14 @@ pub(crate) fn mod_list(ctx: &Ctx) -> Result<()> {
         print_locked(&instance, &lock);
         return Ok(());
     }
-    if instance.manifest.mods.is_empty() {
-        ctx.status("No mods (add one with `pwc mod add <id>`).");
+    if instance.manifest.modules.is_empty() {
+        ctx.status("No modules (add one with `pwc module add <id>`).");
         return Ok(());
     }
     ctx.status("Not locked yet (run `pwc lock`); requirements:");
     let rows: Vec<Vec<String>> = instance
         .manifest
-        .mods
+        .modules
         .iter()
         .map(|(id, req)| vec!["*".to_owned(), id.to_string(), requirement(req)])
         .collect();

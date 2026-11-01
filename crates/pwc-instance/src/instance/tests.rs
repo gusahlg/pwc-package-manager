@@ -532,7 +532,7 @@ fn path_entries_are_pinned_and_mutable() {
     );
     inst.save().unwrap();
     // Recorded canonicalised.
-    let resolved_dev = std::fs::canonicalize(&dev).unwrap();
+    let resolved_dev = crate::fsutil::canonicalize(&dev).unwrap();
     assert_eq!(
         inst.source_path(Path::new("../../../../dev/caves")),
         resolved_dev
@@ -661,7 +661,7 @@ fn file_entries() {
     let seasons = report.lock.package(&pid("t.seasons")).unwrap();
     assert_eq!(
         seasons.source,
-        PackageSource::File(std::fs::canonicalize(&file).unwrap())
+        PackageSource::File(crate::fsutil::canonicalize(&file).unwrap())
     );
     assert_eq!(seasons.hash, *pkg.hash());
     assert!(e.store().verify(pkg.hash()).unwrap());

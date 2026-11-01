@@ -285,6 +285,9 @@ fn forbidden_files_inside_the_trees() {
         ("data/sub/.DS_Store", b""),
         ("src/.git/config", b""),
         ("assets/build.rs/inner.txt", b""),
+        ("src/Build.rs", b"fn main() {}"),
+        ("src/nested/CARGO.TOML", b"[package]"),
+        ("assets/cargo.lock", b""),
     ] {
         let dir = sample_dir();
         write(dir.path(), path, bytes);
@@ -579,6 +582,15 @@ fn from_files_path_rules() {
         "",
         "src/a\nb.rs",
         "src/nul\0.rs",
+        "C:/x",
+        "C:/Windows/notepad.exe",
+        "assets/file:stream",
+        "src/con.txt",
+        "src/NUL.tar.gz",
+        "data/com1.bin",
+        "assets/foo.",
+        "assets/foo ",
+        "src/a<b.rs",
     ] {
         let mut files = sample_files();
         files.push(file(bad, b"x"));
@@ -606,6 +618,51 @@ fn from_files_rejects_duplicates_and_file_directory_clashes() {
     let mut files = sample_files();
     files.push(file("src/ui", b"a file where a directory is"));
     assert_forbidden(Package::from_files(files), "src/ui");
+
+    // Case-only collisions are rejected before anything is written, including a file that
+    // would be a directory on a case-insensitive filesystem.
+    let mut files = sample_files();
+    files.push(file("assets/Icon.svg", b"<svg/>"));
+    let err = Package::from_files(files).unwrap_err();
+    assert!(err.to_string().contains("case-insensitive"), "{err}");
+    let mut files = sample_files();
+    files.push(file("src/UI", b"a file where a directory is"));
+    assert_forbidden(Package::from_files(files), "src/UI");
+    let mut files = sample_files();
+    files.push(file("SRC/A/leaf.rs", b""));
+    files.push(file("src/a", b"file and directory, ignoring case"));
+    assert_forbidden(Package::from_files(files), "src/a");
+}
+
+#[test]
+fn extraction_rejects_paths_that_leave_the_destination() {
+    let root = Path::new("/tmp/pwc-dest");
+    let ok = contained_path(root, "src/lib.rs").unwrap();
+    assert_eq!(ok, root.join("src").join("lib.rs"));
+    assert!(ok.starts_with(root));
+    for bad in [
+        "C:/x",
+        "C:/Windows/System32/drivers/etc/hosts",
+        "c:/x",
+        "C:x",
+        r"\\server\share\x",
+        "../outside",
+        "src/../../etc/passwd",
+        "src/con.txt",
+        "assets/NUL.tar.gz",
+        "foo:bar",
+        "foo.",
+        "foo ",
+        "a<b",
+        "has|pipe",
+        "wild?.txt",
+        "star*.txt",
+    ] {
+        assert!(
+            contained_path(root, bad).is_err(),
+            "{bad:?} must not be joined onto the destination"
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------------------------

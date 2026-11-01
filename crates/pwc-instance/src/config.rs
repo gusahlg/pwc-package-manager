@@ -19,7 +19,8 @@ pub struct RepositoryConfig {
 /// How Cargo is invoked.
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub enum Wrapper {
-    /// `nix develop <pwc> --command` when the PWC source has a flake and `nix` is on `PATH`.
+    /// On Unix, `nix develop <pwc> --command` when the PWC source has a flake and `nix` is on
+    /// `PATH`. On Windows this never selects a wrapper.
     #[default]
     Auto,
     /// This prefix verbatim (`{pwc}` expands to the PWC source). Empty = run cargo directly.
@@ -195,9 +196,11 @@ impl Config {
 
     /// The resolved wrapper prefix for building against `pwc_source` (empty = none).
     ///
-    /// `Auto` wraps with `nix develop <pwc_source> --command` when `<pwc_source>/flake.nix` exists
-    /// and `nix` is on `PATH` (also inside another Nix shell: the game's shell provides its native
-    /// libraries). `PWC_NO_WRAPPER` set to anything but `0` disables every wrapper.
+    /// `Auto` wraps with `nix develop <pwc_source> --command` on Unix when
+    /// `<pwc_source>/flake.nix` exists and `nix` is on `PATH` (also inside another Nix shell: the
+    /// game's shell provides its native libraries). Windows never auto-selects that wrapper.
+    /// An explicit command list is used on every platform. `PWC_NO_WRAPPER` set to anything but
+    /// `0` disables every wrapper.
     pub fn wrapper_command(&self, pwc_source: &Path) -> Vec<String> {
         self.wrapper_command_with(pwc_source, |name| std::env::var_os(name))
     }
@@ -208,13 +211,27 @@ impl Config {
         pwc_source: &Path,
         var: impl Fn(&str) -> Option<OsString>,
     ) -> Vec<String> {
+        self.wrapper_command_for(pwc_source, cfg!(windows), var)
+    }
+
+    fn wrapper_command_for(
+        &self,
+        pwc_source: &Path,
+        windows: bool,
+        var: impl Fn(&str) -> Option<OsString>,
+    ) -> Vec<String> {
         if var(NO_WRAPPER_VAR).is_some_and(|v| !v.is_empty() && v != "0") {
             return Vec::new();
         }
         let pwc = pwc_source.to_string_lossy();
         match &self.wrapper {
             Wrapper::Auto => {
-                if pwc_source.join("flake.nix").is_file() && on_path("nix", var("PATH")) {
+                // `nix develop` is not how a Windows checkout gets its toolchain.
+                if windows {
+                    Vec::new()
+                } else if pwc_source.join("flake.nix").is_file()
+                    && on_path("nix", var("PATH"), false)
+                {
                     vec![
                         "nix".into(),
                         "develop".into(),
@@ -244,25 +261,58 @@ fn quote(s: &str) -> String {
 }
 
 /// Whether an executable `program` exists in a directory of `path_var`.
-fn on_path(program: &str, path_var: Option<OsString>) -> bool {
+///
+/// On Windows the lookup is `<program>.exe` only (or `program` itself when it already ends in
+/// `.exe`). `.cmd` and `.bat` are not run: they are shell scripts, and `PATHEXT` would hide which
+/// file actually started.
+fn on_path(program: &str, path_var: Option<OsString>, windows: bool) -> bool {
     let Some(path_var) = path_var else {
         return false;
     };
     std::env::split_paths(&path_var).any(|dir| {
-        let candidate = dir.join(program);
+        let candidate = if windows {
+            let Some(name) = windows_executable_name(program) else {
+                return false;
+            };
+            dir.join(name)
+        } else {
+            dir.join(program)
+        };
         let Ok(meta) = std::fs::metadata(&candidate) else {
             return false;
         };
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            meta.is_file() && meta.permissions().mode() & 0o111 != 0
-        }
-        #[cfg(not(unix))]
-        {
+        if windows {
             meta.is_file()
+        } else {
+            executable_file(&meta)
         }
     })
+}
+
+/// File name to search for on Windows, or `None` when `program` is not a bare `.exe` name.
+fn windows_executable_name(program: &str) -> Option<String> {
+    if program.is_empty() || program.contains(['/', '\\']) {
+        return None;
+    }
+    match program.rsplit_once('.') {
+        Some((stem, ext)) if !stem.is_empty() && ext.eq_ignore_ascii_case("exe") => {
+            Some(program.to_string())
+        }
+        Some(_) => None,
+        None => Some(format!("{program}.exe")),
+    }
+}
+
+fn executable_file(meta: &std::fs::Metadata) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        meta.is_file() && meta.permissions().mode() & 0o111 != 0
+    }
+    #[cfg(not(unix))]
+    {
+        meta.is_file()
+    }
 }
 
 #[cfg(test)]
@@ -437,7 +487,7 @@ jobs = 0                                                  # 0 = Cargo's default
 
         // No flake: no wrapper.
         assert!(
-            c.wrapper_command_with(&pwc, env(&[("PATH", path_var.clone())]))
+            c.wrapper_command_for(&pwc, false, env(&[("PATH", path_var.clone())]))
                 .is_empty()
         );
 
@@ -449,7 +499,7 @@ jobs = 0                                                  # 0 = Cargo's default
             "--command".into(),
         ];
         assert_eq!(
-            c.wrapper_command_with(&pwc, env(&[("PATH", path_var.clone())])),
+            c.wrapper_command_for(&pwc, false, env(&[("PATH", path_var.clone())])),
             expected
         );
         // Inside a Nix shell too.
@@ -465,8 +515,12 @@ jobs = 0                                                  # 0 = Cargo's default
         );
         // No nix on PATH.
         assert!(
-            c.wrapper_command_with(&pwc, env(&[("PATH", tmp.path().join("nowhere").into())]))
-                .is_empty()
+            c.wrapper_command_for(
+                &pwc,
+                false,
+                env(&[("PATH", tmp.path().join("nowhere").into())])
+            )
+            .is_empty()
         );
         assert!(c.wrapper_command_with(&pwc, env(&[])).is_empty());
         // Disabled.
@@ -513,5 +567,93 @@ jobs = 0                                                  # 0 = Cargo's default
         assert!(direct.wrapper_command_with(pwc, env(&[])).is_empty());
         // The real environment does not panic.
         let _ = c.wrapper_command(pwc);
+    }
+
+    #[test]
+    fn windows_does_not_auto_select_nix() {
+        let tmp = tempfile::tempdir().unwrap();
+        let pwc = tmp.path().join("pwc");
+        let bin = tmp.path().join("bin");
+        std::fs::create_dir_all(&pwc).unwrap();
+        std::fs::create_dir_all(&bin).unwrap();
+        std::fs::write(pwc.join("flake.nix"), "{}").unwrap();
+        std::fs::write(bin.join("nix.exe"), "MZ").unwrap();
+        let path_var = std::env::join_paths([bin]).unwrap();
+        let auto = Config::default();
+        assert!(
+            auto.wrapper_command_for(&pwc, true, env(&[("PATH", path_var)]))
+                .is_empty()
+        );
+
+        let explicit = Config {
+            wrapper: Wrapper::Command(vec![
+                "nix".into(),
+                "develop".into(),
+                "{pwc}".into(),
+                "--command".into(),
+            ]),
+            ..Config::default()
+        };
+        assert_eq!(
+            explicit.wrapper_command_for(&pwc, true, env(&[])),
+            [
+                "nix",
+                "develop",
+                pwc.to_string_lossy().as_ref(),
+                "--command"
+            ]
+        );
+        assert!(
+            explicit
+                .wrapper_command_for(&pwc, true, env(&[(NO_WRAPPER_VAR, "1".into())]))
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn windows_discovers_only_exe() {
+        let tmp = tempfile::tempdir().unwrap();
+        let bin = tmp.path().join("bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        std::fs::write(bin.join("nix"), "#!/bin/sh\n").unwrap();
+        std::fs::write(bin.join("nix.cmd"), "@echo off\n").unwrap();
+        std::fs::write(bin.join("nix.bat"), "@echo off\n").unwrap();
+        let path_var = std::env::join_paths([bin.clone()]).unwrap();
+        let path = Some(path_var);
+
+        assert!(
+            !on_path("nix", path.clone(), true),
+            "extensionless nix is not .exe"
+        );
+        assert!(!on_path("nix.cmd", path.clone(), true));
+        assert!(!on_path("nix.bat", path.clone(), true));
+        assert!(
+            !on_path("nix.exe", path.clone(), true),
+            "nix.exe is not there yet"
+        );
+        assert!(!on_path("nix", None, true));
+
+        std::fs::write(bin.join("nix.exe"), "MZ").unwrap();
+        assert!(on_path("nix", path.clone(), true));
+        assert!(on_path("nix.exe", path.clone(), true));
+        // A caller that already passed an `.exe` name is looked up as that exact file.
+        assert_eq!(
+            on_path("nix.EXE", path.clone(), true),
+            bin.join("nix.EXE").is_file()
+        );
+        assert!(!on_path("foo/nix", path.clone(), true));
+        assert!(!on_path("", path.clone(), true));
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert!(
+                !on_path("nix", path.clone(), false),
+                "unix lookup requires the executable bit"
+            );
+            std::fs::set_permissions(bin.join("nix"), std::fs::Permissions::from_mode(0o755))
+                .unwrap();
+            assert!(on_path("nix", path, false));
+        }
     }
 }

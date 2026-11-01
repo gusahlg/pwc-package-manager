@@ -17,7 +17,7 @@ mod zstd;
 
 use std::fs;
 use std::io::{self, Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use pwc_manifest::{ManifestError, ModManifest, PackageHash};
 use sha2::{Digest, Sha256};
@@ -220,12 +220,15 @@ impl Package {
     /// Write `<out_dir>/<file_name>` (creating `out_dir` if needed) and return its path. The file is
     /// written under a temporary name and renamed into place, so it is never seen half-written.
     pub fn write_archive(&self, out_dir: &Path) -> Result<PathBuf, PackageError> {
+        let name = self.file_name();
+        // The archive name is one path component (`<id>-<version>.pwcmod`). Reject a reserved
+        // device stem (`con.foo-1.0.0.pwcmod`) before it becomes a file.
+        let path = contained_path(out_dir, &name)?;
         fs::create_dir_all(out_dir).map_err(|source| PackageError::Io {
             path: out_dir.to_path_buf(),
             source,
         })?;
-        let path = out_dir.join(self.file_name());
-        let tmp = out_dir.join(format!(".{}.tmp-{}", self.file_name(), std::process::id()));
+        let tmp = out_dir.join(format!(".{name}.tmp-{}", std::process::id()));
         if let Err(source) = fs::write(&tmp, self.to_archive_bytes()) {
             let _ = fs::remove_file(&tmp);
             return Err(PackageError::Io { path: tmp, source });
@@ -247,6 +250,13 @@ impl Package {
             path: path.to_path_buf(),
             source,
         };
+        // Decide every destination before creating anything, so a path that would leave `dir`
+        // (a drive prefix, `..`, a prefix component) writes nothing.
+        let targets = self
+            .files
+            .iter()
+            .map(|file| contained_path(dir, &file.path))
+            .collect::<Result<Vec<_>, _>>()?;
         match fs::read_dir(dir) {
             Ok(mut entries) => {
                 if entries.next().is_some() {
@@ -264,9 +274,7 @@ impl Package {
             }
             Err(err) => return Err(io_error(dir, err)),
         }
-        for file in &self.files {
-            // Paths are validated: relative, `/`-separated, no `.`/`..` components.
-            let target = dir.join(&file.path);
+        for (file, target) in self.files.iter().zip(targets) {
             if let Some(parent) = target.parent() {
                 fs::create_dir_all(parent).map_err(|source| io_error(parent, source))?;
             }
@@ -280,6 +288,42 @@ impl Package {
         }
         Ok(())
     }
+}
+
+/// `root` plus each `/`-separated component of `relative`.
+///
+/// Components are appended one at a time, and only when each is a single normal path component.
+/// Joining the whole string would let `C:/x` replace `root` on Windows. The result must still
+/// start with `root`. [`pwc_manifest::check_package_path`] is applied again here so extraction
+/// does not trust an earlier check.
+pub(crate) fn contained_path(root: &Path, relative: &str) -> Result<PathBuf, PackageError> {
+    pwc_manifest::check_package_path(relative)
+        .map_err(|reason| contents::forbidden(relative, reason))?;
+    let mut target = root.to_path_buf();
+    for component in relative.split('/') {
+        let part = Path::new(component);
+        let mut parts = part.components();
+        let Some(Component::Normal(name)) = parts.next() else {
+            return Err(contents::forbidden(
+                relative,
+                "the path escapes the destination",
+            ));
+        };
+        if parts.next().is_some() {
+            return Err(contents::forbidden(
+                relative,
+                "the path escapes the destination",
+            ));
+        }
+        target.push(name);
+    }
+    if !target.starts_with(root) {
+        return Err(contents::forbidden(
+            relative,
+            "the path escapes the destination",
+        ));
+    }
+    Ok(target)
 }
 
 /// Why a package was rejected.

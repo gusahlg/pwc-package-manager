@@ -62,15 +62,19 @@ What each step does:
 4. `pwc run` generates a small Cargo workspace for the lock under `~/.cache/pwc/builds/`, builds
    it and runs the game with the instance's own data directory (worlds, settings).
 
-On Windows, the equivalent state root is `%LOCALAPPDATA%\pwc`; no `HOME` or XDG environment
-variables are required. The game build still needs the Rust GNU toolchain and Vulkan SDK available
-to Cargo.
+On Windows the state root is `%LOCALAPPDATA%\pwc` (`data`, `cache` and `config`). `PWC_HOME`
+overrides it, and an absolute `XDG_*_HOME` overrides that one directory; `HOME` is ignored, so a
+Git Bash home cannot redirect the state. `%APPDATA%`, then `%USERPROFILE%\AppData\Local`, are the
+fallbacks when `LOCALAPPDATA` is unset. The game build still needs the Rust GNU toolchain and
+Vulkan SDK available to Cargo.
 
 The first build compiles the whole game and takes as long as a normal release build of PWC.
 Later builds share one Cargo target directory, so only changed crates are recompiled, and an
-unchanged lock reuses the finished executable without invoking Cargo. When `nix` is installed and
-the game checkout has a `flake.nix`, `pwc` runs Cargo inside the game's `nix develop` shell, which
-provides the game's native libraries (`PWC_NO_WRAPPER=1` turns this off).
+unchanged lock reuses the finished executable without invoking Cargo. On Unix, when `nix` is
+installed and the game checkout has a `flake.nix`, `pwc` runs Cargo inside the game's
+`nix develop` shell, which provides the game's native libraries (`PWC_NO_WRAPPER=1` turns this
+off). Windows never selects that wrapper automatically; a wrapper configured in `config.toml`
+still runs.
 
 Other everyday commands:
 

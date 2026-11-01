@@ -53,7 +53,7 @@ anything = "tools may read this; pwc ignores it"
 
 | Key | Required | Rule |
 |---|---|---|
-| `id` | yes | Permanent, namespaced id: two or more dot-separated segments, each `[a-z0-9][a-z0-9-]*`, total ≤ 64 chars, no `--`, no trailing `-`. The first segment is the **namespace** (a person or organisation). `pwc` is reserved for first-party packages. The id never changes; the display name may. |
+| `id` | yes | Permanent, namespaced id: two or more dot-separated segments, each `[a-z0-9][a-z0-9-]*`, total ≤ 64 chars, no `--`, no trailing `-`. The first segment is the **namespace** (a person or organisation). `pwc` is reserved for first-party packages. No segment may be a Windows reserved device name (`con`, `prn`, `aux`, `nul`, `com1`–`com9`, `lpt1`–`lpt9`): the package file is `<id>-<version>.pwcmod`, and Windows treats the text before the first `.` as a device. The id never changes; the display name may. |
 | `name` | yes | Display name, 1–64 chars, no control characters. |
 | `version` | yes | [SemVer 2.0](https://semver.org) version (`1.4.2`, `2.0.0-beta.1`). Build metadata (`+…`) is not allowed. |
 | `description` | yes | One sentence, 1–280 chars, no newlines. |
@@ -116,9 +116,13 @@ assets/**           optional (embed with include_bytes!/include_str!)
 data/**             optional
 ```
 
-Forbidden inside the included paths (an error, not ignored): `build.rs`, `Cargo.toml`,
-`Cargo.lock`, symlinks, hidden files or directories (starting with `.`), files over 32 MiB, more
-than 4096 files, more than 256 MiB in total.
+Forbidden inside the included paths (an error, not ignored): `build.rs`, `Cargo.toml` and
+`Cargo.lock` (ASCII case-insensitive, so `Build.rs` too), symlinks, hidden files or directories
+(starting with `.`), files over 32 MiB, more than 4096 files, more than 256 MiB in total. Paths
+that collide ignoring case, including a file and a directory (`src/A` and `src/a/b.rs`), are
+rejected before anything is written. The path rules in
+[package-format.md](package-format.md#container) apply to every file, including the readme and
+`license-files`.
 
 ## Development workflow
 

@@ -122,7 +122,8 @@ always safe: everything can be rebuilt from the store and the PWC source.
 | `$XDG_CACHE_HOME/pwc/` | `builds/` (generated workspaces, executables), `target/` (shared Cargo target) | Disposable |
 | `$XDG_CONFIG_HOME/pwc/` | `config.toml` | Persistent |
 
-`PWC_HOME` overrides all three roots. See [spec/filesystem.md](spec/filesystem.md).
+`PWC_HOME` overrides all three roots. On Windows, `HOME` is not consulted. See
+[spec/filesystem.md](spec/filesystem.md).
 
 **Everything is determined by its inputs.** The same files produce the same package bytes on every
 machine. The resolver is a pure function. The same lock yields the same environment hash

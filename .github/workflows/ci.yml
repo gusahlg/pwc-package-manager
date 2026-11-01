@@ -48,6 +48,22 @@ jobs:
             cargo run -q --locked -p pwc-cli -- package check "$dir"
           done
 
+  windows:
+    name: Build and test (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --workspace --locked
+
+      - name: Test
+        run: cargo test --workspace --locked
+
   reuse:
     name: REUSE licensing
     runs-on: ubuntu-latest

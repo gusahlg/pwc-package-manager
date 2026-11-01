@@ -23,8 +23,15 @@ the same bytes on every machine:
   mtime `0`. Paths longer than the ustar limit use a PAX `path` extended header, itself written
   deterministically.
 - The stream ends with the two zero blocks tar requires.
-- Paths must be valid UTF-8, relative, without `.` or `..` components, without `\`, and must be
-  part of the package contents defined in [mod-manifest.md](mod-manifest.md#package-contents).
+- Paths must be valid UTF-8, relative, at most 1024 bytes, with `/` separators only. No leading
+  `/`, no `\`, no empty, `.` or `..` components, no `:` in a component (so no `C:`, `C:/...` or
+  `file:stream`), no `< > " | ? *`, no control characters, and no component ending in a dot or a
+  space. A component whose text before the first `.` is a Windows reserved device name (`CON`,
+  `PRN`, `AUX`, `NUL`, `COM1`–`COM9`, `LPT1`–`LPT9`, any ASCII case, so `con.txt` and `nul.tar.gz`
+  too) is rejected. These rules apply on every platform. Two paths that differ only by case, or a
+  file whose path is a directory prefix of another path ignoring case, are rejected before
+  anything is written. Paths must also be part of the package contents defined in
+  [mod-manifest.md](mod-manifest.md#package-contents).
 
 The compression level is not part of the format: readers must accept any valid Zstandard frame.
 
@@ -51,5 +58,9 @@ A reader must, in order:
 3. Find `mod.toml`, parse and validate it (including the licence policy).
 4. Check the contents rules (required files present, nothing forbidden, size limits).
 5. Compute the hash. If the caller expected a hash (lockfile, registry), compare it.
+
+Unpacking appends each path component on its own and refuses a result that is not inside the
+destination directory. A drive-qualified path such as `C:/x` is rejected by the path rule above
+and again at extraction, because joining it would replace the destination on Windows.
 
 Any failure rejects the whole package; nothing is partially installed.

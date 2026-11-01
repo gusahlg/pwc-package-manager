@@ -17,6 +17,9 @@ use crate::{
 const TARGET_LOCK: &str = ".pwc-build.lock";
 
 /// `program` behind `wrapper` (`[]` = run it directly; otherwise `wrapper[0] wrapper[1..] program`).
+///
+/// This does not hide a console window. `pwc run` launches the game through it, and the game is
+/// a console program. Toolchain processes use [`tool_command`].
 pub fn wrapped_command(wrapper: &[String], program: impl AsRef<OsStr>) -> Command {
     match wrapper.split_first() {
         Some((first, rest)) => {
@@ -28,6 +31,24 @@ pub fn wrapped_command(wrapper: &[String], program: impl AsRef<OsStr>) -> Comman
     }
 }
 
+/// [`wrapped_command`] for a toolchain process (`git` is not spawned here; `rustc`, `cargo` and
+/// whatever wrapper prefix is configured). On Windows the process is created with
+/// `CREATE_NO_WINDOW`, so Cargo does not open a console of its own.
+pub(crate) fn tool_command(wrapper: &[String], program: impl AsRef<OsStr>) -> Command {
+    let command = wrapped_command(wrapper, program);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt as _;
+        /// `CREATE_NO_WINDOW`.
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let mut command = command;
+        command.creation_flags(CREATE_NO_WINDOW);
+        return command;
+    }
+    #[cfg(not(windows))]
+    command
+}
+
 /// Human-readable form of a wrapped invocation, for error messages.
 fn describe(wrapper: &[String], program: &str) -> String {
     let mut parts: Vec<&str> = wrapper.iter().map(String::as_str).collect();
@@ -37,7 +58,7 @@ fn describe(wrapper: &[String], program: &str) -> String {
 
 pub(crate) fn rustc_info(wrapper: &[String]) -> Result<(String, String), BuildError> {
     let what = describe(wrapper, "rustc -vV");
-    let output = wrapped_command(wrapper, "rustc")
+    let output = tool_command(wrapper, "rustc")
         .arg("-vV")
         .stdin(Stdio::null())
         .stderr(Stdio::piped())
@@ -64,9 +85,31 @@ pub(crate) fn rustc_info(wrapper: &[String]) -> Result<(String, String), BuildEr
     })
 }
 
+/// Turn CR LF and a bare CR into LF. Text that is already LF is returned unchanged, so a Unix
+/// toolchain's Build ID does not move.
+pub(crate) fn normalize_line_endings(text: &str) -> std::borrow::Cow<'_, str> {
+    if !text.contains('\r') {
+        return std::borrow::Cow::Borrowed(text);
+    }
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\r' {
+            if chars.peek() == Some(&'\n') {
+                chars.next();
+            }
+            out.push('\n');
+        } else {
+            out.push(c);
+        }
+    }
+    std::borrow::Cow::Owned(out)
+}
+
 /// Split `rustc -vV` output (possibly preceded by wrapper noise) into (output from the `rustc `
-/// line on, host triple).
+/// line on, host triple). Line endings are normalized to LF first.
 pub(crate) fn parse_rustc_verbose(stdout: &str) -> Option<(String, String)> {
+    let stdout = normalize_line_endings(stdout);
     let start = stdout
         .match_indices("rustc ")
         .map(|(i, _)| i)
@@ -90,7 +133,81 @@ fn profile_dir(profile: BuildProfile) -> &'static str {
     }
 }
 
+/// `<target-dir>/<profile>`, or `<target-dir>/<triple>/<profile>` when Cargo was given `--target`.
+pub(crate) fn artifact_dir(
+    target_dir: &Path,
+    profile: BuildProfile,
+    explicit_target: Option<&str>,
+) -> std::path::PathBuf {
+    match explicit_target {
+        Some(triple) => target_dir.join(triple).join(profile_dir(profile)),
+        None => target_dir.join(profile_dir(profile)),
+    }
+}
+
+/// `CARGO_BUILD_TARGET` when it names a plain target triple. Blank is unset.
+///
+/// A path, a space or `..` is rejected: Cargo would then write artifacts somewhere other than
+/// the directory this function's caller looks in.
+pub(crate) fn parse_cargo_build_target(
+    value: Option<&str>,
+) -> Result<Option<String>, &'static str> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    let triple = value.trim();
+    if triple.is_empty() {
+        return Ok(None);
+    }
+    if !is_target_triple(triple) {
+        return Err(
+            "CARGO_BUILD_TARGET must be a target triple of ASCII letters, digits, `_`, `-` and `.` (no paths, spaces or `..`)",
+        );
+    }
+    Ok(Some(triple.to_string()))
+}
+
+fn is_target_triple(triple: &str) -> bool {
+    let bytes = triple.as_bytes();
+    (1..=256).contains(&bytes.len())
+        && bytes
+            .iter()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-' | b'.'))
+        && !triple.split('.').any(str::is_empty)
+}
+
+pub(crate) fn explicit_build_target(
+    value: Option<&str>,
+) -> Result<Option<String>, crate::BuildError> {
+    parse_cargo_build_target(value)
+        .map_err(|reason| crate::BuildError::Toolchain(reason.to_string()))
+}
+
+/// The `CARGO_BUILD_TARGET` of this process, parsed.
+pub(crate) fn cargo_build_target_from_env() -> Result<Option<String>, crate::BuildError> {
+    let value = match std::env::var("CARGO_BUILD_TARGET") {
+        Ok(value) => Some(value),
+        Err(std::env::VarError::NotPresent) => None,
+        Err(std::env::VarError::NotUnicode(_)) => {
+            return Err(crate::BuildError::Toolchain(
+                "CARGO_BUILD_TARGET is not valid Unicode".into(),
+            ));
+        }
+    };
+    explicit_build_target(value.as_deref())
+}
+
 pub(crate) fn compile(request: &BuildRequest, prepared: &PreparedBuild) -> Result<(), BuildError> {
+    let explicit = cargo_build_target_from_env()?;
+    if let Some(triple) = &explicit
+        && triple != &prepared.target
+    {
+        return Err(crate::BuildError::Toolchain(format!(
+            "CARGO_BUILD_TARGET is `{triple}`, but this build was prepared for target `{}`",
+            prepared.target
+        )));
+    }
+
     let target_dir = absolute(&request.target_dir)?;
     std::fs::create_dir_all(&target_dir).map_err(io_err(&target_dir))?;
     let lock_path = target_dir.join(TARGET_LOCK);
@@ -103,7 +220,7 @@ pub(crate) fn compile(request: &BuildRequest, prepared: &PreparedBuild) -> Resul
     lock.lock().map_err(io_err(&lock_path))?;
 
     let manifest = prepared.dir.join("Cargo.toml");
-    let mut command = wrapped_command(&request.wrapper, "cargo");
+    let mut command = tool_command(&request.wrapper, "cargo");
     command
         .arg("build")
         .arg("--manifest-path")
@@ -117,6 +234,9 @@ pub(crate) fn compile(request: &BuildRequest, prepared: &PreparedBuild) -> Resul
     }
     if request.jobs > 0 {
         command.arg("-j").arg(request.jobs.to_string());
+    }
+    if let Some(triple) = &explicit {
+        command.arg("--target").arg(triple);
     }
     // Cargo's own output goes to stderr (stdout is for results such as the executable path); the
     // working directory is the build directory so no stray `.cargo/config.toml` applies.
@@ -136,7 +256,7 @@ pub(crate) fn compile(request: &BuildRequest, prepared: &PreparedBuild) -> Resul
         )));
     }
 
-    let from = target_dir.join(profile_dir(request.profile));
+    let from = artifact_dir(&target_dir, request.profile, explicit.as_deref());
     install(
         &from.join(exe_name(GAME_BIN)),
         &bin_path(&prepared.dir, GAME_BIN),

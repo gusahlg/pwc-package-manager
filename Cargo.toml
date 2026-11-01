@@ -22,6 +22,7 @@ pwc-builder = { path = "crates/pwc-builder", version = "0.2.0" }
 # External crates. Pure Rust only: no C toolchain is needed to build the tooling.
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
+dunce = "1"
 ruzstd = "0.8"
 semver = { version = "1", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }

@@ -162,6 +162,11 @@ fn check_id(s: &str) -> Result<(), &'static str> {
         if segment.contains("--") {
             return Err("a package id must not contain `--`");
         }
+        if crate::text::is_reserved_windows_device(segment) {
+            return Err(
+                "a package id must not use a Windows reserved device name (`con`, `prn`, `aux`, `nul`, `com1`-`com9`, `lpt1`-`lpt9`) as a segment; the archive file is `<id>-<version>.pwcmod`",
+            );
+        }
     }
     Ok(())
 }
@@ -184,6 +189,11 @@ fn check_instance_name(s: &str) -> Result<(), &'static str> {
     {
         return Err("an instance name may only contain lowercase ASCII letters, digits and `-`");
     }
+    if crate::text::is_reserved_windows_device(s) {
+        return Err(
+            "an instance name must not be a Windows reserved device name (`con`, `prn`, `aux`, `nul`, `com1`-`com9`, `lpt1`-`lpt9`); it is a directory name",
+        );
+    }
     Ok(())
 }
 
@@ -202,6 +212,10 @@ mod tests {
             "a1.b2.c3",
             "foo.bar-baz.qux-2",
             "x.y-z-w",
+            "console.logs",
+            "com10.maps",
+            "null.thing",
+            "aux1.extra",
             // exactly 64 characters
             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
         ] {
@@ -233,6 +247,13 @@ mod tests {
             "pwc/hotbar",
             "pwc.hötbar",
             "pwc.hotbar\n",
+            "con.foo",
+            "foo.con",
+            "aux.bar",
+            "com1.maps",
+            "lpt9.printer",
+            "nul.thing",
+            "prn.docs",
             too_long.as_str(),
         ] {
             let err = PackageId::parse(id).expect_err(id);
@@ -286,6 +307,10 @@ mod tests {
             "dev-",
             "a--b",
             "123",
+            "console",
+            "com10",
+            "null",
+            "aux-world",
             max.as_str(),
         ] {
             let parsed = InstanceName::parse(name).unwrap_or_else(|e| panic!("{name}: {e}"));
@@ -305,6 +330,14 @@ mod tests {
             "a.b",
             "é",
             "a/b",
+            "con",
+            "nul",
+            "aux",
+            "prn",
+            "com1",
+            "com9",
+            "lpt1",
+            "lpt9",
             long.as_str(),
         ] {
             let err = InstanceName::parse(name).expect_err(name);

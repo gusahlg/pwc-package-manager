@@ -10,6 +10,7 @@ rust-version.workspace = true
 publish = false
 
 [dependencies]
+dunce.workspace = true
 pwc-manifest.workspace = true
 pwc-package.workspace = true
 pwc-resolver.workspace = true

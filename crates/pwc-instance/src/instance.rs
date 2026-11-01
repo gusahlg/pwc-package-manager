@@ -152,7 +152,7 @@ impl Instance {
     /// [`Instance::resolve_path`], canonicalised when it exists: the form recorded in `pwc.lock`.
     pub fn source_path(&self, p: &Path) -> PathBuf {
         let resolved = self.resolve_path(p);
-        std::fs::canonicalize(&resolved).unwrap_or(resolved)
+        crate::fsutil::canonicalize(&resolved).unwrap_or(resolved)
     }
 
     /// Why `lock` no longer describes this instance built against `pwc`, or `None` if it does.

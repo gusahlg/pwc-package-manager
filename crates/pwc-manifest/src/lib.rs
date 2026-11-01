@@ -22,7 +22,7 @@ pub use license::{
 };
 pub use lock::{LOCK_HEADER, LockedPackage, LockedPwc, Lockfile, PackageSource, environment_hash};
 pub use manifest::{Category, Edition, ModKind, ModManifest, PackageMetadata};
-pub use text::{MAX_PATH_BYTES, check_package_path};
+pub use text::{MAX_PATH_BYTES, check_package_path, is_reserved_windows_device};
 
 /// Re-exported so every crate names versions with the same types.
 pub use semver::{Version, VersionReq};

@@ -68,7 +68,7 @@ fn write_mod(dir: &Path, id: &str, version: &str, kind: &str, deps: &[(&str, &st
 impl Env {
     fn new() -> Self {
         let tmp = tempfile::tempdir().unwrap();
-        let root = tmp.path().canonicalize().unwrap();
+        let root = dunce::canonicalize(tmp.path()).unwrap();
         let pwc = root.join("project_watt_cubed");
         write(
             &pwc.join("Cargo.toml"),

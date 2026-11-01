@@ -1,6 +1,6 @@
-# `.pwcmod` — the PWC mod package (format 1)
+# `.pwcmodule` — the PWC module package (format 1)
 
-A `.pwcmod` file is one **immutable** version of one mod: its canonical source, assets, licence
+A `.pwcmodule` file is one **immutable** version of one module: its canonical source, assets, licence
 and manifest. It is a distribution artifact, not a development format — authors work in an
 ordinary directory and run `pwc package build`.
 
@@ -8,17 +8,19 @@ Implemented by `crates/pwc-package`.
 
 ## File name
 
-`<id>-<version>.pwcmod`, e.g. `pwc.inventory-1.0.0.pwcmod`.
+`<id>-<version>.pwcmodule`, e.g. `pwc.inventory-1.0.0.pwcmodule`. Archives named `*.pwcmod` (the
+name before the rename) are still read, and a manifest named `mod.toml` is still accepted in place of
+`module.toml`; the extension is not part of the hash.
 
 ## Container
 
-A `.pwcmod` is a **Zstandard frame** whose decompressed content is a **canonical tar** stream.
+A `.pwcmodule` is a **Zstandard frame** whose decompressed content is a **canonical tar** stream.
 
 The canonical tar is fully determined by the package's files, so the same files always produce
 the same bytes on every machine:
 
 - Only regular files, no directory entries. Entries are sorted by path, bytewise ascending, using
-  `/` separators and package-relative paths (`mod.toml`, `src/lib.rs`, `assets/icon.svg`).
+  `/` separators and package-relative paths (`module.toml`, `src/lib.rs`, `assets/icon.svg`).
 - Every header: POSIX `ustar` format, mode `0644`, uid/gid `0`, empty user/group names,
   mtime `0`. Paths longer than the ustar limit use a PAX `path` extended header, itself written
   deterministically.
@@ -31,7 +33,7 @@ the same bytes on every machine:
   too) is rejected. These rules apply on every platform. Two paths that differ only by case, or a
   file whose path is a directory prefix of another path ignoring case, are rejected before
   anything is written. Paths must also be part of the package contents defined in
-  [mod-manifest.md](mod-manifest.md#package-contents).
+  [module-manifest.md](module-manifest.md#package-contents).
 
 The compression level is not part of the format: readers must accept any valid Zstandard frame.
 
@@ -55,7 +57,7 @@ A reader must, in order:
 2. Parse the tar; reject non-file entries, unsorted or duplicate paths, unsafe paths, non-zero
    mtimes/uids, and any header not produced by the canonical writer (re-serialise and compare is
    an acceptable implementation).
-3. Find `mod.toml`, parse and validate it (including the licence policy).
+3. Find `module.toml`, parse and validate it (including the licence policy).
 4. Check the contents rules (required files present, nothing forbidden, size limits).
 5. Compute the hash. If the caller expected a hash (lockfile, registry), compare it.
 

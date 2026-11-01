@@ -5,7 +5,7 @@ pure function: no filesystem, no network, no clock — candidates in, selection 
 
 ## Input
 
-- the PWC mod API version the build will provide (`pwc-mod-api`, e.g. `1.0.0`);
+- the PWC module API version the build will provide (`pwc-module-api`, e.g. `1.0.0`);
 - the **root requirements**: `id → requirement`, where a requirement is a SemVer `VersionReq`, or
   a *pin* to one specific candidate (from a `path`/`file` instance entry);
 - the **candidates**: every known `(id, version)` with its kind, hash, `pwc-api` requirement,

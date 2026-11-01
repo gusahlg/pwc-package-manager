@@ -6,7 +6,7 @@
 #
 # It installs what is missing (Git, the Visual Studio C++ build tools and Rust; Windows asks you to allow
 # the installers), downloads the game, the renderer and the package manager, builds the game with all
-# first-party mods (the essentials, chat and commands, and the developer toolkit) and starts it. Afterwards the "Project Watt Cubed" shortcut on the desktop and in the
+# first-party modules (the essentials, chat and commands, and the developer toolkit) and starts it. Afterwards the "Project Watt Cubed" shortcut on the desktop and in the
 # Start menu updates everything and plays. Everything lives in %USERPROFILE%\ProjectWattCubed.
 #
 # Environment (optional): PWC_PLAY_DIR (install folder), PWC_PLAY_NO_RUN=1 (set up, don't start).
@@ -125,17 +125,17 @@ function Invoke-PwcPlay {
     # All pwc state (instances, worlds, settings, build cache) stays inside the install folder.
     $env:PWC_HOME = Join-Path $dir 'pwc-home'
 
-    Say 'Setting up the game with all first-party mods'
+    Say 'Setting up the game with all first-party modules'
     Run 'Configuring pwc' $pwc @('setup', '-q', '--pwc', (Join-Path $dir 'project_watt_cubed'),
-        '--repository', (Join-Path $dir 'pwc-package-manager\mods'))
+        '--repository', (Join-Path $dir 'pwc-package-manager\modules'))
     $instances = & $pwc instance list
     if ($instances -match '\bdefault\b') {
         Run 'Selecting the game instance' $pwc @('instance', 'use', 'default', '-q')
     } else {
         Run 'Creating the game instance' $pwc @('instance', 'create', 'default', '--use', '-q')
     }
-    Run 'Adding the mods' $pwc @('mod', 'add', '-q', 'pwc.essentials', 'pwc.dev-toolkit')
-    Run 'Updating the mods' $pwc @('mod', 'update', '-q')
+    Run 'Adding the modules' $pwc @('module', 'add', '-q', 'pwc.essentials', 'pwc.dev-toolkit')
+    Run 'Updating the modules' $pwc @('module', 'update', '-q')
 
     # Shortcuts that update and play.
     $script = Join-Path $dir 'pwc-package-manager\scripts\play.ps1'

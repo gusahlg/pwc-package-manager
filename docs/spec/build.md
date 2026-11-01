@@ -1,7 +1,7 @@
 # Building an instance (`pwc build`, `pwc run`)
 
 The builder turns one exact `pwc.lock` into a native PWC executable. It never chooses versions —
-the resolver did that — and it never interprets mod code: it writes a small Cargo workspace that
+the resolver did that — and it never interprets module code: it writes a small Cargo workspace that
 points at the PWC source and at immutable store directories, and lets Cargo and rustc compile.
 
 Implemented by `crates/pwc-builder`.
@@ -12,12 +12,18 @@ Implemented by `crates/pwc-builder`.
 - the PWC source directory (`[pwc].source`), which must provide
   - the runtime crate at its root (package `project_watt_cubed`), exporting
     `project_watt_cubed::run(GameBuild)` and `project_watt_cubed::harness::golden_main(GameBuild)`,
-  - the mod API crate at `crates/pwc-mod-api` (package `pwc-mod-api`), re-exporting `GameBuild`,
-    `PackageInfo`, `PackageKind`, `ModRegistrar`, `Mod` and the rest of the mod-facing API
-    (before `pwc-mod-api` 2.2.0: `GameBuild`, `ModDescriptor`, `ModRegistrar` and `Mod`);
+  - the module API crate at `crates/pwc-module-api` (package `pwc-module-api`), re-exporting `GameBuild`,
+    `PackageInfo`, `PackageKind`, `ModuleRegistrar`, `Module` and the rest of the module-facing API
+    (before module API 2.2.0: `GameBuild`, `ModDescriptor`, `ModRegistrar` and `Mod`). A PWC source
+    from before the rename to modules (0.7.0 and earlier) has the crate only as `crates/pwc-mod-api`
+    (package `pwc-mod-api`); that is then the API crate, and the builder generates exactly what it
+    generated before the rename (`pwc_mod_api::` paths, `PackageKind::Mod`). When
+    `crates/pwc-module-api` exists it is the API crate; if `crates/pwc-mod-api` also exists it is
+    the compatibility shim, and every package crate gets both as dependencies so that
+    `pwc_module_api::` and `pwc_mod_api::` paths compile. The API version is the real crate's;
 - the profile (`release` or `dev`), the target triple (host by default) and the `rustc -vV` output.
 
-Before building, the builder checks that the PWC source's version and `pwc-mod-api` version still
+Before building, the builder checks that the PWC source's version and `pwc-module-api` version still
 match `[pwc]` in the lock, and that every package's `pwc-api` requirement accepts that API version.
 
 ## Build ID
@@ -58,8 +64,8 @@ $XDG_CACHE_HOME/pwc/builds/<first 32 hex digits of the build id>/
 │                         [patch.*] (paths made absolute) copied from the PWC source's
 │                         Cargo.toml so builds match vanilla exactly
 ├── Cargo.lock            seeded once from the PWC source's Cargo.lock (then Cargo owns it)
-├── mods/<crate>/Cargo.toml   one per mod/library package (bundles generate nothing)
-├── bundle/               the mod bundle: lists every locked package, links the mods
+├── modules/<crate>/Cargo.toml   one per module/library package (bundles generate nothing)
+├── bundle/               the module bundle: lists every locked package, links the modules
 │   ├── Cargo.toml
 │   └── src/lib.rs
 ├── instance/             the executables (package `pwc-game-instance`)
@@ -70,7 +76,7 @@ $XDG_CACHE_HOME/pwc/builds/<first 32 hex digits of the build id>/
                                   (pwc-golden only when asked for, see below)
 ```
 
-`mods/<crate>/Cargo.toml` (crate = the package's crate name):
+`modules/<crate>/Cargo.toml` (crate = the package's crate name):
 
 ```toml
 [package]
@@ -83,11 +89,12 @@ publish = false
 path = "/home/u/.local/share/pwc/store/<hex>/src/lib.rs"
 
 [dependencies]
-pwc-mod-api = { path = "<pwc-source>/crates/pwc-mod-api" }
+pwc-module-api = { path = "<pwc-source>/crates/pwc-module-api" }
+pwc-mod-api = { path = "<pwc-source>/crates/pwc-mod-api" }   # only when the shim exists
 pwc_hotbar = { path = "../pwc_hotbar" }
 ```
 
-`bundle/Cargo.toml` depends on `pwc-mod-api` and on every `kind = "mod"` crate.
+`bundle/Cargo.toml` depends on `pwc-module-api` and on every `kind = "module"` crate.
 
 `bundle/src/lib.rs` lists every package of the lock, of every kind, in registration order:
 a topological order over the lock's dependency edges (dependencies first), ties broken by id.
@@ -99,18 +106,18 @@ a topological order over the lock's dependency edges (dependencies first), ties 
 pub const ENVIRONMENT: &str = "sha256:…";
 
 /// Every package of the lock, of every kind: dependencies before dependents, ties by id.
-pub static PACKAGES: &[pwc_mod_api::PackageInfo] = &[
-    pwc_mod_api::PackageInfo {
+pub static PACKAGES: &[pwc_module_api::PackageInfo] = &[
+    pwc_module_api::PackageInfo {
         id: "pwc.hotbar", name: "Hotbar", version: "2.0.1",
         description: "Nine slots of held materials …",
-        kind: pwc_mod_api::PackageKind::Mod,
+        kind: pwc_module_api::PackageKind::Module,
         dependencies: &[],
         register: Some(pwc_hotbar::register),
     },
-    pwc_mod_api::PackageInfo {
+    pwc_module_api::PackageInfo {
         id: "pwc.essentials", name: "Essentials", version: "1.3.0",
         description: "The first-party essentials of PWC …",
-        kind: pwc_mod_api::PackageKind::Bundle,
+        kind: pwc_module_api::PackageKind::Bundle,
         dependencies: &["pwc.game-ui", "pwc.hotbar", …],
         register: None,
     },
@@ -118,33 +125,35 @@ pub static PACKAGES: &[pwc_mod_api::PackageInfo] = &[
 ];
 
 /// The game build: [`PACKAGES`] and [`ENVIRONMENT`].
-pub fn game_build() -> pwc_mod_api::GameBuild {
-    pwc_mod_api::GameBuild::from_static(ENVIRONMENT, PACKAGES)
+pub fn game_build() -> pwc_module_api::GameBuild {
+    pwc_module_api::GameBuild::from_static(ENVIRONMENT, PACKAGES)
 }
 ```
 
 - `id`, `version`, `kind` and `dependencies` come from the lock; `name` and `description` from
-  the package's `mod.toml`.
+  the package's `module.toml`.
 - `dependencies` are the package's direct dependency ids, sorted and without duplicates. A
   bundle's dependencies are its members.
-- `register` names the package crate's entry point for `kind = "mod"` and is `None` for
-  libraries and bundles, so only mods are registered. The game hands the whole list to every
-  package (`ModRegistrar::build()`), which is how a package can show what a build contains
+- `register` names the package crate's entry point for `kind = "module"` and is `None` for
+  libraries and bundles, so only modules are registered. The game hands the whole list to every
+  package (`ModuleRegistrar::build()`), which is how a package can show what a build contains
   without the game naming any package.
 - An empty lock gives `PACKAGES = &[]`: the vanilla game.
 
-A PWC source whose `pwc-mod-api` is older than 2.2.0 has no `PackageInfo`. For it the builder
-writes the earlier form, which lists only the `kind = "mod"` packages, in the same order:
+A PWC source whose API is older than 2.2.0 has no `PackageInfo`. For it the builder
+writes the earlier form, which lists only the `kind = "module"` packages, in the same order
+(shown with the renamed names; a source from before the rename gets `pwc_mod_api`,
+`ModDescriptor` and `with_mod`):
 
 ```rust
-pub fn game_build() -> pwc_mod_api::GameBuild {
-    pwc_mod_api::GameBuild::new()
+pub fn game_build() -> pwc_module_api::GameBuild {
+    pwc_module_api::GameBuild::new()
         .with_environment(ENVIRONMENT)
-        .with_mod(pwc_mod_api::ModDescriptor {
+        .with_module(pwc_module_api::ModuleDescriptor {
             id: "pwc.hotbar", name: "Hotbar", version: "1.0.0",
             register: pwc_hotbar::register,
         })
-        // … every kind = "mod" package
+        // … every kind = "module" package
 }
 ```
 
@@ -154,9 +163,9 @@ and `pwc-golden.rs` the same with `project_watt_cubed::harness::golden_main`.
 Generated Rust and TOML string literals are escaped (non-printable-ASCII as `\u{…}`). Before
 generating, the builder checks that the PWC source is the `project_watt_cubed` package with the
 locked game and API versions, that every package's `pwc-api` accepts the API version and its store
-manifest matches the lock, that every mod/library has `src/lib.rs`, that the lock has no dangling
+manifest matches the lock, that every module/library has `src/lib.rs`, that the lock has no dangling
 dependency or cycle, and that no two ids map to the same crate name (`a.b-c` and `a.b.c` both give
-`a_b_c`) or to a reserved one (`pwc_bundle`, `pwc_mod_api`, `project_watt_cubed`, …).
+`a_b_c`) or to a reserved one (`pwc_bundle`, `pwc_module_api`, `project_watt_cubed`, …).
 
 ## Running Cargo
 

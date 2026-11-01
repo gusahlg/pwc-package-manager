@@ -42,7 +42,7 @@ active-instance = "survival"                             # set by `pwc instance 
 
 [[repository]]
 name = "first-party"
-path = "/home/alice/src/pwc-package-manager/mods"
+path = "/home/alice/src/pwc-package-manager/modules"
 
 [build]
 # Command prefix for Cargo. "auto" (default): on Unix, if the PWC source has a flake.nix and `nix`
@@ -57,7 +57,7 @@ jobs = 0                                                  # 0 = Cargo's default
 
 `pwc setup [--pwc <dir>] [--repository <dir>]` writes it. Defaults (computed from where the `pwc`
 binary was built): without `--pwc`, a `project_watt_cubed` checkout next to the tooling
-repository; without `--repository`, the tooling repository's `mods/` directory, registered as
+repository; without `--repository`, the tooling repository's `modules/` directory, registered as
 `first-party`. Setup prints what it configured.
 
 ## The store
@@ -75,11 +75,11 @@ package hash without the `sha256:` prefix. Rules:
 ## Repositories
 
 A repository is a local directory whose immediate children are package **source directories**
-(containing `mod.toml`) or **`.pwcmod` files**; any other child (a `README.md`, a directory without
-`mod.toml`, hidden files) is ignored. An entry that fails validation is skipped with a warning. Repositories are the offline stand-in for the future
-remote registry: `pwc mod add pwc.essentials` searches every configured repository and the store,
+(containing `module.toml`) or **`.pwcmodule` files**; any other child (a `README.md`, a directory without
+`module.toml`, hidden files) is ignored. An entry that fails validation is skipped with a warning. Repositories are the offline stand-in for the future
+remote registry: `pwc module add pwc.essentials` searches every configured repository and the store,
 picks versions with the resolver, and packages selected source directories on the fly (the hash
-is the same as `pwc package build` would produce). This repository's own `mods/` directory is the
+is the same as `pwc package build` would produce). This repository's own `modules/` directory is the
 first-party repository.
 
 ## Game data per instance

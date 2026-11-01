@@ -166,11 +166,11 @@ main() {
     # Build with this system's own libraries, not the developers' Nix setup.
     export PWC_NO_WRAPPER=1
 
-    say "Setting up the game with all first-party mods"
-    "$pwc" setup -q --pwc "$dir/project_watt_cubed" --repository "$dir/pwc-package-manager/mods"
+    say "Setting up the game with all first-party modules"
+    "$pwc" setup -q --pwc "$dir/project_watt_cubed" --repository "$dir/pwc-package-manager/modules"
     "$pwc" instance create default --use -q 2>/dev/null || "$pwc" instance use default -q
-    "$pwc" mod add -q pwc.essentials pwc.dev-toolkit
-    "$pwc" mod update -q
+    "$pwc" module add -q pwc.essentials pwc.dev-toolkit
+    "$pwc" module update -q
 
     install_launcher "$dir"
 

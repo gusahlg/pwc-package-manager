@@ -1,12 +1,12 @@
 # Instances: `instance.toml` and `pwc.lock` (format 1)
 
-An **instance** is one intended form of PWC: vanilla, PWC with the essentials, a large modpack,
+An **instance** is one intended form of PWC: vanilla, PWC with the essentials, a large set of modules,
 a server's exact configuration, a development setup. It lives in
 `$XDG_DATA_HOME/pwc/instances/<name>/` (normally `~/.local/share/pwc/instances/<name>/`):
 
 ```text
 survival/
-├── instance.toml   what the user wants (edited by `pwc mod add/remove` or by hand)
+├── instance.toml   what the user wants (edited by `pwc module add/remove` or by hand)
 ├── pwc.lock        what was resolved (generated; never edit)
 └── game/           the game's data directory for this instance (worlds, settings)
 ```
@@ -24,10 +24,10 @@ name = "survival"
 description = "PWC with the essentials and better caves"   # optional
 pwc = "^2.0"                                                # requirement on the PWC version
 
-[mods]
+[modules]
 "pwc.essentials" = "^1.0"                                   # from a repository or the store
 "gusahlg.better-caves" = { path = "../../dev/better-caves" } # local mutable source tree
-"foo.seasons" = { file = "/downloads/foo.seasons-2.3.1.pwcmod" }
+"foo.seasons" = { file = "/downloads/foo.seasons-2.3.1.pwcmodule" }
 "foo.noise" = { version = "^2.0" }
 
 [build]
@@ -36,12 +36,15 @@ profile = "release"                                         # "release" (default
 
 - `pwc` is a SemVer requirement on the PWC game version (the `version` of the PWC source's
   `Cargo.toml` package). Default `"*"`.
-- Each `[mods]` entry is a requirement string, or a table with exactly one *source* key:
+- `[mods]` is the older name of `[modules]` and is still read (both tables present is an error); `pwc` always
+  writes `[modules]`. Locks read `kind = "mod"` as `"module"`, and the environment hash still spells the
+  kind `mod`, so locks written before the rename stay valid.
+- Each `[modules]` entry is a requirement string, or a table with exactly one *source* key:
   `version` (resolved from repositories and the store), `path` (a local source tree, relative paths
-  are relative to the instance directory) or `file` (a `.pwcmod`). A `path`/`file` entry may also
-  carry `version` to assert which version it must be. `pwc mod add` writes absolute paths for
+  are relative to the instance directory) or `file` (a `.pwcmodule`). A `path`/`file` entry may also
+  carry `version` to assert which version it must be. `pwc module add` writes absolute paths for
   path and file specs given on the command line.
-- Dependencies of the listed mods are **not** written here; the resolver adds them to the lock.
+- Dependencies of the listed modules are **not** written here; the resolver adds them to the lock.
 
 ## `pwc.lock` — the exact resolved state
 
@@ -60,17 +63,17 @@ dirty = false
 [[package]]
 id = "pwc.hotbar"
 version = "1.0.0"
-kind = "mod"
+kind = "module"
 hash = "sha256:73a1…"
-source = "repository:/home/alice/src/pwc-package-manager/mods/hotbar"
+source = "repository:/home/alice/src/pwc-package-manager/modules/hotbar"
 dependencies = []
 
 [[package]]
 id = "pwc.inventory"
 version = "1.0.0"
-kind = "mod"
+kind = "module"
 hash = "sha256:c149…"
-source = "repository:/home/alice/src/pwc-package-manager/mods/inventory"
+source = "repository:/home/alice/src/pwc-package-manager/modules/inventory"
 dependencies = ["pwc.hotbar"]
 ```
 
@@ -78,7 +81,7 @@ dependencies = ["pwc.hotbar"]
 - `source` records where the package came from: `repository:<dir>`, `file:<path>`, `path:<dir>`
   (local, mutable: its hash is the hash at lock time, and `pwc build` re-locks when it changed) or
   `store` (already installed, origin unknown).
-- `[pwc]` pins the game source: its version, the `pwc-mod-api` version it provides, the source
+- `[pwc]` pins the game source: its version, the `pwc-module-api` version it provides, the source
   directory, its git revision (`unknown` outside git) and whether the tree had uncommitted changes.
 
 ### Environment hash
@@ -107,11 +110,11 @@ tree whose new hash is simply recorded.
 
 ## Operations
 
-- `pwc instance create <name> [--pwc <req>]` writes a new `instance.toml` (no mods).
-- `pwc mod add <spec>` adds a `[mods]` entry and re-locks. `<spec>` is an id (`pwc.essentials`,
-  `pwc.essentials@^1.0`), a path to a source directory, or a path to a `.pwcmod`.
-- `pwc mod remove <id>` removes the entry and re-locks (packages stay in the store).
-- `pwc mod update [<id>]` re-resolves, preferring the newest compatible versions.
+- `pwc instance create <name> [--pwc <req>]` writes a new `instance.toml` (no modules).
+- `pwc module add <spec>` adds a `[modules]` entry and re-locks. `<spec>` is an id (`pwc.essentials`,
+  `pwc.essentials@^1.0`), a path to a source directory, or a path to a `.pwcmodule`.
+- `pwc module remove <id>` removes the entry and re-locks (packages stay in the store).
+- `pwc module update [<id>]` re-resolves, preferring the newest compatible versions.
 - `pwc lock` re-resolves without changing `instance.toml` (keeps current versions when still
   compatible).
 

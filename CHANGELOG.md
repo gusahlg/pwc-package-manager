@@ -1,7 +1,41 @@
 # Changelog
 
-Notable changes to the `pwc` tooling and this repository. Each first-party package in `mods/`
-carries its own version in its `mod.toml`.
+Notable changes to the `pwc` tooling and this repository. Each first-party package in `modules/`
+carries its own version in its `module.toml`.
+
+## 0.4.0
+
+### Mods are modules
+
+The word "mod" is now "module" everywhere: prose, commands, files, directories, code. The old
+spellings keep working, so existing instances, locks, archives and third-party packages do not break.
+
+- `pwc module add|remove|update|list`; `pwc mod …` is a hidden alias of the same commands.
+- The manifest is `module.toml` with `kind = "module"`. `mod.toml` and `kind = "mod"` are still
+  read (in manifests and in `pwc.lock`); having both `module.toml` and `mod.toml` in one package is
+  an error naming both. Packaging keeps whichever file name the source has. Writing says `module`.
+- Archives are `<id>-<version>.pwcmodule`; `*.pwcmod` files are still read.
+- `instance.toml` has a `[modules]` table; `[mods]` is still read (both is an error). `pwc` writes
+  `[modules]`. The lock's environment hash is unchanged, so existing locks stay valid.
+- A repository configured as `…/pwc-package-manager/mods` follows the rename to `modules/`.
+- The first-party package repository is `modules/` (it was `mods/`). Its docs moved to
+  `docs/spec/module-manifest.md` and `docs/writing-a-module.md`; `POLICY.md` is the module policy.
+- The builder puts generated package crates under `modules/`. Against a game source that has
+  `crates/pwc-module-api` (module API 3.4.0) it generates `pwc_module_api::` code and gives every
+  package crate both `pwc-module-api` and, when present, the `pwc-mod-api` shim, so `pwc_mod_api::`
+  paths in older packages still compile. Against a source with only `crates/pwc-mod-api` (game 0.7.0
+  and earlier) it generates what it always did.
+- Rust API: `ModKind` is `PackageKind` (variant `Mod` is `Module`), `ModManifest` is
+  `PackageManifest`, `ModRequirement`/`ModSource` are `ModuleRequirement`/`ModuleSource`, and
+  `InstanceManifest::mods` is `modules`. Hidden aliases keep `ModKind`, `ModKind::Mod`,
+  `ModManifest`, `ModRequirement` and `ModSource` (a field cannot be aliased, so `.mods` is gone).
+
+### First-party packages
+
+Every package moved to `module.toml`, `kind = "module"`, `pwc-api ^3.4` and the `pwc_module_api`
+names (`Module`, `ModuleContext`, `ModuleRegistrar`, `ModuleDescriptor`), and got a patch version
+bump (its content changed). Package ids are unchanged, so every dependency requirement still
+matches; display names that said "Mod" now say "Module" (`pwc.mod-menu` is "Module menu").
 
 ## 0.3.0
 

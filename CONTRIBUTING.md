@@ -1,7 +1,7 @@
 # Contributing
 
 Thank you for helping improve the PWC package manager. This document covers the development
-setup, the checks a change must pass, and how to change the first-party mod packages.
+setup, the checks a change must pass, and how to change the first-party module packages.
 
 ## Development setup
 
@@ -30,7 +30,7 @@ Every change must pass what CI runs:
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
-for dir in mods/*/; do cargo run -q --locked -p pwc-cli -- package check "$dir"; done
+for dir in modules/*/; do cargo run -q --locked -p pwc-cli -- package check "$dir"; done
 reuse lint
 ```
 
@@ -54,22 +54,22 @@ file is covered automatically when it falls under an existing annotation.
 - **Errors explain themselves.** A failure names what was being done and why it failed, in a form
   `pwc` can print as `error:` with `cause:` lines.
 
-## First-party mod packages
+## First-party module packages
 
-The packages in [`mods/`](mods/) are a package repository that users consume directly
+The packages in [`modules/`](modules/) are a package repository that users consume directly
 (`pwc setup` adds it by default), so a version that has reached `main` is published.
 
 When you change a package:
 
-1. **Bump its `version` in `mod.toml`.** Published versions are immutable: any change to the
+1. **Bump its `version` in `module.toml`.** Published versions are immutable: any change to the
    package contents, including the README, assets and licence files, needs a new version, and `pwc`
    refuses to re-lock a version whose contents changed. Follow SemVer. Breaking changes to the package's Rust API, persisted state or settings payload need a
    new major version.
 2. Update requirements that should move with it, such as the ranges in the `pwc.essentials` bundle
    after a major bump.
 3. Record the change in the package's `CHANGELOG.md`.
-4. Run `pwc package check mods/<package>`, then try it in a test instance with
-   `pwc mod add ./mods/<package>` and `pwc run`.
+4. Run `pwc package check modules/<package>`, then try it in a test instance with
+   `pwc module add ./modules/<package>` and `pwc run`.
 
 When you add a package:
 
@@ -84,7 +84,7 @@ When you add a package:
   packages preserve AGPL code and CC-BY-SA prose instead of relicensing copied source. Their
   manifests carry both full texts; explicit REUSE annotations override the normal package default.
 - Include a README written for players: what it does, keys and settings, dependencies.
-- Follow the mod contract in [POLICY.md](POLICY.md#4-playing-well-with-pwc-the-mod-contract).
+- Follow the module contract in [POLICY.md](POLICY.md#4-playing-well-with-pwc-the-module-contract).
 - Add it to the package table in [README.md](README.md), and to `pwc.essentials` if it belongs in
   the default set.
 
@@ -115,13 +115,13 @@ Pull requests with commits that lack a sign-off are not merged.
 
 Contributions take the licence of the part of the repository they change (inbound = outbound):
 
-- **First-party packages** (`mods/<package>/`) are licensed under either of the Apache License,
+- **First-party packages** (`modules/<package>/`) are licensed under either of the Apache License,
   Version 2.0 or the MIT licence, at your option (`Apache-2.0 OR MIT`). Unless you explicitly state
   otherwise, any contribution intentionally submitted for inclusion in a first-party package by
   you, as defined in the Apache-2.0 licence, shall be dual licensed as above, without any
   additional terms or conditions.
 - **The package manager** (the tooling, specifications, documentation and infrastructure:
-  everything except the package directories under `mods/`) is licensed `AGPL-3.0-or-later`, the
+  everything except the package directories under `modules/`) is licensed `AGPL-3.0-or-later`, the
   licence in [LICENSE](LICENSE). Contributions to it are licensed `AGPL-3.0-or-later` as well.
 
 You keep your copyright; there is no copyright assignment or contributor licence agreement. The

@@ -4,7 +4,7 @@
 version = 1
 
 # The package manager itself: tooling, build metadata, CI, specifications and
-# documentation, including mods/README.md. When several tables match a file,
+# documentation, including modules/README.md. When several tables match a file,
 # the last one wins, so the package table below overrides this one.
 [[annotations]]
 path = "**"
@@ -12,25 +12,25 @@ precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Project Watt Cubed contributors"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
 
-# The first-party mod packages (POLICY.md, section 1): everything in a package
+# The first-party module packages (POLICY.md, section 1): everything in a package
 # directory (code, manifest, README, changelog, assets and the package's own
-# licence texts) is dual licensed Apache-2.0 OR MIT. mods/README.md is not in a
+# licence texts) is dual licensed Apache-2.0 OR MIT. modules/README.md is not in a
 # package directory, so it stays with the tooling above.
 [[annotations]]
-path = "mods/*/**"
+path = "modules/*/**"
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Project Watt Cubed contributors"
 SPDX-License-Identifier = "Apache-2.0 OR MIT"
 
 # Preserve notices on source extracted from the game rather than relicensing it.
 [[annotations]]
-path = ["mods/physics-selective/**", "mods/physics-wave/**", "mods/physics-packets/**", "mods/physics-reservoir/**", "mods/physics-rotor/**"]
+path = ["modules/physics-selective/**", "modules/physics-wave/**", "modules/physics-packets/**", "modules/physics-reservoir/**", "modules/physics-rotor/**"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Project Watt Cubed contributors"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
 
 [[annotations]]
-path = ["mods/physics-selective/*.md", "mods/physics-wave/*.md", "mods/physics-packets/*.md", "mods/physics-reservoir/*.md", "mods/physics-rotor/*.md"]
+path = ["modules/physics-selective/*.md", "modules/physics-wave/*.md", "modules/physics-packets/*.md", "modules/physics-reservoir/*.md", "modules/physics-rotor/*.md"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Project Watt Cubed contributors"
 SPDX-License-Identifier = "CC-BY-SA-4.0"

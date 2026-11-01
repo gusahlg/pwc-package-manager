@@ -1,18 +1,18 @@
 # PWC Package Manager
 
-`pwc` installs, resolves and builds mods for [Project Watt Cubed](https://github.com/gusahlg/project_watt_cubed)
-(PWC). PWC mods are Rust source compiled into the game executable, so a modded PWC installation
-is a **reproducible build**: one PWC version plus one exact set of mod packages. `pwc` manages
+`pwc` installs, resolves and builds modules for [Project Watt Cubed](https://github.com/gusahlg/project_watt_cubed)
+(PWC). PWC modules are Rust source compiled into the game executable, so a PWC installation with modules
+is a **reproducible build**: one PWC version plus one exact set of module packages. `pwc` manages
 that set per *instance*, records it in a lockfile and turns it into a native executable.
 
 This repository holds the tooling (a Rust workspace under [`crates/`](crates/)) and the
-first-party mod packages (under [`mods/`](mods/)), which also serve as the first package
+first-party module packages (under [`modules/`](modules/)), which also serve as the first package
 repository. Read [docs/architecture.md](docs/architecture.md) for the design.
 
 ## Just want to play?
 
 On Linux, open a terminal and paste this one line. It installs what the game needs (it may ask for
-your password), downloads the game, builds it with all first-party mods (including chat, commands and the
+your password), downloads the game, builds it with all first-party modules (including chat, commands and the
 developer toolkit for flying and travelling through space) and starts it:
 
 ```sh
@@ -44,20 +44,20 @@ this repository, as `../project_watt_cubed`.
 ```sh
 cargo install --path crates/pwc-cli   # installs `pwc` into ~/.cargo/bin
 
-pwc setup                             # find the game, register mods/ as a repository
+pwc setup                             # find the game, register modules/ as a repository
 pwc instance create default --use     # a new, empty instance, made active
-pwc mod add pwc.essentials            # resolve, store and lock the essentials
+pwc module add pwc.essentials            # resolve, store and lock the essentials
 pwc run                               # build the instance and start the game
 ```
 
 What each step does:
 
 1. `pwc setup` writes `~/.config/pwc/config.toml`: the game checkout to build against and the
-   repositories to search, including this repository's `mods/`. Use `--pwc <dir>` if the game is
+   repositories to search, including this repository's `modules/`. Use `--pwc <dir>` if the game is
    elsewhere and `--repository <dir>` to add more repositories.
 2. `pwc instance create` writes `~/.local/share/pwc/instances/default/instance.toml`, the
-   instance's desired state. An instance with no mods builds the bare core.
-3. `pwc mod add` adds the requirement, resolves it and its dependencies to exact versions, copies
+   instance's desired state. An instance with no modules builds the bare core.
+3. `pwc module add` adds the requirement, resolves it and its dependencies to exact versions, copies
    every selected package into the content-addressed store and writes `pwc.lock`.
 4. `pwc run` generates a small Cargo workspace for the lock under `~/.cache/pwc/builds/`, builds
    it and runs the game with the instance's own data directory (worlds, settings).
@@ -80,8 +80,8 @@ Other everyday commands:
 
 ```sh
 pwc search                 # packages available from repositories and the store
-pwc mod list               # the locked packages of the active instance
-pwc mod update             # move to the newest compatible versions
+pwc module list               # the locked packages of the active instance
+pwc module update             # move to the newest compatible versions
 pwc env                    # the instance's environment hash
 pwc store gc               # delete packages no instance uses
 pwc cache clean            # delete build outputs (always safe)
@@ -115,9 +115,9 @@ needs whatever the game needs (see the game's README).
 
 ```text
 crates/                 the tooling: one library crate per responsibility, plus the CLI
-mods/                   first-party mod packages; the first local package repository
+modules/                   first-party module packages; the first local package repository
 docs/architecture.md    how the system fits together
-docs/writing-a-mod.md   tutorial for mod authors
+docs/writing-a-module.md   tutorial for module authors
 docs/spec/              normative specifications of the formats and behaviour (format 1)
 POLICY.md               which packages are accepted
 LICENSE                 the tooling's licence, AGPL-3.0-or-later
@@ -129,8 +129,8 @@ flake.nix               Nix development shell and the `pwc` package
 
 | Crate | Responsibility |
 |---|---|
-| [`pwc-manifest`](crates/pwc-manifest) | The data formats: `mod.toml`, `instance.toml` and `pwc.lock`, with validation and the licence policy. |
-| [`pwc-package`](crates/pwc-package) | The `.pwcmod` format: collecting package contents, canonical archives, hashing and verification. |
+| [`pwc-manifest`](crates/pwc-manifest) | The data formats: `module.toml`, `instance.toml` and `pwc.lock`, with validation and the licence policy. |
+| [`pwc-package`](crates/pwc-package) | The `.pwcmodule` format: collecting package contents, canonical archives, hashing and verification. |
 | [`pwc-store`](crates/pwc-store) | The content-addressed, immutable package store. |
 | [`pwc-resolver`](crates/pwc-resolver) | Deterministic dependency resolution, as a pure function. |
 | [`pwc-instance`](crates/pwc-instance) | Instances, configuration, directories and repositories: turns `instance.toml` into `pwc.lock`. |
@@ -141,42 +141,42 @@ flake.nix               Nix development shell and the `pwc` package
 
 The specifications in [`docs/spec/`](docs/spec/) are normative; the crates implement them.
 
-- [mod-manifest.md](docs/spec/mod-manifest.md): `mod.toml`, the mod manifest
-- [package-format.md](docs/spec/package-format.md): `.pwcmod`, the package file and its hash
+- [module-manifest.md](docs/spec/module-manifest.md): `module.toml`, the module manifest
+- [package-format.md](docs/spec/package-format.md): `.pwcmodule`, the package file and its hash
 - [instances.md](docs/spec/instances.md): `instance.toml`, `pwc.lock` and the environment hash
 - [filesystem.md](docs/spec/filesystem.md): directories, `config.toml`, the store and repositories
 - [resolver.md](docs/spec/resolver.md): dependency resolution
 - [build.md](docs/spec/build.md): the builder, Build IDs and the build cache
 - [cli.md](docs/spec/cli.md): the `pwc` command
 
-## Mod policy
+## Module policy
 
-[POLICY.md](POLICY.md) governs every package `pwc` accepts. It is based on the game's official mod
-policy, `MOD_POLICY.md`, which originally required all mod code to be `AGPL-3.0-or-later`; this
-policy accepts AGPL-compatible free licences instead, and the game's `MOD_POLICY.md` and
+[POLICY.md](POLICY.md) governs every package `pwc` accepts. It is based on the game's official module
+policy, `MODULE_POLICY.md`, which originally required all module code to be `AGPL-3.0-or-later`; this
+policy accepts AGPL-compatible free licences instead, and the game's `MODULE_POLICY.md` and
 `GOVERNANCE.md` are being updated to match. In short:
 
-- **Free software only. Binary-only and proprietary mods are not accepted.** A package's licence
+- **Free software only. Binary-only and proprietary modules are not accepted.** A package's licence
   is an SPDX expression over an allowlist of free licences: software licences compatible with the
-  game's `AGPL-3.0-or-later` (mods are compiled into the AGPL game), permissive such as `MIT` and
+  game's `AGPL-3.0-or-later` (modules are compiled into the AGPL game), permissive such as `MIT` and
   `Apache-2.0` or copyleft such as `MPL-2.0` and `AGPL-3.0-or-later`, and free-content licences
-  for assets and documentation. Mod code must always be under a software licence, and assets
+  for assets and documentation. Module code must always be under a software licence, and assets
   compiled into the executable should use a licence that permits combination with AGPL software.
   `Apache-2.0 OR MIT` is recommended. A package ships the full licence texts and its complete
   source.
 - **Format 1 packages are trusted native code.** They are compiled into the game, are not sandboxed
   and run with the game's privileges. They cannot contain `build.rs`, proc macros or crates.io
   dependencies, so compiling a package runs no code from it and its whole source is in the package.
-  This is the local, pre-registry stage: the official registry will accept only mods for the
-  sandboxed WebAssembly mod ABI.
+  This is the local, pre-registry stage: the official registry will accept only modules for the
+  sandboxed WebAssembly module ABI.
 - **Ids are permanent and versions are immutable.** `pwc` refuses a locked version whose contents
   changed without a version bump. The `pwc` namespace is reserved for the first-party packages in
   this repository.
-- **Mods respect the game's contract**: matter has no named block types, optional universal
+- **Modules respect the game's contract**: matter has no named block types, optional universal
   physics models are compiled packages, names are presentation, world-affecting code is
   deterministic and the server is the authority.
 
-`pwc package check`, `pwc package build` and `pwc mod add` enforce the machine-checkable rules.
+`pwc package check`, `pwc package build` and `pwc module add` enforce the machine-checkable rules.
 
 ## First-party packages
 
@@ -186,12 +186,12 @@ policy accepts AGPL-compatible free licences instead, and the game's `MOD_POLICY
 | `pwc.start-screen` | The default start screen: main menu, Worlds page, host and join forms, the loading page. |
 | `pwc.settings-menu` | The settings hub and pages: every core setting and every package option, by category. |
 | `pwc.mod-menu` | The packages of the build, read-only, grouped under their bundles. |
-| `pwc.pause-menu` | What Esc opens in a world: Resume, Settings, Mods, Leave World. |
+| `pwc.pause-menu` | What Esc opens in a world: Resume, Settings, Modules, Leave World. |
 | `pwc.hotbar` | Nine slots plus the bare hand; the selected slot is the held tool. |
 | `pwc.inventory` | Your held materials as a list (press I); equip any of them into the hotbar. |
 | `pwc.game-ui` | The in-world HUD: reticle, coordinates, frame rate, player count, loading lines and a facing indicator. |
 | `pwc.chat` | The text chat on § (the key left of 1) and the scrollback of the game's messages. |
-| `pwc.commands` | Slash commands in the chat (`/help`, `/set` for every setting and option, `/time`, the audio commands, `/op`) and a registry for other mods' commands. |
+| `pwc.commands` | Slash commands in the chat (`/help`, `/set` for every setting and option, `/time`, the audio commands, `/op`) and a registry for other modules' commands. |
 | `pwc.chat-commands` | Bundle of the chat and its commands. |
 | `pwc.visuals` | The shipped look: atmosphere, post-processing and lighting. |
 | `pwc.neural-textures` | Paints every material with a texture grown from its own elements. |
@@ -224,15 +224,15 @@ AGPL code and CC-BY-SA prose; each manifest and licence directory records that e
 Use separate instances for model comparisons. Their `enabled` options choose one authority law;
 experimental fields and impulse inputs are currently singleplayer laboratories.
 
-See [mods/README.md](mods/README.md) for how the package repository is organised, and
-[docs/writing-a-mod.md](docs/writing-a-mod.md) to write your own.
+See [modules/README.md](modules/README.md) for how the package repository is organised, and
+[docs/writing-a-module.md](docs/writing-a-module.md) to write your own.
 
 ## Status
 
 Version 0.2.0 implements phases 1–10 of the [roadmap](docs/architecture.md#roadmap): the format 1
 specifications, packaging, the store, instances, the resolver, the builder, `pwc build` and
-`pwc run` with the build cache, and the first-party packages on mod API 3.0. Packages come from
-local repositories, local source trees and `.pwcmod` files.
+`pwc run` with the build cache, and the first-party packages on module API 3.0. Packages come from
+local repositories, local source trees and `.pwcmodule` files.
 
 Next:
 
@@ -245,12 +245,12 @@ Next:
 ## Licence
 
 The package manager (the tooling in `crates/`, its specifications and documentation: everything in
-this repository except the package directories under `mods/`) is licensed under the GNU Affero
+this repository except the package directories under `modules/`) is licensed under the GNU Affero
 General Public License, version 3 or (at your option) any later version, `AGPL-3.0-or-later`
 ([LICENSE](LICENSE)).
 
 Packages carry their own licences, chosen by their authors within the
-[mod policy](POLICY.md#1-licensing). New first-party packages in `mods/<package>/` are licensed
+[module policy](POLICY.md#1-licensing). New first-party packages in `modules/<package>/` are licensed
 under either of
 
 - Apache License, Version 2.0 ([LICENSES/Apache-2.0.txt](LICENSES/Apache-2.0.txt)), or
@@ -271,6 +271,6 @@ The repository follows the [REUSE](https://reuse.software) specification: [REUSE
 records the licence of every file and [LICENSES/](LICENSES/) holds every licence text. Check it with
 `reuse lint`.
 
-The game itself is licensed `AGPL-3.0-or-later`. A built instance compiles its mods into the game,
+The game itself is licensed `AGPL-3.0-or-later`. A built instance compiles its modules into the game,
 so distributing such an executable is governed by the AGPL, whatever free licences the individual
-mods carry.
+modules carry.

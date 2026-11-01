@@ -1,5 +1,5 @@
 {
-  description = "pwc — the Project Watt Cubed package manager and mod builder";
+  description = "pwc — the Project Watt Cubed package manager and module builder";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -34,7 +34,7 @@
           # The workspace tests run in CI and the dev shell; the package only builds the tool.
           doCheck = false;
           meta = {
-            description = "The Project Watt Cubed package manager and mod builder";
+            description = "The Project Watt Cubed package manager and module builder";
             license = pkgs.lib.licenses.agpl3Plus;
             mainProgram = "pwc";
           };

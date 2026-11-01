@@ -21,6 +21,14 @@ pub enum ModuleSource {
     File(PathBuf),
 }
 
+/// The name `ModuleSource` had before the rename.
+#[doc(hidden)]
+pub type ModSource = ModuleSource;
+
+/// The name `ModuleRequirement` had before the rename.
+#[doc(hidden)]
+pub type ModRequirement = ModuleRequirement;
+
 /// One `[modules]` entry.
 #[derive(Clone, PartialEq, Debug)]
 pub struct ModuleRequirement {

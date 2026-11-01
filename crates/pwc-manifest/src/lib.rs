@@ -16,6 +16,8 @@ mod text;
 
 pub use id::{InstanceName, PackageId};
 pub use instance::{BuildProfile, InstanceManifest, ModuleRequirement, ModuleSource};
+#[doc(hidden)]
+pub use instance::{ModRequirement, ModSource};
 pub use license::{
     ALLOWED_EXCEPTIONS, CONTENT_LICENSES, LicenseError, SOFTWARE_LICENSES,
     check_license_expression, check_package_license,

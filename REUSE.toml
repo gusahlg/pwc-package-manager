@@ -21,3 +21,16 @@ path = "mods/*/**"
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Project Watt Cubed contributors"
 SPDX-License-Identifier = "Apache-2.0 OR MIT"
+
+# Preserve notices on source extracted from the game rather than relicensing it.
+[[annotations]]
+path = ["mods/physics-selective/**", "mods/physics-wave/**", "mods/physics-packets/**", "mods/physics-reservoir/**", "mods/physics-rotor/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Project Watt Cubed contributors"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+[[annotations]]
+path = ["mods/physics-selective/*.md", "mods/physics-wave/*.md", "mods/physics-packets/*.md", "mods/physics-reservoir/*.md", "mods/physics-rotor/*.md"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Project Watt Cubed contributors"
+SPDX-License-Identifier = "CC-BY-SA-4.0"

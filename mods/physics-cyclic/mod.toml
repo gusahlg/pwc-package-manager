@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2026 Project Watt Cubed contributors
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+format = 1
+[package]
+id = "pwc.physics-cyclic"
+name = "Excitable Phase Physics"
+version = "0.1.0"
+description = "An excitable phase field with composition-derived contacts and refractory memory."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "mod"
+pwc-api = "^3.2"
+readme = "README.md"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["physics", "experimental", "cyclic"]
+categories = ["gameplay", "tools"]

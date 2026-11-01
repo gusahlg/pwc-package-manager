@@ -178,6 +178,7 @@ Every other method is an optional hook with a no-op default. The most common one
 | `save_state`, `load_state` | World save and load | Persist per-world state, with a payload version. |
 | `reset` | Entering a world | Clear per-world state. |
 | `tool`, `on_block_break`, `on_tool_changed` | Gameplay events | Take part in holding and using matter. |
+| `reaction_model` (API 3.2) | World/server selection | Supply a native authoritative `sim::model::ModelSpec`; the model owns its budgeted law, fields and persistence. |
 | `appearance`, `namer`, `worldgen` | When the game needs one | Replace a core default (first active mod wins). |
 | `root_screen`, `pause_screen` | Out of a world; Esc in a world | Be the start screen or the pause screen (first active mod wins). |
 

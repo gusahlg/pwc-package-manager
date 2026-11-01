@@ -168,8 +168,9 @@ policy accepts AGPL-compatible free licences instead, and the game's `MOD_POLICY
 - **Ids are permanent and versions are immutable.** `pwc` refuses a locked version whose contents
   changed without a version bump. The `pwc` namespace is reserved for the first-party packages in
   this repository.
-- **Mods respect the game's contract**: matter is not a mod, names are presentation, world-affecting
-  code is deterministic and the server is the authority.
+- **Mods respect the game's contract**: matter has no named block types, optional universal
+  physics models are compiled packages, names are presentation, world-affecting code is
+  deterministic and the server is the authority.
 
 `pwc package check`, `pwc package build` and `pwc mod add` enforce the machine-checkable rules.
 
@@ -194,11 +195,29 @@ policy accepts AGPL-compatible free licences instead, and the game's `MOD_POLICY
 | `pwc.infinite-diffusion` | InfiniteDiffusion, the world generator: surface, underground and space. |
 | `pwc.sounds` | Footsteps, blocks, tools, swings and menu clicks. |
 | `pwc.proximity-chat` | Push-to-talk voice for people you can see. |
-| `pwc.essentials` | Bundle of all of the above: the default set of mods. |
+| `pwc.essentials` | Default experience, including the extracted selective-transfer law; experimental physics is opt-in. |
 | `pwc.dev-toolkit` | Developer Toolkit: travel and inspection commands (`/tp`, `/cruise`, `/inspect`...) through `pwc.commands`, and flight on F. Not in the essentials. |
+| `pwc.physics-selective` | The extracted original contact and tool law; enabled when installed. |
+| `pwc.physics-wave` | Integer wave laboratory with reversible kicks and drift. |
+| `pwc.physics-packets` | Directional occupancy packets with nonlinear conservative scattering. |
+| `pwc.physics-reservoir` | Composition exchange coupled to finite local potential reservoirs. |
+| `pwc.physics-rotor` | Matter remembers traffic through rotating routing ports. |
+| `pwc.physics-fuel` | Finite-fuel autocatalytic propagation. |
+| `pwc.physics-cyclic` | A small excitable phase and recovery lattice. |
+| `pwc.physics-loops` | Divergence-preserving integer circulation interactions. |
+| `pwc.physics-spin` | Binary spin domains with locally conserved demon energy. |
+| `pwc.physics-symplectic` | Nonlinear invertible modular phase and momentum maps. |
+| `pwc.physics-bonds` | Plastic reststrain and conservative heat accounting on an elastic network. |
+| `pwc.physics-cooperative` | Single- and double-occurrence compatibility ascent. |
+| `pwc.physics-permutation` | Composition-conditioned reversible partitioned matter swaps. |
+| `pwc.physics-dipole` | Integer reflections conserving charge, spatial moments and norm. |
+| `pwc.physics-frames` | Quiet relational frames with reversible noncommuting encounters. |
+| `pwc.physics-lab` | Library and headless demonstrations for the independently selected models. |
 
-Every first-party package is licensed `Apache-2.0 OR MIT`, at your option: code, manifest,
-documentation and assets alike.
+New first-party packages use `Apache-2.0 OR MIT`. The five migrated physics packages retain
+AGPL code and CC-BY-SA prose; each manifest and licence directory records that explicitly.
+Use separate instances for model comparisons. Their `enabled` options choose one authority law;
+experimental fields and impulse inputs are currently singleplayer laboratories.
 
 See [mods/README.md](mods/README.md) for how the package repository is organised, and
 [docs/writing-a-mod.md](docs/writing-a-mod.md) to write your own.
@@ -226,18 +245,19 @@ General Public License, version 3 or (at your option) any later version, `AGPL-3
 ([LICENSE](LICENSE)).
 
 Packages carry their own licences, chosen by their authors within the
-[mod policy](POLICY.md#1-licensing). The first-party packages in `mods/<package>/` are licensed
+[mod policy](POLICY.md#1-licensing). New first-party packages in `mods/<package>/` are licensed
 under either of
 
 - Apache License, Version 2.0 ([LICENSES/Apache-2.0.txt](LICENSES/Apache-2.0.txt)), or
 - MIT licence ([LICENSES/MIT.txt](LICENSES/MIT.txt))
 
 at your option, and each package carries its own copies of both texts in its `LICENSES/`
-directory.
+directory. The five migrated physics packages preserve AGPL code and CC-BY-SA documentation;
+their manifests include both texts and REUSE records their exceptions.
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in a
-first-party package by you, as defined in the Apache-2.0 licence, shall be dual licensed as above,
-without any additional terms or conditions. Contributions to the package manager are licensed
+new dual-licensed first-party package by you, as defined in the Apache-2.0 licence, shall be
+dual licensed as above, without any additional terms or conditions. Contributions to the package manager are licensed
 `AGPL-3.0-or-later`, the licence of the files they change (inbound = outbound). Every commit needs
 a Developer Certificate of Origin sign-off (`git commit -s`); see
 [CONTRIBUTING.md](CONTRIBUTING.md#commits-and-pull-requests).

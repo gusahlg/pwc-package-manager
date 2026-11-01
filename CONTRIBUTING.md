@@ -79,6 +79,10 @@ When you add a package:
   repository's [LICENSES/](LICENSES/) into the package's own `LICENSES/` directory, and use the
   licence section of an existing package's README. [REUSE.toml](REUSE.toml) already marks every
   file in a package directory as `Apache-2.0 OR MIT`.
+- Existing source keeps its licence when extracted from the game. The five migrated
+  `physics-selective`, `physics-wave`, `physics-packets`, `physics-reservoir` and `physics-rotor`
+  packages preserve AGPL code and CC-BY-SA prose instead of relicensing copied source. Their
+  manifests carry both full texts; explicit REUSE annotations override the normal package default.
 - Include a README written for players: what it does, keys and settings, dependencies.
 - Follow the mod contract in [POLICY.md](POLICY.md#4-playing-well-with-pwc-the-mod-contract).
 - Add it to the package table in [README.md](README.md), and to `pwc.essentials` if it belongs in

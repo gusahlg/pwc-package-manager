@@ -3,8 +3,8 @@ format = 1
 [package]
 id = "pwc.essentials"
 name = "Essentials"
-version = "2.0.0"
-description = "The first-party essentials of PWC: start screen, settings, mod list and pause menus, hotbar, inventory, game UI, chat and commands, visuals, neural textures, material names, InfiniteDiffusion worldgen, sounds and proximity chat."
+version = "2.1.0"
+description = "The first-party essentials of PWC: start screen, settings, mod list and pause menus, hotbar, inventory, game UI, chat and commands, visuals, neural textures, material names, InfiniteDiffusion worldgen, sounds, proximity chat and selective-transfer physics."
 authors = ["Project Watt Cubed contributors"]
 license = "Apache-2.0 OR MIT"
 license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
@@ -30,3 +30,4 @@ categories = ["bundle"]
 "pwc.infinite-diffusion" = "^1.1"
 "pwc.sounds" = "^1.1"
 "pwc.proximity-chat" = "^1.1"
+"pwc.physics-selective" = "^0.1"

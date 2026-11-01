@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2026 Project Watt Cubed contributors
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+format = 1
+
+[package]
+id = "pwc.physics-dipole"
+name = "Dipole-Conserving Physics"
+version = "0.1.0"
+description = "A ternary occupation field whose universal affine-null reflections conserve charge, dipole moment and quadratic norm, yielding restricted mobility."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "mod"
+pwc-api = "^3.2"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["experimental", "physics", "dipole", "fracton"]
+categories = ["gameplay", "tools"]

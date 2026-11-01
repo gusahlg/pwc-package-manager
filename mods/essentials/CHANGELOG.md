@@ -1,5 +1,11 @@
 # Changelog — pwc.essentials
 
+## 2.1.0
+
+- Includes `pwc.physics-selective ^0.1`: the original contact/tool law is now a separately
+  compiled mod, restoring the shipped reaction behavior with mod API 3.2.
+- Experimental physics packages remain optional; they are not part of Essentials.
+
 ## 2.0.0
 
 - Adds the `pwc.chat-commands` bundle (`pwc.chat` and `pwc.commands`): the chat and its commands

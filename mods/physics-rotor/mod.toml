@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2026 Project Watt Cubed contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+format = 1
+
+[package]
+id = "pwc.physics-rotor"
+name = "Memory Matter Physics"
+version = "0.1.0"
+description = "Experimental conserved impulses through matter that remembers and changes their route, without named wires or gates."
+authors = ["Project Watt Cubed contributors"]
+license = "AGPL-3.0-or-later AND CC-BY-SA-4.0"
+license-files = ["LICENSES/AGPL-3.0-or-later.txt", "LICENSES/CC-BY-SA-4.0.txt"]
+kind = "mod"
+pwc-api = "^3.2"
+readme = "README.md"
+repository = "https://github.com/gusahlg/project_watt_cubed"
+keywords = ["experimental", "physics", "memory", "routing"]
+categories = ["gameplay", "tools"]

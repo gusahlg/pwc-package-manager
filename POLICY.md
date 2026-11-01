@@ -9,7 +9,7 @@ the licensing rules of §1 (see [Relation to the game's mod policy](#relation-to
 and adds what the package format and the compile-in build model require.
 
 `pwc` enforces the machine-checkable rules, marked **[enforced]**; maintainers review the rest.
-Policy version 1, 2026-10-03.
+Policy version 2, 2026-10-13.
 
 > **Free software only. Proprietary mods are not allowed.** The official mod ecosystem exists to
 > distribute software that every recipient can study, modify, rebuild and share. Commercial
@@ -170,7 +170,8 @@ freedom and source right the licences grant.
 
 The package manager itself (the tooling in `crates/`, its specifications and documentation, and
 everything else outside the package directories `mods/<package>/`) is licensed
-`AGPL-3.0-or-later`. The first-party packages in `mods/` are licensed `Apache-2.0 OR MIT`, and
+`AGPL-3.0-or-later`. New first-party packages in `mods/` use `Apache-2.0 OR MIT`. The five extracted physics
+packages preserve their existing `AGPL-3.0-or-later AND CC-BY-SA-4.0` notices, and
 each carries its own licence texts, as every package does. The tooling's licence covers the `pwc`
 program and its libraries; packages keep their own licences.
 
@@ -217,22 +218,26 @@ construction — the builder compiles them; there is nothing else to ship.
 These rules come from how the game works; mods that break them break multiplayer, saves or
 performance for everyone.
 
-1. **Matter is not a mod.** PWC has no block types: a block is a configuration of elements, and
-   one universal law (selective transfer) decides what happens when configurations touch. Mods
-   present, place, hold and transform matter through the law; they must not add named
-   special-case blocks, alternative physics, or behaviour keyed on a material's name.
+1. **Matter has no named block types.** A block is a canonical configuration of elements.
+   Native simulation packages may supply a universal interaction model through mod API 3.2;
+   one selected authority model governs the world. Its rules must derive behavior from state
+   and composition, never named special-case materials. Shared encoding, interning and immutable
+   observations remain core facilities. Alternative models run in separate test worlds; composing
+   laws requires an explicit ordering and conservation contract.
 2. **Names and looks are presentation.** Names, textures and descriptions a mod produces never
    flow back into the law, world generation, saves or the network protocol.
 3. **Determinism.** Anything that affects the world — world generation, reactions a machine
    triggers, persisted state — is a pure function of its inputs (seed, coordinates, the law) and
    bit-identical on every machine: no wall-clock time, unseeded randomness, platform-dependent
    floating point or hash-map iteration order in world-affecting code.
-4. **Hooks are not hot paths.** Mod hooks run at frame and event granularity. Never put per-voxel
-   work in a hook; cache what you draw.
+4. **Frame/event hooks are not voxel hot paths.** Cache what you draw. An authoritative
+   simulation model may run bounded local work in its budgeted tick; document the worst-case cost
+   of a budget unit rather than disguising a whole-world scan as one operation.
 5. **Respect the mod API's arbitration rules** (fan-out versus first-enabled-wins hooks), keep your
    persisted keys stable, and version persisted payloads.
-6. **Disabling must be safe.** Switching a mod off on the Mods screen never corrupts a world or the
-   player's holdings; the core owns the stash, so a mod only adds views and actions on it.
+6. **Pausing must preserve state.** Package installation is decided at build time. A simulation
+   package may expose an enabled option; turning it off freezes its versioned payload. Do not
+   reinterpret another model's saved state or corrupt the player's holdings.
 
 ## 5. Identity, versions, updates and multiplayer
 

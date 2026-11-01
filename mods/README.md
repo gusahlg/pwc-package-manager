@@ -25,12 +25,17 @@ hotbar/
 
 ## Licensing
 
-Each package here is licensed `Apache-2.0 OR MIT`, at your option: code, manifest, README,
+New packages here are licensed `Apache-2.0 OR MIT`, at your option: code, manifest, README,
 changelog and assets alike. Mods may use any licence the [mod policy](../POLICY.md#1-licensing)
-allows; the first-party packages use the dual licence it recommends. Each package carries both
+allows; new first-party packages use the dual licence it recommends. Each such package carries both
 licence texts in its own `LICENSES/` directory, and [REUSE.toml](../REUSE.toml) records the same
 licence for every file in a package directory. This README is part of the package manager's
 documentation and is licensed `AGPL-3.0-or-later`, like the rest of the tooling.
+
+The five migrated physics packages preserve their existing AGPL code and CC-BY-SA prose,
+with full texts in each package and explicit REUSE overrides. No copied game source is relicensed.
+Simulation experiments are optional packages, not default members of Essentials. The extracted
+selective-transfer package restores the original reaction behavior in Essentials.
 
 The packages are listed in the [repository README](../README.md#first-party-packages).
 

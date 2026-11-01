@@ -18,6 +18,7 @@ A bundle: no code of its own, just the first-party packages that make up PWC as 
 | `pwc.material-names` | `material_names` | Names for every material and tool |
 | `pwc.infinite-diffusion` | `diffusion` | Mountains, caves, mines and planets (world generation) |
 | `pwc.sounds` | `sounds` | Footsteps, blocks, tools, swings and menu clicks |
+| `pwc.physics-selective` | `pwc.physics-selective` | Original deterministic contact and tool reactions |
 | `pwc.proximity-chat` | `proximity_chat` | Push-to-talk voice for people you can see |
 
 The menus draw with `pwc.ui-kit`, a library the four menu packages depend on; it comes with them.
@@ -32,11 +33,11 @@ See each package's README. The bundle adds none.
 
 `pwc.start-screen ^2.0`, the three new menus and `pwc.chat-commands` at `^1.0`, `pwc.hotbar` and
 `pwc.inventory` at `^2.1`, `pwc.game-ui ^2.0`, and the other six packages at `^1.1`. The resolver
-picks one version of each; `pwc.hotbar` always registers before `pwc.inventory`, which depends on it.
+also includes `pwc.physics-selective ^0.1` (mod API 3.2). It picks one version of each; `pwc.hotbar` always registers before `pwc.inventory`, which depends on it.
 
 ## Compatibility
 
-Without the bundle PWC still runs: the core keeps the world, the law, the player's held materials,
+Without the bundle PWC still runs: the core keeps the world, common material catalog and player's held materials,
 flat block colours and a flat world, and with no start screen it enters the most recent world (or
 a new one) and Esc saves and quits. Settings then live only in `settings.cfg`. Without
 `pwc.pause-menu`, Esc leaves the world at once. Without `pwc.sounds` it plays no cues. Without
@@ -53,8 +54,8 @@ This bundle (its manifest, README, changelog and icon) is licensed under either 
 
 at your option.
 
-Each bundled package carries its own licence; every first-party package is licensed the same way,
-`Apache-2.0 OR MIT`.
+Each bundled package carries its own licence. The extracted selective-transfer code retains
+AGPL and its prose CC-BY-SA; other members use `Apache-2.0 OR MIT`.
 
 ### Contribution
 

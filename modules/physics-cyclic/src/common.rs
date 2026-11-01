@@ -9,7 +9,7 @@ use pwc_module_api::sim::{
 use pwc_module_api::{
     Action,
     engine::Key,
-    input::intent::{Chord, Modules, Source},
+    input::intent::{Chord, Mods, Source},
 };
 
 pub const RADIUS: i32 = 3;
@@ -43,7 +43,7 @@ impl Module for Provider {
         const INPUT: &[Action] = &[Action {
             id: crate::ACTION,
             label: crate::TITLE,
-            default: &[Chord::with(Modules::CTRL, Source::Key(Key::F5))],
+            default: &[Chord::with(Mods::CTRL, Source::Key(Key::F5))],
             repeat: false,
             held: false,
             immediate: false,

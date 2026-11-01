@@ -9,7 +9,7 @@ use pwc_module_api::sim::{
 use pwc_module_api::{
     Action,
     engine::Key,
-    input::intent::{Chord, Modules, Source},
+    input::intent::{Chord, Mods, Source},
 };
 use std::collections::BTreeMap;
 
@@ -57,7 +57,7 @@ impl Module for Provider {
             Action {
                 id: "physics.frames.conjugate",
                 label: "Prepare a frame conflict",
-                default: &[Chord::with(Modules::CTRL, Source::Key(Key::F5))],
+                default: &[Chord::with(Mods::CTRL, Source::Key(Key::F5))],
                 repeat: false,
                 held: false,
                 immediate: false,
@@ -65,7 +65,7 @@ impl Module for Provider {
             Action {
                 id: "physics.frames.cycle",
                 label: "Cycle local laboratory frame",
-                default: &[Chord::with(Modules::CTRL, Source::Key(Key::F6))],
+                default: &[Chord::with(Mods::CTRL, Source::Key(Key::F6))],
                 repeat: false,
                 held: false,
                 immediate: false,

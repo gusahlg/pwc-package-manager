@@ -4,7 +4,7 @@
 mod model;
 use pwc_module_api::Action;
 use pwc_module_api::engine::Key;
-use pwc_module_api::input::intent::{Chord, Modules, Source};
+use pwc_module_api::input::intent::{Chord, Mods, Source};
 use pwc_module_api::prelude::*;
 use pwc_module_api::sim::model::ModelSpec;
 
@@ -45,7 +45,7 @@ impl Module for Laboratory {
         const ACTIONS: &[Action] = &[Action {
             id: "pwc.physics-bonds.input",
             label: "Bond laboratory external input",
-            default: &[Chord::with(Modules::CTRL, Source::Key(Key::F5))],
+            default: &[Chord::with(Mods::CTRL, Source::Key(Key::F5))],
             repeat: false,
             held: false,
             immediate: false,

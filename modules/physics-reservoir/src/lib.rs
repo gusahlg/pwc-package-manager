@@ -3,7 +3,7 @@
 //! Local finite reservoirs and conservative matter rearrangement. See ../README.md.
 use pwc_module_api::Action;
 use pwc_module_api::engine::Key;
-use pwc_module_api::input::intent::{Chord, Modules, Source};
+use pwc_module_api::input::intent::{Chord, Mods, Source};
 use pwc_module_api::material::{Block, CAPACITY, Configuration, QUANTUM, fit_raw};
 use pwc_module_api::prelude::*;
 use pwc_module_api::sim::{model::*, reactions::*};
@@ -49,7 +49,7 @@ impl Module for ReservoirModule {
         const ACTIONS: &[Action] = &[Action {
             id: "physics.reservoir.heat",
             label: "Reservoir laboratory energy input",
-            default: &[Chord::with(Modules::CTRL, Source::Key(Key::F3))],
+            default: &[Chord::with(Mods::CTRL, Source::Key(Key::F3))],
             repeat: false,
             held: false,
             immediate: false,

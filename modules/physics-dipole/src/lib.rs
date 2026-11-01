@@ -6,7 +6,7 @@ mod model;
 pub use model::Dipole;
 use pwc_module_api::Action;
 use pwc_module_api::engine::Key;
-use pwc_module_api::input::intent::{Chord, Modules, Source};
+use pwc_module_api::input::intent::{Chord, Mods, Source};
 use pwc_module_api::prelude::*;
 use pwc_module_api::sim::model::ModelSpec;
 
@@ -51,7 +51,7 @@ impl Module for Laboratory {
             Action {
                 id: "dipole.prepare-pair",
                 label: "Prepare neutral signed pair",
-                default: &[Chord::with(Modules::CTRL, Source::Key(Key::F5))],
+                default: &[Chord::with(Mods::CTRL, Source::Key(Key::F5))],
                 repeat: false,
                 held: false,
                 immediate: false,
@@ -59,7 +59,7 @@ impl Module for Laboratory {
             Action {
                 id: "dipole.prepare-positive",
                 label: "Prepare isolated positive occupation",
-                default: &[Chord::with(Modules::CTRL, Source::Key(Key::F6))],
+                default: &[Chord::with(Mods::CTRL, Source::Key(Key::F6))],
                 repeat: false,
                 held: false,
                 immediate: false,
@@ -67,7 +67,7 @@ impl Module for Laboratory {
             Action {
                 id: "dipole.prepare-negative",
                 label: "Prepare isolated negative occupation",
-                default: &[Chord::with(Modules::SHIFT, Source::Key(Key::F6))],
+                default: &[Chord::with(Mods::SHIFT, Source::Key(Key::F6))],
                 repeat: false,
                 held: false,
                 immediate: false,

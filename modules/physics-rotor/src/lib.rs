@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 
 use pwc_module_api::Action;
 use pwc_module_api::engine::Key;
-use pwc_module_api::input::intent::{Chord, Modules, Source};
+use pwc_module_api::input::intent::{Chord, Mods, Source};
 use pwc_module_api::prelude::*;
 use pwc_module_api::sim::{model::*, reactions::*};
 
@@ -53,7 +53,7 @@ impl Module for RotorModule {
         const ACTIONS: &[Action] = &[Action {
             id: "physics.rotor.impulse",
             label: "Memory matter: add an impulse",
-            default: &[Chord::with(Modules::CTRL, Source::Key(Key::F4))],
+            default: &[Chord::with(Mods::CTRL, Source::Key(Key::F4))],
             repeat: false,
             held: false,
             immediate: false,

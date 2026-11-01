@@ -10,7 +10,7 @@ use pwc_module_api::sim::{
 use pwc_module_api::{
     Action,
     engine::Key,
-    input::intent::{Chord, Modules, Source},
+    input::intent::{Chord, Mods, Source},
 };
 use std::collections::BTreeMap;
 
@@ -55,7 +55,7 @@ impl Module for Provider {
         const A: &[Action] = &[Action {
             id: "physics.permutation.seed",
             label: "Start matter permutation laboratory",
-            default: &[Chord::with(Modules::CTRL, Source::Key(Key::F5))],
+            default: &[Chord::with(Mods::CTRL, Source::Key(Key::F5))],
             repeat: false,
             held: false,
             immediate: false,

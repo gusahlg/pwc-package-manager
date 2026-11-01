@@ -10,7 +10,7 @@ use pwc_module_api::{bundles_of, BuildInfo, ModuleRegistrar, PackageInfo, Packag
 use pwc_ui_kit::{Framed, Menu, Msg, Notice, Row, Style, View};
 
 /// The entry this package offers.
-pub const ENTRY: ScreenEntry = ScreenEntry { id: "pwc.module-menu", label: "Modules", places: Places::BOTH, order: 10, open };
+pub const ENTRY: ScreenEntry = ScreenEntry { id: "pwc.mod-menu", label: "Modules", places: Places::BOTH, order: 10, open };
 
 /// The persistent notice: how the set of modules changes.
 pub const MODULES_NOTICE: &str = "Modules are compiled in: change them with `pwc module add` / `pwc module remove` and `pwc build`.";
@@ -167,7 +167,7 @@ mod tests {
     #[test]
     fn the_package_offers_modules_on_the_main_menu_and_the_pause_screen() {
         let modules = Harness::new(GameBuild::new()
-            .with_module(ModuleDescriptor { id: "pwc.module-menu", name: "Module menu", version: "1.0.0", register }));
+            .with_module(ModuleDescriptor { id: "pwc.mod-menu", name: "Module menu", version: "1.0.0", register }));
         let entries = modules.screen_entries();
         assert_eq!((entries.len(), entries[0].label, entries[0].places), (1, "Modules", Places::BOTH));
     }

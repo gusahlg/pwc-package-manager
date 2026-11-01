@@ -3,7 +3,7 @@
 //! Sparse conservative channel dynamics. This is not a proved universal computer.
 use pwc_module_api::Action;
 use pwc_module_api::engine::Key;
-use pwc_module_api::input::intent::{Chord, Modules, Source};
+use pwc_module_api::input::intent::{Chord, Mods, Source};
 use pwc_module_api::material::{Configuration, fit_raw};
 use pwc_module_api::prelude::*;
 use pwc_module_api::sim::{model::*, reactions::*};
@@ -48,7 +48,7 @@ impl Module for PacketModule {
         const ACTIONS: &[Action] = &[Action {
             id: "physics.packets.inject",
             label: "Packet laboratory injection",
-            default: &[Chord::with(Modules::CTRL, Source::Key(Key::F2))],
+            default: &[Chord::with(Mods::CTRL, Source::Key(Key::F2))],
             repeat: false,
             held: false,
             immediate: false,

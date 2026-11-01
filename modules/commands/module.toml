@@ -1,0 +1,20 @@
+format = 1
+
+[package]
+id = "pwc.commands"
+name = "Commands"
+version = "1.0.1"
+description = "Slash commands in the chat (/help, /gfx, /time, /mute, /deafen, /audio, /voicetest, /op) and a registry other modules add commands to."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "module"
+pwc-api = "^3.4"
+readme = "README.md"
+icon = "assets/icon.svg"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["commands", "chat", "settings", "time"]
+categories = ["interface"]
+
+[dependencies]
+"pwc.chat" = "^1.0"

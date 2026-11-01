@@ -1,0 +1,19 @@
+# Changelog — pwc.proximity-chat
+
+## 1.1.1 — modules, not mods
+
+- The package says module everywhere: `module.toml`, `kind = "module"`, `pwc_module_api` and the `Module*` names, `pwc-api ^3.4`. Nothing else changes; the id is the same.
+
+## 1.1.0
+
+- Requires `pwc-api ^3.0`. `voice.talk` names `immediate: false`. Behaviour unchanged.
+- Voice Chat is this package's option (the Audio page; `pwc.proximity-chat.voice_enabled`): the
+  core no longer has a voice_enabled setting, and its old line is read once. No description or group
+  of its own.
+
+## 1.0.0
+
+- Mod id `proximity_chat`, in the Essentials group, enabled by default. Requires `pwc-api ^2.1`.
+- Hold `V` (`voice.talk`) to send on the `"voice"` channel. Audible peers are the visible interest
+  set. The microphone stays closed when voice is disabled or there is no connection.
+- Licensed `Apache-2.0 OR MIT` at your option; both texts are in `LICENSES/`.

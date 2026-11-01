@@ -1,0 +1,20 @@
+format = 1
+
+[package]
+id = "pwc.mod-menu"
+name = "Module menu"
+version = "1.0.1"
+description = "The packages compiled into this build, read-only: grouped under their bundles, with what each needs and what a server suspended."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "module"
+pwc-api = "^3.4"
+readme = "README.md"
+icon = "assets/icon.svg"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["modules", "menu", "packages"]
+categories = ["interface"]
+
+[dependencies]
+"pwc.ui-kit" = "^1.0"

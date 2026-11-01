@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2026 Project Watt Cubed contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+format = 1
+
+[package]
+id = "pwc.physics-reservoir"
+name = "Conservative Reservoir Physics"
+version = "0.1.1"
+description = "Experimental occurrence transfers paid for by finite local energy, with exact potential-plus-reservoir accounting."
+authors = ["Project Watt Cubed contributors"]
+license = "AGPL-3.0-or-later AND CC-BY-SA-4.0"
+license-files = ["LICENSES/AGPL-3.0-or-later.txt", "LICENSES/CC-BY-SA-4.0.txt"]
+kind = "module"
+pwc-api = "^3.4"
+repository = "https://github.com/gusahlg/project_watt_cubed"
+keywords = ["experimental", "physics", "energy"]
+categories = ["gameplay", "tools"]
+readme = "README.md"

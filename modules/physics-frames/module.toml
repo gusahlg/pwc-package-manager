@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2026 Project Watt Cubed contributors
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+format = 1
+[package]
+id = "pwc.physics-frames"
+name = "Relational Frame Physics"
+version = "0.1.1"
+description = "Commuting backgrounds stay quiet; incompatible transformations rewrite one another under one reversible algebraic rule."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "module"
+pwc-api = "^3.4"
+readme = "README.md"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["physics", "simulation", "algebra", "emergence"]
+categories = ["gameplay", "tools"]

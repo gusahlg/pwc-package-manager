@@ -1,0 +1,20 @@
+format = 1
+
+[package]
+id = "pwc.dev-toolkit"
+name = "Developer Toolkit"
+version = "2.1.1"
+description = "Travel and inspection commands for the chat (teleport, bodies, noclip, cruise, speeds, inspect, reactions, gravity) and flight on F."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "module"
+pwc-api = "^3.4"
+readme = "README.md"
+icon = "assets/icon.svg"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["commands", "chat", "teleport", "flight", "debug"]
+categories = ["tools"]
+
+[dependencies]
+"pwc.commands" = "^1.0"

@@ -1,0 +1,20 @@
+format = 1
+
+[package]
+id = "pwc.pause-menu"
+name = "Pause menu"
+version = "1.0.1"
+description = "What Esc opens in a world: Resume, the pause entries other packages offer (settings, modules), and Leave World."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "module"
+pwc-api = "^3.4"
+readme = "README.md"
+icon = "assets/icon.svg"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["pause", "menu"]
+categories = ["interface"]
+
+[dependencies]
+"pwc.ui-kit" = "^1.0"

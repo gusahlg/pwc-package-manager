@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: 2026 Project Watt Cubed contributors
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+format = 1
+[package]
+id = "pwc.physics-lab"
+name = "Physics Laboratory"
+version = "0.2.1"
+description = "Headless instruments and managed-package selection checks for fifteen independent simulation models."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "library"
+pwc-api = "^3.4"
+readme = "README.md"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["physics", "simulation", "laboratory"]
+categories = ["library", "tools"]
+[dependencies]
+"pwc.physics-selective" = "^0.1"
+"pwc.physics-wave" = "^0.1"
+"pwc.physics-packets" = "^0.1"
+"pwc.physics-reservoir" = "^0.1"
+"pwc.physics-rotor" = "^0.1"
+"pwc.physics-fuel" = "^0.1"
+"pwc.physics-cyclic" = "^0.1"
+"pwc.physics-loops" = "^0.1"
+"pwc.physics-spin" = "^0.1"
+"pwc.physics-symplectic" = "^0.1"
+"pwc.physics-bonds" = "^0.1"
+"pwc.physics-cooperative" = "^0.1"
+"pwc.physics-permutation" = "^0.1"
+"pwc.physics-dipole" = "^0.1"
+"pwc.physics-frames" = "^0.1"

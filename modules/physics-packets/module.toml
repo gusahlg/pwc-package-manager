@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2026 Project Watt Cubed contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+format = 1
+
+[package]
+id = "pwc.physics-packets"
+name = "Conservative Packet Physics"
+version = "0.1.1"
+description = "Experimental six-channel lattice signals with conservative nonlinear scattering and material-derived reflection."
+authors = ["Project Watt Cubed contributors"]
+license = "AGPL-3.0-or-later AND CC-BY-SA-4.0"
+license-files = ["LICENSES/AGPL-3.0-or-later.txt", "LICENSES/CC-BY-SA-4.0.txt"]
+kind = "module"
+pwc-api = "^3.4"
+repository = "https://github.com/gusahlg/project_watt_cubed"
+keywords = ["experimental", "physics", "signals"]
+categories = ["gameplay", "tools"]
+readme = "README.md"

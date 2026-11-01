@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2026 Project Watt Cubed contributors
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+format = 1
+[package]
+id = "pwc.physics-permutation"
+name = "Matter Permutations"
+version = "0.1.1"
+description = "A reversible partitioned lattice that moves whole configurations using a symmetric nonlinear composition rule."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "module"
+pwc-api = "^3.4"
+readme = "README.md"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["physics", "simulation", "research"]
+categories = ["gameplay", "tools"]

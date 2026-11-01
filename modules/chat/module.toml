@@ -1,0 +1,20 @@
+format = 1
+
+[package]
+id = "pwc.chat"
+name = "Chat"
+version = "1.0.1"
+description = "Text chat on § (the key left of 1) and the scrollback of the game's messages; other modules can handle typed lines."
+authors = ["Project Watt Cubed contributors"]
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
+kind = "module"
+pwc-api = "^3.4"
+readme = "README.md"
+icon = "assets/icon.svg"
+repository = "https://github.com/gusahlg/pwc-package-manager"
+keywords = ["chat", "text", "messages", "multiplayer"]
+categories = ["interface"]
+
+[dependencies]
+"pwc.ui-kit" = "^1.0"

@@ -3,14 +3,43 @@
 Notable changes to the `pwc` tooling and this repository. Each first-party package in `mods/`
 carries its own version in its `mod.toml`.
 
-## Unreleased
+## 0.3.0
 
-### First-party packages
+### First-party packages (pwc-api 3.2 and 3.3)
 
-- `pwc.exploraswarm` 0.1.0 (`pwc-api ^3.3`): N neural-network players join a server through the
+- New: `pwc.physics-selective` 0.1.0 (`pwc-api ^3.2`), the game's original passive,
+  element-conserving contact and tool law, moved out of the game into a compiled simulation
+  model. `pwc.essentials` 2.1.0 includes it, so the default experience is unchanged.
+- New, opt-in: fourteen experimental simulation models (`pwc.physics-wave`, `-packets`,
+  `-reservoir`, `-rotor`, `-fuel`, `-cyclic`, `-loops`, `-spin`, `-symplectic`, `-bonds`,
+  `-cooperative`, `-permutation`, `-dipole`, `-frames`) 0.1.0 and the `pwc.physics-lab` library
+  with headless demonstrations. Each model's `enabled` option makes it the authority law; use
+  one instance per model. The five packages migrated from the game keep their AGPL code and
+  CC-BY-SA prose; REUSE records the exceptions.
+- New: `pwc.exploraswarm` 0.1.0 (`pwc-api ^3.3`): N neural-network players join a server through the
   game's headless client and explore it. A MAP-Elites archive keeps networks that play differently;
   rule sets (`explorer`, `builder`) decide fitness, behaviour axes and novelty, apart from the
   machinery. Driven by the mod-registered `swarm` command (`pwc run -- swarm …`).
+
+### Security
+
+- Package paths, archive names, ids and instance names follow one portable rule on every
+  platform: relative `/` components only, no drive prefixes, `:`, `\`, `.` or `..`, no trailing
+  dot or space, no `<>"|?*` or control characters and no Windows device names (`CON`, `NUL`,
+  `COM1`…, also with an extension). A path such as `C:/x` could otherwise replace the
+  destination on Windows. Extraction refuses any result outside the destination, and packages
+  whose paths collide ignoring case are rejected before any byte is written.
+
+### Windows
+
+- State directories ignore `HOME`: `PWC_HOME`, then an absolute `XDG_*_HOME`, then
+  `LOCALAPPDATA`, `APPDATA` and `USERPROFILE\AppData\Local`.
+- Auto `nix develop` is never selected on Windows; program lookup tries `<name>.exe` only.
+  Cargo, rustc, git and a configured wrapper start without a console window (`pwc run` still
+  shows the game's). Build IDs normalise line endings, so a Windows rustc matches a Unix one.
+- A plain-triple `CARGO_BUILD_TARGET` is passed as `--target` and artifacts are read from its
+  directory.
+- CI builds and tests the workspace on `windows-latest`.
 
 ### Builder
 

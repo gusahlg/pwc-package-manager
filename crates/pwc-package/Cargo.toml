@@ -1,6 +1,6 @@
 [package]
 name = "pwc-package"
-description = "The .pwcmod package format: collecting package contents, deterministic archives, hashing and verification."
+description = "The .pwcmodule package format: collecting package contents, deterministic archives, hashing and verification."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -3,7 +3,7 @@
 use crate::ManifestError;
 
 /// A permanent, namespaced package id (`pwc.hotbar`, `gusahlg.better-caves`). See
-/// `docs/spec/mod-manifest.md` for the grammar.
+/// `docs/spec/module-manifest.md` for the grammar.
 #[derive(
     Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, serde::Serialize, serde::Deserialize,
 )]
@@ -164,7 +164,7 @@ fn check_id(s: &str) -> Result<(), &'static str> {
         }
         if crate::text::is_reserved_windows_device(segment) {
             return Err(
-                "a package id must not use a Windows reserved device name (`con`, `prn`, `aux`, `nul`, `com1`-`com9`, `lpt1`-`lpt9`) as a segment; the archive file is `<id>-<version>.pwcmod`",
+                "a package id must not use a Windows reserved device name (`con`, `prn`, `aux`, `nul`, `com1`-`com9`, `lpt1`-`lpt9`) as a segment; the archive file is `<id>-<version>.pwcmodule`",
             );
         }
     }

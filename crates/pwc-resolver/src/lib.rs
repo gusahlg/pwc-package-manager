@@ -8,7 +8,7 @@
 //! end of that agenda — a breadth-first discovery order. For each id the candidates are tried in
 //! preference order (the previously locked version first unless the id is being updated, then
 //! newest first; candidates with equal id and version in the order the caller listed them). A
-//! candidate is accepted when it is eligible for the mod API, satisfies every requirement on its
+//! candidate is accepted when it is eligible for the module API, satisfies every requirement on its
 //! id, agrees with every already chosen package it depends on, and no conflict exists between it
 //! and the chosen packages. On a dead end the search backtracks.
 //!
@@ -24,7 +24,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use pwc_manifest::{ModKind, PackageHash, PackageId, Version, VersionReq};
+use pwc_manifest::{PackageHash, PackageId, PackageKind, Version, VersionReq};
 
 /// One known version of one package.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -34,7 +34,7 @@ pub struct Candidate {
     /// Version.
     pub version: Version,
     /// Kind.
-    pub kind: ModKind,
+    pub kind: PackageKind,
     /// Content hash.
     pub hash: PackageHash,
     /// `pwc-api` requirement (`None` for bundles).
@@ -48,7 +48,7 @@ pub struct Candidate {
 }
 
 impl Candidate {
-    /// Whether this candidate may be used with mod API `api` (`None` = no API check).
+    /// Whether this candidate may be used with module API `api` (`None` = no API check).
     pub fn is_eligible(&self, api: Option<&Version>) -> bool {
         match (&self.pwc_api, api) {
             (Some(req), Some(api)) => req.matches(api),
@@ -74,7 +74,7 @@ pub enum Requirement {
 /// Everything the resolver needs.
 #[derive(Clone, Debug, Default)]
 pub struct Problem {
-    /// The `pwc-mod-api` version the build provides (`None` = do not check `pwc-api`).
+    /// The `pwc-module-api` version the build provides (`None` = do not check `pwc-api`).
     pub api: Option<Version>,
     /// Root requirements.
     pub roots: BTreeMap<PackageId, Requirement>,
@@ -154,7 +154,7 @@ pub enum ResolveError {
         /// Comma-separated versions, or "none".
         available: String,
     },
-    /// The package needs another mod API.
+    /// The package needs another module API.
     #[error("{id} {version} requires pwc-api {req} but this PWC provides {api}")]
     Api {
         /// Id.

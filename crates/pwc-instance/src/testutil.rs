@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 /// A minimal PWC-shaped tree at `<root>/pwc` (not a git repository).
 pub(crate) fn fake_pwc(root: &Path, version: &str, api: &str) -> PathBuf {
     let dir = root.join("pwc");
-    std::fs::create_dir_all(dir.join("crates/pwc-mod-api/src")).unwrap();
+    std::fs::create_dir_all(dir.join("crates/pwc-module-api/src")).unwrap();
     std::fs::create_dir_all(dir.join("src")).unwrap();
     std::fs::write(
         dir.join("Cargo.toml"),
@@ -13,8 +13,8 @@ pub(crate) fn fake_pwc(root: &Path, version: &str, api: &str) -> PathBuf {
     )
     .unwrap();
     std::fs::write(
-        dir.join("crates/pwc-mod-api/Cargo.toml"),
-        format!("[package]\nname = \"pwc-mod-api\"\nversion = \"{api}\"\nedition = \"2024\"\n"),
+        dir.join("crates/pwc-module-api/Cargo.toml"),
+        format!("[package]\nname = \"pwc-module-api\"\nversion = \"{api}\"\nedition = \"2024\"\n"),
     )
     .unwrap();
     std::fs::write(dir.join("src/lib.rs"), "").unwrap();
@@ -34,12 +34,12 @@ pub(crate) struct Pkg<'a> {
 }
 
 impl<'a> Pkg<'a> {
-    /// A `kind = "mod"` package for `pwc-api = "^1.0"` without dependencies.
+    /// A `kind = "module"` package for `pwc-api = "^1.0"` without dependencies.
     pub fn new(id: &'a str, version: &'a str) -> Self {
         Self {
             id,
             version,
-            kind: "mod",
+            kind: "module",
             api: "^1.0",
             deps: &[],
             conflicts: &[],
@@ -67,7 +67,7 @@ impl<'a> Pkg<'a> {
         self
     }
 
-    pub fn mod_toml(&self) -> String {
+    pub fn module_toml(&self) -> String {
         let mut text = format!(
             "format = 1\n\n[package]\nid = \"{}\"\nname = \"Test {}\"\nversion = \"{}\"\n\
              description = \"A package for the pwc-instance tests.\"\nauthors = [\"Tester\"]\n\
@@ -95,7 +95,7 @@ impl<'a> Pkg<'a> {
     /// Write the source tree to `dir` (created; existing files overwritten).
     pub fn write(&self, dir: &Path) -> PathBuf {
         std::fs::create_dir_all(dir).unwrap();
-        std::fs::write(dir.join("mod.toml"), self.mod_toml()).unwrap();
+        std::fs::write(dir.join("module.toml"), self.module_toml()).unwrap();
         std::fs::write(dir.join("README.md"), format!("# {}\n", self.id)).unwrap();
         std::fs::write(
             dir.join("LICENSE"),

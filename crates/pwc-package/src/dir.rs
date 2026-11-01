@@ -1,6 +1,6 @@
 //! Collecting a package from a source directory.
 //!
-//! Only the package contents are read: `mod.toml`, the files the manifest names (readme, licence
+//! Only the package contents are read: `module.toml` (or the older `mod.toml`), the files the manifest names (readme, licence
 //! files), the optional top-level files and the `src/`, `assets/` and `data/` trees. Everything
 //! else (`target/`, `dist/`, `.git/`, a development `Cargo.toml`, editor files, …) is reported as
 //! ignored without being descended into. Inside the included trees, symlinks, hidden entries,
@@ -14,7 +14,9 @@ use std::path::{Component, Path};
 
 use walkdir::WalkDir;
 
-use crate::contents::{self, MANIFEST, TREES, forbidden, forbidden_reason, named_files, tree_of};
+use crate::contents::{
+    self, MANIFEST, TREES, forbidden, forbidden_reason, manifest_name, named_files, tree_of,
+};
 use crate::{MAX_FILE_BYTES, MAX_FILES, PackageError, PackageFile};
 
 /// The package files of `dir` (sorted by path) and the ignored paths (sorted; directories end in `/`).
@@ -28,7 +30,8 @@ pub(crate) fn collect(dir: &Path) -> Result<(Vec<PackageFile>, Vec<String>), Pac
     }
 
     // The manifest first: it names the readme and licence files.
-    let manifest_path = dir.join(MANIFEST);
+    let manifest_name = manifest_name(|n| fs::symlink_metadata(dir.join(n)).is_ok())?;
+    let manifest_path = dir.join(manifest_name);
     let manifest_meta = match fs::symlink_metadata(&manifest_path) {
         Ok(meta) => meta,
         Err(err) if err.kind() == io::ErrorKind::NotFound => {
@@ -36,12 +39,13 @@ pub(crate) fn collect(dir: &Path) -> Result<(Vec<PackageFile>, Vec<String>), Pac
         }
         Err(err) => return Err(io_error(&manifest_path, err)),
     };
-    check_file_type(MANIFEST, &manifest_meta)?;
-    contents::check_file_size(MANIFEST, manifest_meta.len())?;
+    check_file_type(manifest_name, &manifest_meta)?;
+    contents::check_file_size(manifest_name, manifest_meta.len())?;
     let manifest = contents::parse_manifest(
         &fs::read(&manifest_path).map_err(|source| io_error(&manifest_path, source))?,
+        manifest_name,
     )?;
-    let named = named_files(&manifest);
+    let named = named_files(&manifest, manifest_name);
     // Directories leading to a named file outside the trees (`licenses` for `licenses/MIT.txt`).
     let named_dirs: BTreeSet<&str> = named
         .iter()

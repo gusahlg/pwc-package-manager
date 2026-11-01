@@ -3,7 +3,7 @@
 use std::fs;
 use std::path::Path;
 
-use pwc_manifest::{LicenseError, ModKind};
+use pwc_manifest::{LicenseError, PackageKind};
 use tempfile::TempDir;
 
 use super::*;
@@ -148,7 +148,7 @@ fn from_dir_collects_exactly_the_package() {
     assert_eq!(package.files(), sample_files().as_slice());
     assert_eq!(ignored, SAMPLE_IGNORED);
     assert_eq!(package.manifest().id().as_str(), "example.thing");
-    assert_eq!(package.file_name(), "example.thing-1.2.3.pwcmod");
+    assert_eq!(package.file_name(), "example.thing-1.2.3.pwcmodule");
 }
 
 #[test]
@@ -413,7 +413,7 @@ fn hidden_named_files_are_forbidden() {
 #[test]
 fn required_files() {
     let dir = TempDir::new().unwrap();
-    assert_missing(Package::from_dir(dir.path()), "mod.toml");
+    assert_missing(Package::from_dir(dir.path()), "module.toml");
 
     for (remove, missing) in [
         ("README.md", "README.md"),
@@ -464,7 +464,7 @@ fn bundles_have_no_code() {
     write(dir.path(), "LICENSE", b"CC0\n");
     write(dir.path(), "assets/banner.png", b"\x89PNG");
     let (package, _) = Package::from_dir(dir.path()).unwrap();
-    assert_eq!(package.manifest().kind(), ModKind::Bundle);
+    assert_eq!(package.manifest().kind(), PackageKind::Bundle);
     assert_eq!(package.files().len(), 4);
 
     write(dir.path(), "src/lib.rs", b"");
@@ -680,7 +680,7 @@ fn archive_round_trip() {
 
     let out = TempDir::new().unwrap();
     let path = package.write_archive(&out.path().join("dist")).unwrap();
-    assert_eq!(path, out.path().join("dist/example.thing-1.2.3.pwcmod"));
+    assert_eq!(path, out.path().join("dist/example.thing-1.2.3.pwcmodule"));
     assert_eq!(fs::read(&path).unwrap(), bytes);
     let from_file = Package::from_archive_file(&path).unwrap();
     assert_eq!(from_file.hash(), package.hash());
@@ -1024,5 +1024,61 @@ fn error_messages() {
     assert_eq!(
         PackageError::MissingFile("README.md".into()).to_string(),
         "missing required file `README.md`"
+    );
+}
+
+/// The sample package with its manifest under `name`.
+fn sample_files_with_manifest(name: &str) -> Vec<PackageFile> {
+    sample_files()
+        .into_iter()
+        .map(|mut f| {
+            if f.path == "mod.toml" {
+                f.path = name.into();
+            }
+            f
+        })
+        .collect()
+}
+
+#[test]
+fn module_toml_is_the_manifest_and_mod_toml_is_still_accepted() {
+    // A directory with `module.toml`.
+    let new = TempDir::new().unwrap();
+    for f in sample_files_with_manifest("module.toml") {
+        write(new.path(), &f.path, &f.bytes);
+    }
+    let (from_new, _) = Package::from_dir(new.path()).unwrap();
+    assert!(from_new.files().iter().any(|f| f.path == "module.toml"));
+    assert!(from_new.files().iter().all(|f| f.path != "mod.toml"));
+
+    // A directory with the older `mod.toml` keeps it in the archive (its bytes do not change).
+    let old = sample_dir();
+    let (from_old, _) = Package::from_dir(old.path()).unwrap();
+    assert!(from_old.files().iter().any(|f| f.path == "mod.toml"));
+    assert!(from_old.files().iter().all(|f| f.path != "module.toml"));
+
+    // Both archives read back.
+    let back = Package::from_archive_bytes(&from_new.to_archive_bytes()).unwrap();
+    assert_eq!(back.hash(), from_new.hash());
+    let back = Package::from_archive_bytes(&from_old.to_archive_bytes()).unwrap();
+    assert_eq!(back.hash(), from_old.hash());
+}
+
+#[test]
+fn both_manifest_names_are_an_error_naming_both() {
+    let dir = sample_dir();
+    write(dir.path(), "module.toml", MOD_TOML.as_bytes());
+    let err = Package::from_dir(dir.path()).unwrap_err().to_string();
+    assert!(
+        err.contains("module.toml") && err.contains("mod.toml"),
+        "{err}"
+    );
+
+    let mut files = sample_files();
+    files.push(file("module.toml", MOD_TOML.as_bytes()));
+    let err = Package::from_files(files).unwrap_err().to_string();
+    assert!(
+        err.contains("module.toml") && err.contains("mod.toml"),
+        "{err}"
     );
 }

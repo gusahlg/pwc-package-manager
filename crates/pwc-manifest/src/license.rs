@@ -1,11 +1,11 @@
 //! The licence policy (POLICY.md §1, policy version 1): a package's `license` is an SPDX
 //! expression over free licences on the allowlists below. Code must be under a free-software
-//! licence compatible with the game's `AGPL-3.0-or-later` (mods are compiled into the game), for
+//! licence compatible with the game's `AGPL-3.0-or-later` (modules are compiled into the game), for
 //! example `Apache-2.0 OR MIT` (the recommended choice), `MPL-2.0` or `GPL-3.0-or-later`; assets
 //! and documentation may use a free-content licence (POLICY.md says which suit assets compiled into
 //! the game). Proprietary licences are not accepted.
 
-use crate::ModKind;
+use crate::PackageKind;
 
 /// Free-software licences accepted for code: each is compatible with the game's
 /// `AGPL-3.0-or-later`, so a package under it can be compiled into the game. Keep in sync with
@@ -75,10 +75,10 @@ pub enum LicenseError {
     /// An exception id after `WITH` that is not on [`ALLOWED_EXCEPTIONS`].
     #[error("licence exception `{0}` is not allowed: {POLICY}")]
     ExceptionNotAllowed(String),
-    /// A `mod` or `library` package whose expression has an `OR` alternative without a
+    /// A `module` or `library` package whose expression has an `OR` alternative without a
     /// free-software licence, which would leave the package's code under content licences only.
     #[error(
-        "`{expression}` does not license the package's code: every `OR` alternative of a `mod` or \
+        "`{expression}` does not license the package's code: every `OR` alternative of a `module` or \
          `library` package must include a free-software licence (content licences such as \
          `CC-BY-SA-4.0` do not cover code); {POLICY}"
     )]
@@ -112,7 +112,7 @@ pub fn check_license_expression(expr: &str) -> Result<(), LicenseError> {
 }
 
 /// The kind-specific licence rule (POLICY.md §1): the expression passes
-/// [`check_license_expression`], and for `mod` and `library` packages every `OR` alternative
+/// [`check_license_expression`], and for `module` and `library` packages every `OR` alternative
 /// includes a free-software licence from [`SOFTWARE_LICENSES`], so whichever alternative a
 /// licensee picks, the code is under a free-software licence. Evaluated recursively: an id counts
 /// if it is on the software list, `X WITH e` if `X` does, `A AND B` if either side does, `A OR B`
@@ -121,7 +121,7 @@ pub fn check_license_expression(expr: &str) -> Result<(), LicenseError> {
 /// [`LicenseError::NoSoftwareLicence`].
 ///
 /// A `bundle` contains no code, so any expression passing the allowlist check is fine.
-pub fn check_package_license(expr: &str, kind: ModKind) -> Result<(), LicenseError> {
+pub fn check_package_license(expr: &str, kind: PackageKind) -> Result<(), LicenseError> {
     let licenses_code = check(expr)?;
     if kind.has_code() && !licenses_code {
         return Err(LicenseError::NoSoftwareLicence {
@@ -294,8 +294,12 @@ impl<'a> Parser<'_, 'a> {
 mod tests {
     use super::*;
 
-    const CODE_KINDS: [ModKind; 2] = [ModKind::Mod, ModKind::Library];
-    const ALL_KINDS: [ModKind; 3] = [ModKind::Mod, ModKind::Library, ModKind::Bundle];
+    const CODE_KINDS: [PackageKind; 2] = [PackageKind::Module, PackageKind::Library];
+    const ALL_KINDS: [PackageKind; 3] = [
+        PackageKind::Module,
+        PackageKind::Library,
+        PackageKind::Bundle,
+    ];
 
     fn no_software(expr: &str) -> LicenseError {
         LicenseError::NoSoftwareLicence {
@@ -380,7 +384,7 @@ mod tests {
     fn every_allowed_id_is_accepted_alone() {
         for id in SOFTWARE_LICENSES.iter().chain(CONTENT_LICENSES) {
             check_license_expression(id).unwrap_or_else(|e| panic!("{id}: {e}"));
-            check_package_license(id, ModKind::Bundle).unwrap_or_else(|e| panic!("{id}: {e}"));
+            check_package_license(id, PackageKind::Bundle).unwrap_or_else(|e| panic!("{id}: {e}"));
         }
         for id in SOFTWARE_LICENSES {
             for kind in CODE_KINDS {
@@ -481,7 +485,7 @@ mod tests {
                     "{kind:?} {bad}"
                 );
                 // A bundle takes any expression passing the allowlist check.
-                check_package_license(bad, ModKind::Bundle)
+                check_package_license(bad, PackageKind::Bundle)
                     .unwrap_or_else(|e| panic!("bundle {bad}: {e}"));
                 check_license_expression(bad).unwrap_or_else(|e| panic!("{bad}: {e}"));
             }
@@ -515,7 +519,10 @@ mod tests {
             ),
             ("MIT AND", LicenseError::Syntax("MIT AND".into())),
         ] {
-            assert_eq!(check_package_license(expr, ModKind::Bundle), Err(expected));
+            assert_eq!(
+                check_package_license(expr, PackageKind::Bundle),
+                Err(expected)
+            );
         }
     }
 
@@ -583,7 +590,7 @@ mod tests {
     #[test]
     fn deep_nesting_is_a_syntax_error_not_a_stack_overflow() {
         let ok = format!("{}MIT{}", "(".repeat(MAX_DEPTH), ")".repeat(MAX_DEPTH));
-        check_package_license(&ok, ModKind::Mod).unwrap();
+        check_package_license(&ok, PackageKind::Module).unwrap();
         let too_deep = format!("({ok})");
         assert_eq!(
             check_license_expression(&too_deep),
@@ -601,14 +608,14 @@ mod tests {
         ));
         // Depth is nesting, not the number of groups: many sibling groups are fine.
         let siblings = vec!["(MIT OR Apache-2.0)"; 1_000].join(" AND ");
-        check_package_license(&siblings, ModKind::Mod).unwrap();
+        check_package_license(&siblings, PackageKind::Module).unwrap();
         // Long flat chains do not recurse.
         let chain = vec!["CC-BY-4.0"; 100_000].join(" OR ") + " OR MIT";
         assert_eq!(
-            check_package_license(&chain, ModKind::Mod),
+            check_package_license(&chain, PackageKind::Module),
             Err(no_software(&chain))
         );
-        check_package_license(&chain, ModKind::Bundle).unwrap();
+        check_package_license(&chain, PackageKind::Bundle).unwrap();
     }
 
     #[test]
@@ -727,7 +734,7 @@ mod tests {
         // the term a software licence.
         check_license_expression("CC-BY-4.0 WITH LLVM-exception").unwrap();
         assert_eq!(
-            check_package_license("CC-BY-4.0 WITH LLVM-exception", ModKind::Mod),
+            check_package_license("CC-BY-4.0 WITH LLVM-exception", PackageKind::Module),
             Err(no_software("CC-BY-4.0 WITH LLVM-exception"))
         );
     }
@@ -738,8 +745,8 @@ mod tests {
             check_license_expression("SSPL-1.0").unwrap_err(),
             check_license_expression("LicenseRef-Proprietary").unwrap_err(),
             check_license_expression("MIT WITH Foo").unwrap_err(),
-            check_package_license("CC-BY-SA-4.0", ModKind::Mod).unwrap_err(),
-            check_package_license("MIT OR CC-BY-4.0", ModKind::Library).unwrap_err(),
+            check_package_license("CC-BY-SA-4.0", PackageKind::Module).unwrap_err(),
+            check_package_license("MIT OR CC-BY-4.0", PackageKind::Library).unwrap_err(),
         ] {
             let msg = err.to_string();
             assert!(msg.contains("POLICY.md"), "{msg}");
@@ -766,7 +773,7 @@ mod tests {
                 "`Foo`",
             ),
             (
-                check_package_license("MIT OR CC-BY-4.0", ModKind::Mod).unwrap_err(),
+                check_package_license("MIT OR CC-BY-4.0", PackageKind::Module).unwrap_err(),
                 "`MIT OR CC-BY-4.0`",
             ),
         ] {
@@ -805,12 +812,12 @@ mod tests {
                 let expr = words.join(" ");
                 let any = check_license_expression(&expr);
                 assert_eq!(
-                    check_package_license(&expr, ModKind::Bundle),
+                    check_package_license(&expr, PackageKind::Bundle),
                     any,
                     "{expr:?}"
                 );
-                let code = check_package_license(&expr, ModKind::Mod);
-                assert_eq!(check_package_license(&expr, ModKind::Library), code);
+                let code = check_package_license(&expr, PackageKind::Module);
+                assert_eq!(check_package_license(&expr, PackageKind::Library), code);
                 match (&any, &code) {
                     (Ok(()), Ok(())) => {
                         accepted += 1;
@@ -920,9 +927,9 @@ mod tests {
             let mut expr = String::new();
             render(&mut rng, &tree, 0, &mut expr);
             check_license_expression(&expr).unwrap_or_else(|e| panic!("{expr}: {e}"));
-            check_package_license(&expr, ModKind::Bundle)
+            check_package_license(&expr, PackageKind::Bundle)
                 .unwrap_or_else(|e| panic!("bundle {expr}: {e}"));
-            let result = check_package_license(&expr, ModKind::Mod);
+            let result = check_package_license(&expr, PackageKind::Module);
             if software(&tree) {
                 result.unwrap_or_else(|e| panic!("{expr}: {e}"));
                 passed += 1;

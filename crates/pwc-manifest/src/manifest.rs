@@ -1,4 +1,4 @@
-//! `mod.toml` (docs/spec/mod-manifest.md).
+//! `module.toml` (docs/spec/module-manifest.md); the older name `module.toml` is still read.
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -13,43 +13,76 @@ use crate::{ManifestError, PackageId, Version, VersionReq, check_package_license
 
 /// What a package is.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
-pub enum ModKind {
-    /// Registers mods into the game (`src/lib.rs` with `register`).
+pub enum PackageKind {
+    /// Registers modules into the game (`src/lib.rs` with `register`).
     #[default]
-    Mod,
+    Module,
     /// Rust code for other packages; registers nothing.
     Library,
     /// Dependencies only, no code.
     Bundle,
 }
 
-impl ModKind {
-    /// `"mod"`, `"library"` or `"bundle"`.
+impl PackageKind {
+    /// The older spelling of [`PackageKind::Module`], from before the rename (`ModKind::Mod`).
+    #[doc(hidden)]
+    #[allow(non_upper_case_globals)]
+    pub const Mod: PackageKind = PackageKind::Module;
+
+    /// `"module"`, `"library"` or `"bundle"`.
     pub fn as_str(self) -> &'static str {
         match self {
-            ModKind::Mod => "mod",
-            ModKind::Library => "library",
-            ModKind::Bundle => "bundle",
+            PackageKind::Module => "module",
+            PackageKind::Library => "library",
+            PackageKind::Bundle => "bundle",
         }
     }
 
-    /// The kind named `s` (`"mod"`, `"library"`, `"bundle"`).
+    /// The kind named `s` (`"module"`, `"library"`, `"bundle"`; `"mod"` is the older spelling of
+    /// `"module"` and is still accepted).
     pub(crate) fn from_name(s: &str) -> Option<Self> {
         match s {
-            "mod" => Some(ModKind::Mod),
-            "library" => Some(ModKind::Library),
-            "bundle" => Some(ModKind::Bundle),
+            "module" | "mod" => Some(PackageKind::Module),
+            "library" => Some(PackageKind::Library),
+            "bundle" => Some(PackageKind::Bundle),
             _ => None,
         }
     }
 
     /// Whether packages of this kind contain Rust code (`src/lib.rs`) and declare `pwc-api`.
     pub fn has_code(self) -> bool {
-        !matches!(self, ModKind::Bundle)
+        !matches!(self, PackageKind::Bundle)
     }
 }
 
-impl std::fmt::Display for ModKind {
+/// The name `PackageKind` had before the rename.
+#[doc(hidden)]
+pub type ModKind = PackageKind;
+
+/// The name `PackageManifest` had before the rename.
+#[doc(hidden)]
+pub type ModManifest = PackageManifest;
+
+/// The manifest file name of a package: `module.toml`.
+pub const MANIFEST_FILE: &str = "module.toml";
+
+/// The older manifest file name, still accepted: `module.toml`.
+pub const LEGACY_MANIFEST_FILE: &str = "mod.toml";
+
+/// The manifest file inside package directory `dir`: `module.toml`, or the older `module.toml`;
+/// `None` if neither exists, an error if both do.
+pub fn find_manifest_file(dir: &Path) -> Result<Option<std::path::PathBuf>, ManifestError> {
+    let new = dir.join(MANIFEST_FILE);
+    let old = dir.join(LEGACY_MANIFEST_FILE);
+    match (new.is_file(), old.is_file()) {
+        (true, true) => Err(ManifestError::BothManifests(dir.to_path_buf())),
+        (true, false) => Ok(Some(new)),
+        (false, true) => Ok(Some(old)),
+        (false, false) => Ok(None),
+    }
+}
+
+impl std::fmt::Display for PackageKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.as_str())
     }
@@ -117,7 +150,7 @@ impl Category {
         Category::Bundle,
     ];
 
-    /// The category's name in `mod.toml` (`"gameplay"`, `"interface"`, …).
+    /// The category's name in `module.toml` (`"gameplay"`, `"interface"`, …).
     pub fn as_str(self) -> &'static str {
         match self {
             Category::Gameplay => "gameplay",
@@ -160,8 +193,8 @@ pub struct PackageMetadata {
     /// Package-relative licence text paths.
     pub license_files: Vec<String>,
     /// What the package is.
-    pub kind: ModKind,
-    /// Requirement on `pwc-mod-api` (`None` only for bundles).
+    pub kind: PackageKind,
+    /// Requirement on `pwc-module-api` (`None` only for bundles).
     pub pwc_api: Option<VersionReq>,
     /// Rust edition.
     pub edition: Edition,
@@ -181,9 +214,9 @@ pub struct PackageMetadata {
     pub categories: Vec<Category>,
 }
 
-/// A parsed, validated `mod.toml`.
+/// A parsed, validated `module.toml`.
 #[derive(Clone, PartialEq, Debug)]
-pub struct ModManifest {
+pub struct PackageManifest {
     /// `[package]`.
     pub package: PackageMetadata,
     /// `[dependencies]`: id → requirement.
@@ -194,8 +227,8 @@ pub struct ModManifest {
     pub metadata: Option<toml::Table>,
 }
 
-impl ModManifest {
-    /// Parse and fully validate (including the licence policy) `mod.toml` text. Checks that need
+impl PackageManifest {
+    /// Parse and fully validate (including the licence policy) `module.toml` text. Checks that need
     /// the package's files (licence files exist, …) are done by `pwc-package`.
     pub fn parse(text: &str) -> Result<Self, ManifestError> {
         check_format(text)?;
@@ -203,7 +236,7 @@ impl ModManifest {
         raw.validate()
     }
 
-    /// Read and parse a `mod.toml` file.
+    /// Read and parse a `module.toml` file.
     pub fn from_file(path: &Path) -> Result<Self, ManifestError> {
         let text = std::fs::read_to_string(path).map_err(|source| ManifestError::Io {
             path: path.to_path_buf(),
@@ -212,7 +245,7 @@ impl ModManifest {
         Self::parse(&text)
     }
 
-    /// Serialise back to canonical `mod.toml` text (keys in spec order).
+    /// Serialise back to canonical `module.toml` text (keys in spec order).
     ///
     /// Defaults are written out (`kind`, `edition`, `readme`), so the text means the same thing even
     /// if a future format changes a default; empty optional lists and tables are omitted.
@@ -289,7 +322,7 @@ impl ModManifest {
     }
 
     /// The package kind.
-    pub fn kind(&self) -> ModKind {
+    pub fn kind(&self) -> PackageKind {
         self.package.kind
     }
 }
@@ -303,7 +336,7 @@ const MAX_KEYWORDS: usize = 5;
 /// Longest keyword, in characters.
 const MAX_KEYWORD_CHARS: usize = 24;
 
-/// `mod.toml` as written, before validation.
+/// `module.toml` as written, before validation.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 struct RawManifest {
@@ -340,7 +373,7 @@ struct RawPackage {
 }
 
 impl RawManifest {
-    fn validate(self) -> Result<ModManifest, ManifestError> {
+    fn validate(self) -> Result<PackageManifest, ManifestError> {
         let package = self
             .package
             .ok_or(ManifestError::Missing("package"))?
@@ -369,14 +402,14 @@ impl RawManifest {
                 "also listed in [dependencies]; an id may be in only one of the two tables",
             ));
         }
-        if package.kind == ModKind::Bundle && dependencies.is_empty() {
+        if package.kind == PackageKind::Bundle && dependencies.is_empty() {
             return Err(ManifestError::invalid(
                 "dependencies",
                 "",
                 "a bundle must have at least one dependency",
             ));
         }
-        Ok(ModManifest {
+        Ok(PackageManifest {
             package,
             dependencies,
             conflicts,
@@ -473,12 +506,12 @@ impl RawPackage {
         }
 
         let kind = match self.kind {
-            None => ModKind::default(),
-            Some(kind) => ModKind::from_name(&kind).ok_or_else(|| {
+            None => PackageKind::default(),
+            Some(kind) => PackageKind::from_name(&kind).ok_or_else(|| {
                 ManifestError::invalid(
                     "package.kind",
                     kind,
-                    "must be \"mod\", \"library\" or \"bundle\"",
+                    "must be \"module\", \"library\" or \"bundle\" (\"mod\" is accepted as \"module\")",
                 )
             })?,
         };
@@ -501,14 +534,14 @@ impl RawPackage {
         check_path_list("package.license-files", &license_files)?;
 
         let pwc_api = match (kind, self.pwc_api) {
-            (ModKind::Bundle, Some(req)) => {
+            (PackageKind::Bundle, Some(req)) => {
                 return Err(ManifestError::invalid(
                     "package.pwc-api",
                     req,
                     "a bundle contains no code and must omit `pwc-api`",
                 ));
             }
-            (ModKind::Bundle, None) => None,
+            (PackageKind::Bundle, None) => None,
             (_, None) => return Err(ManifestError::Missing("package.pwc-api")),
             (_, Some(req)) => Some(parse_req("package.pwc-api", &req)?),
         };
@@ -786,7 +819,7 @@ fn check_path_list(key: &str, paths: &[String]) -> Result<(), ManifestError> {
 mod tests {
     use super::*;
 
-    /// The example from docs/spec/mod-manifest.md.
+    /// The example from docs/spec/module-manifest.md.
     const SPEC_EXAMPLE: &str = r#"format = 1
 
 [package]
@@ -797,7 +830,7 @@ description = "Your held materials as a list (press I); equip any of them into t
 authors = ["Project Watt Cubed contributors"]
 license = "Apache-2.0 OR MIT"
 license-files = ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
-kind = "mod"
+kind = "module"
 pwc-api = "^1.0"
 readme = "README.md"
 icon = "assets/icon.svg"
@@ -855,7 +888,7 @@ pwc-api = "^1"
     }
 
     fn parse_err(text: &str) -> ManifestError {
-        match ModManifest::parse(text) {
+        match PackageManifest::parse(text) {
             Ok(m) => panic!("expected an error, parsed {m:?} from\n{text}"),
             Err(e) => e,
         }
@@ -871,9 +904,9 @@ pwc-api = "^1"
         assert!(err.to_string().contains(&format!("`{key}`")), "{err}");
     }
 
-    fn assert_round_trip(m: &ModManifest) {
+    fn assert_round_trip(m: &PackageManifest) {
         let text = m.to_toml_string();
-        let back = ModManifest::parse(&text).unwrap_or_else(|e| panic!("{e}\n{text}"));
+        let back = PackageManifest::parse(&text).unwrap_or_else(|e| panic!("{e}\n{text}"));
         assert_eq!(&back, m, "{text}");
         assert_eq!(
             back.to_toml_string(),
@@ -884,7 +917,7 @@ pwc-api = "^1"
 
     #[test]
     fn spec_example_parses() {
-        let m = ModManifest::parse(SPEC_EXAMPLE).unwrap();
+        let m = PackageManifest::parse(SPEC_EXAMPLE).unwrap();
         let p = &m.package;
         assert_eq!(m.id().as_str(), "pwc.inventory");
         assert_eq!(p.name, "Inventory");
@@ -895,7 +928,7 @@ pwc-api = "^1"
             p.license_files,
             ["LICENSES/Apache-2.0.txt", "LICENSES/MIT.txt"]
         );
-        assert_eq!(m.kind(), ModKind::Mod);
+        assert_eq!(m.kind(), PackageKind::Module);
         assert_eq!(p.pwc_api, Some(VersionReq::parse("^1.0").unwrap()));
         assert_eq!(p.edition, Edition::E2024);
         assert_eq!(p.readme, "README.md");
@@ -927,7 +960,7 @@ pwc-api = "^1"
     #[test]
     fn spec_example_canonical_text() {
         // The canonical form of the spec example: the example itself plus the explicit default edition.
-        let m = ModManifest::parse(SPEC_EXAMPLE).unwrap();
+        let m = PackageManifest::parse(SPEC_EXAMPLE).unwrap();
         let expected = SPEC_EXAMPLE.replace(
             "pwc-api = \"^1.0\"\n",
             "pwc-api = \"^1.0\"\nedition = \"2024\"\n",
@@ -937,8 +970,8 @@ pwc-api = "^1"
 
     #[test]
     fn minimal_defaults() {
-        let m = ModManifest::parse(MINIMAL).unwrap();
-        assert_eq!(m.kind(), ModKind::Mod);
+        let m = PackageManifest::parse(MINIMAL).unwrap();
+        assert_eq!(m.kind(), PackageKind::Module);
         assert_eq!(m.package.edition, Edition::E2024);
         assert_eq!(m.package.readme, "README.md");
         assert!(
@@ -952,8 +985,8 @@ pwc-api = "^1"
 
     #[test]
     fn library_and_bundle() {
-        let lib = ModManifest::parse(&with_package_line("kind", "kind = \"library\"")).unwrap();
-        assert_eq!(lib.kind(), ModKind::Library);
+        let lib = PackageManifest::parse(&with_package_line("kind", "kind = \"library\"")).unwrap();
+        assert_eq!(lib.kind(), PackageKind::Library);
         assert!(lib.kind().has_code());
         assert_round_trip(&lib);
 
@@ -962,7 +995,7 @@ pwc-api = "^1"
 id = "pwc.essentials"
 name = "Essentials"
 version = "1.0.0"
-description = "The essential mods."
+description = "The essential modules."
 authors = ["Project Watt Cubed contributors"]
 license = "CC0-1.0"
 license-files = ["LICENSE"]
@@ -972,8 +1005,8 @@ categories = ["bundle"]
 "pwc.hotbar" = "^1.0"
 "pwc.inventory" = { version = "^1.0" }
 "#;
-        let bundle = ModManifest::parse(bundle_text).unwrap();
-        assert_eq!(bundle.kind(), ModKind::Bundle);
+        let bundle = PackageManifest::parse(bundle_text).unwrap();
+        assert_eq!(bundle.kind(), PackageKind::Bundle);
         assert!(!bundle.kind().has_code());
         assert_eq!(bundle.package.pwc_api, None);
         assert_eq!(bundle.dependencies.len(), 2);
@@ -1088,7 +1121,7 @@ categories = ["bundle"]
         assert_invalid(&with_package_line("id", "id = \"foo.bar-\""), "package.id");
         // The pwc namespace parses (first-party packages are ordinary manifests).
         assert!(
-            ModManifest::parse(&with_package_line("id", "id = \"pwc.thing\""))
+            PackageManifest::parse(&with_package_line("id", "id = \"pwc.thing\""))
                 .unwrap()
                 .id()
                 .is_first_party()
@@ -1100,11 +1133,11 @@ categories = ["bundle"]
         let name_64 = "n".repeat(64);
         let name_65 = "n".repeat(65);
         assert!(
-            ModManifest::parse(&with_package_line("name", &format!("name = \"{name_64}\"")))
+            PackageManifest::parse(&with_package_line("name", &format!("name = \"{name_64}\"")))
                 .is_ok()
         );
         assert!(
-            ModManifest::parse(&with_package_line("name", "name = \"Ünïcødé ✓ name\"")).is_ok()
+            PackageManifest::parse(&with_package_line("name", "name = \"Ünïcødé ✓ name\"")).is_ok()
         );
         for bad in [
             "\"\"",
@@ -1123,7 +1156,7 @@ categories = ["bundle"]
     #[test]
     fn version_rules() {
         for ok in ["1.4.2", "2.0.0-beta.1", "0.0.1", "10.20.30-rc.1.x"] {
-            let m = ModManifest::parse(&with_package_line(
+            let m = PackageManifest::parse(&with_package_line(
                 "version",
                 &format!("version = \"{ok}\""),
             ))
@@ -1151,7 +1184,7 @@ categories = ["bundle"]
     fn description_rules() {
         let d280 = "d".repeat(280);
         assert!(
-            ModManifest::parse(&with_package_line(
+            PackageManifest::parse(&with_package_line(
                 "description",
                 &format!("description = \"{d280}\"")
             ))
@@ -1181,7 +1214,7 @@ categories = ["bundle"]
             r#"["Foo<foo@x.y>"]"#,
         ] {
             assert!(
-                ModManifest::parse(&with_package_line("authors", &format!("authors = {ok}")))
+                PackageManifest::parse(&with_package_line("authors", &format!("authors = {ok}")))
                     .is_ok(),
                 "{ok}"
             );
@@ -1234,7 +1267,7 @@ categories = ["bundle"]
                 "Apache-2.0 WITH LLVM-exception",
                 "(Apache-2.0 OR MIT) AND CC-BY-4.0",
             ] {
-                let m = ModManifest::parse(&with_license(kind, ok))
+                let m = PackageManifest::parse(&with_license(kind, ok))
                     .unwrap_or_else(|e| panic!("{kind} {ok}: {e}"));
                 assert_eq!(m.package.license, ok);
             }
@@ -1247,7 +1280,7 @@ categories = ["bundle"]
             "MIT OR CC-BY-4.0",
         ] {
             assert!(
-                ModManifest::parse(&with_license("bundle", ok)).is_ok(),
+                PackageManifest::parse(&with_license("bundle", ok)).is_ok(),
                 "bundle {ok}"
             );
         }
@@ -1323,7 +1356,7 @@ categories = ["bundle"]
 
     #[test]
     fn license_file_rules() {
-        let m = ModManifest::parse(&with_package_line(
+        let m = PackageManifest::parse(&with_package_line(
             "license-files",
             r#"license-files = ["licenses/MIT.txt", "LICENSE-APACHE"]"#,
         ))
@@ -1362,7 +1395,8 @@ categories = ["bundle"]
             "package.kind",
         );
         assert_invalid(&with_package_line("kind", "kind = \"Mod\""), "package.kind");
-        let m = ModManifest::parse(&with_package_line("edition", "edition = \"2021\"")).unwrap();
+        let m =
+            PackageManifest::parse(&with_package_line("edition", "edition = \"2021\"")).unwrap();
         assert_eq!(m.package.edition, Edition::E2021);
         assert_round_trip(&m);
         assert_invalid(
@@ -1381,7 +1415,7 @@ categories = ["bundle"]
 
     #[test]
     fn readme_and_icon_rules() {
-        let m = ModManifest::parse(&with_package_line("readme", "readme = \"docs/README.md\""))
+        let m = PackageManifest::parse(&with_package_line("readme", "readme = \"docs/README.md\""))
             .unwrap();
         assert_eq!(m.package.readme, "docs/README.md");
         assert_invalid(
@@ -1400,7 +1434,8 @@ categories = ["bundle"]
         }
         for ok in ["assets/icon.svg", "assets/img/icon.png"] {
             assert!(
-                ModManifest::parse(&with_package_line("icon", &format!("icon = \"{ok}\""))).is_ok(),
+                PackageManifest::parse(&with_package_line("icon", &format!("icon = \"{ok}\"")))
+                    .is_ok(),
                 "{ok}"
             );
         }
@@ -1426,7 +1461,7 @@ categories = ["bundle"]
     #[test]
     fn url_rules() {
         for key in ["repository", "homepage", "documentation"] {
-            let ok = ModManifest::parse(&with_package_line(
+            let ok = PackageManifest::parse(&with_package_line(
                 key,
                 &format!("{key} = \"https://example.org/x?y#z\""),
             ))
@@ -1452,7 +1487,7 @@ categories = ["bundle"]
     #[test]
     fn keyword_rules() {
         let five = r#"keywords = ["a", "b-c", "d0", "e", "x23456789012345678901234"]"#;
-        assert!(ModManifest::parse(&with_package_line("keywords", five)).is_ok());
+        assert!(PackageManifest::parse(&with_package_line("keywords", five)).is_ok());
         for bad in [
             r#"["a", "b", "c", "d", "e", "f"]"#,
             r#"[""]"#,
@@ -1472,7 +1507,7 @@ categories = ["bundle"]
     #[test]
     fn category_rules() {
         let all = r#"categories = ["gameplay", "interface", "visuals", "worldgen", "audio", "library", "tools", "bundle"]"#;
-        let m = ModManifest::parse(&with_package_line("categories", all)).unwrap();
+        let m = PackageManifest::parse(&with_package_line("categories", all)).unwrap();
         assert_eq!(m.package.categories, Category::ALL);
         assert_round_trip(&m);
         for bad in [r#"["ui"]"#, r#"["Gameplay"]"#, r#"["tools", "tools"]"#] {
@@ -1486,7 +1521,7 @@ categories = ["bundle"]
     #[test]
     fn dependency_rules() {
         let deps = |body: &str| format!("{MINIMAL}[dependencies]\n{body}\n");
-        let m = ModManifest::parse(&deps(
+        let m = PackageManifest::parse(&deps(
             "\"a.b\" = \">=2, <3\"\n\"c.d\" = { version = \"=1.4.2\" }\n\"e.f\" = \"*\"",
         ))
         .unwrap();
@@ -1517,7 +1552,7 @@ categories = ["bundle"]
 
         // Conflicts are plain requirement strings.
         let conflicts = |body: &str| format!("{MINIMAL}[conflicts]\n{body}\n");
-        assert!(ModManifest::parse(&conflicts("\"a.b\" = \"<2\"")).is_ok());
+        assert!(PackageManifest::parse(&conflicts("\"a.b\" = \"<2\"")).is_ok());
         assert_invalid(
             &conflicts("\"a.b\" = { version = \"1\" }"),
             "conflicts.\"a.b\"",
@@ -1536,20 +1571,20 @@ categories = ["bundle"]
         let text = format!(
             "{MINIMAL}[metadata]\nnumber = 3\nflag = true\nlist = [1, 2, 3]\nwhen = 2026-10-03\n[metadata.nested]\nkey = \"value\"\n[[metadata.items]]\nname = \"one\"\n[[metadata.items]]\nname = \"two\"\n"
         );
-        let m = ModManifest::parse(&text).unwrap();
+        let m = PackageManifest::parse(&text).unwrap();
         let metadata = m.metadata.as_ref().unwrap();
         assert_eq!(metadata["nested"]["key"].as_str(), Some("value"));
         assert_eq!(metadata["items"].as_array().unwrap().len(), 2);
         assert_round_trip(&m);
 
-        let empty = ModManifest::parse(&format!("{MINIMAL}[metadata]\n")).unwrap();
+        let empty = PackageManifest::parse(&format!("{MINIMAL}[metadata]\n")).unwrap();
         assert_eq!(empty.metadata, Some(toml::Table::new()));
         assert_round_trip(&empty);
     }
 
     #[test]
     fn awkward_strings_round_trip() {
-        let mut m = ModManifest::parse(SPEC_EXAMPLE).unwrap();
+        let mut m = PackageManifest::parse(SPEC_EXAMPLE).unwrap();
         m.package.name = "Quote \" back\\slash 'single' ✓".to_string();
         m.package.description = "Back\\slashes; \"quotes\" too — and ünïcode.".to_string();
         m.package.authors = vec![
@@ -1568,25 +1603,60 @@ categories = ["bundle"]
     fn edited_values_are_rechecked_on_parse() {
         // to_toml_string does not validate; a manifest edited into an invalid state is rejected
         // when read back.
-        let mut m = ModManifest::parse(MINIMAL).unwrap();
+        let mut m = PackageManifest::parse(MINIMAL).unwrap();
         m.package.license = "CC-BY-SA-4.0".into();
         assert!(matches!(
-            ModManifest::parse(&m.to_toml_string()),
+            PackageManifest::parse(&m.to_toml_string()),
             Err(ManifestError::License(
                 LicenseError::NoSoftwareLicence { .. }
             ))
         ));
         m.package.license = "LicenseRef-Proprietary".into();
         assert!(matches!(
-            ModManifest::parse(&m.to_toml_string()),
+            PackageManifest::parse(&m.to_toml_string()),
             Err(ManifestError::License(LicenseError::NotAllowed(_)))
         ));
     }
 
     #[test]
     fn from_file_reports_the_path() {
-        let err = ModManifest::from_file(Path::new("/nonexistent/pwc/mod.toml")).unwrap_err();
+        let err = PackageManifest::from_file(Path::new("/nonexistent/pwc/mod.toml")).unwrap_err();
         assert!(matches!(err, ManifestError::Io { .. }));
         assert!(err.to_string().contains("/nonexistent/pwc/mod.toml"));
+    }
+
+    #[test]
+    fn the_older_mod_kind_is_accepted() {
+        let old = SPEC_EXAMPLE.replace("kind = \"module\"", "kind = \"mod\"");
+        assert_ne!(old, SPEC_EXAMPLE);
+        let m = PackageManifest::parse(&old).unwrap();
+        assert_eq!(m.kind(), PackageKind::Module);
+        assert!(m.to_toml_string().contains("kind = \"module\""));
+        assert_eq!(ModKind::Mod, PackageKind::Module);
+    }
+
+    #[test]
+    fn manifest_file_is_module_toml_or_the_older_mod_toml() {
+        let dir = std::env::temp_dir().join(format!("pwc-manifest-find-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        assert_eq!(find_manifest_file(&dir).unwrap(), None);
+        std::fs::write(dir.join("mod.toml"), "").unwrap();
+        assert_eq!(
+            find_manifest_file(&dir).unwrap(),
+            Some(dir.join("mod.toml"))
+        );
+        std::fs::write(dir.join("module.toml"), "").unwrap();
+        let err = find_manifest_file(&dir).unwrap_err().to_string();
+        assert!(
+            err.contains("module.toml") && err.contains("mod.toml"),
+            "{err}"
+        );
+        std::fs::remove_file(dir.join("mod.toml")).unwrap();
+        assert_eq!(
+            find_manifest_file(&dir).unwrap(),
+            Some(dir.join("module.toml"))
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

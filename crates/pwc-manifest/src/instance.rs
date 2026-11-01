@@ -10,24 +10,24 @@ use crate::manifest::parse_req;
 use crate::text::{check_format, push_str_kv, quote, toml_error};
 use crate::{FORMAT, InstanceName, ManifestError, PackageId, VersionReq};
 
-/// Where a requested mod comes from.
+/// Where a requested module comes from.
 #[derive(Clone, PartialEq, Debug)]
-pub enum ModSource {
+pub enum ModuleSource {
     /// Any repository or the store.
     Registry,
     /// A local source tree (mutable, for development). Relative to the instance directory if relative.
     Path(PathBuf),
-    /// A `.pwcmod` file.
+    /// A `.pwcmodule` file.
     File(PathBuf),
 }
 
-/// One `[mods]` entry.
+/// One `[modules]` entry.
 #[derive(Clone, PartialEq, Debug)]
-pub struct ModRequirement {
+pub struct ModuleRequirement {
     /// Version requirement (`*` when a path/file entry gave none).
     pub version: VersionReq,
     /// Source.
-    pub source: ModSource,
+    pub source: ModuleSource,
 }
 
 /// Build profile.
@@ -67,20 +67,20 @@ pub struct InstanceManifest {
     pub description: Option<String>,
     /// Requirement on the PWC game version.
     pub pwc: VersionReq,
-    /// Requested mods.
-    pub mods: BTreeMap<PackageId, ModRequirement>,
+    /// Requested modules.
+    pub modules: BTreeMap<PackageId, ModuleRequirement>,
     /// `[build] profile`.
     pub profile: BuildProfile,
 }
 
 impl InstanceManifest {
-    /// A new instance with no mods.
+    /// A new instance with no modules.
     pub fn new(name: InstanceName, pwc: VersionReq) -> Self {
         Self {
             name,
             description: None,
             pwc,
-            mods: BTreeMap::new(),
+            modules: BTreeMap::new(),
             profile: BuildProfile::Release,
         }
     }
@@ -101,7 +101,7 @@ impl InstanceManifest {
         Self::parse(&text)
     }
 
-    /// Canonical text: `format`, `name`, `description` (if any), `pwc`, then `[mods]` (sorted by id)
+    /// Canonical text: `format`, `name`, `description` (if any), `pwc`, then `[modules]` (sorted by id)
     /// and `[build]`. Registry requirements are written as plain strings, `path`/`file` entries as
     /// inline tables carrying `version` only when it is not `*`. Paths that are not valid UTF-8 are
     /// written lossily (TOML text cannot hold them).
@@ -113,12 +113,12 @@ impl InstanceManifest {
             push_str_kv(&mut out, "description", description);
         }
         push_str_kv(&mut out, "pwc", &self.pwc.to_string());
-        out.push_str("\n[mods]\n");
-        for (id, req) in &self.mods {
+        out.push_str("\n[modules]\n");
+        for (id, req) in &self.modules {
             let value = match &req.source {
-                ModSource::Registry => quote(&req.version.to_string()),
-                ModSource::Path(path) | ModSource::File(path) => {
-                    let key = if matches!(req.source, ModSource::Path(_)) {
+                ModuleSource::Registry => quote(&req.version.to_string()),
+                ModuleSource::Path(path) | ModuleSource::File(path) => {
+                    let key = if matches!(req.source, ModuleSource::Path(_)) {
                         "path"
                     } else {
                         "file"
@@ -149,6 +149,8 @@ struct RawInstance {
     name: Option<String>,
     description: Option<String>,
     pwc: Option<String>,
+    modules: Option<toml::Table>,
+    /// The older name of `modules`.
     mods: Option<toml::Table>,
     build: Option<RawBuild>,
 }
@@ -168,11 +170,23 @@ impl RawInstance {
             None => VersionReq::STAR,
             Some(req) => parse_req("pwc", &req)?,
         };
-        let mut mods = BTreeMap::new();
-        for (key, value) in self.mods.unwrap_or_default() {
-            let entry_key = format!("mods.{}", quote(&key));
+        let (table_name, table) = match (self.modules, self.mods) {
+            (Some(_), Some(_)) => {
+                return Err(ManifestError::invalid(
+                    "modules",
+                    "",
+                    "both `[modules]` and its older name `[mods]` are present; keep only `[modules]`",
+                ));
+            }
+            (Some(table), None) => ("modules", table),
+            (None, Some(table)) => ("mods", table),
+            (None, None) => ("modules", toml::Table::new()),
+        };
+        let mut modules = BTreeMap::new();
+        for (key, value) in table {
+            let entry_key = format!("{table_name}.{}", quote(&key));
             let id = PackageId::parse_as(&key, &entry_key)?;
-            mods.insert(id, parse_mod_requirement(&entry_key, value)?);
+            modules.insert(id, parse_module_requirement(&entry_key, value)?);
         }
         let profile = match self.build.and_then(|b| b.profile) {
             None => BuildProfile::default(),
@@ -184,20 +198,23 @@ impl RawInstance {
             name,
             description: self.description,
             pwc,
-            mods,
+            modules,
             profile,
         })
     }
 }
 
-/// One `[mods]` value: a requirement string, or a table with exactly one source (`version`,
+/// One `[modules]` value: a requirement string, or a table with exactly one source (`version`,
 /// `path` or `file`); a `path`/`file` table may also carry `version`.
-fn parse_mod_requirement(key: &str, value: toml::Value) -> Result<ModRequirement, ManifestError> {
+fn parse_module_requirement(
+    key: &str,
+    value: toml::Value,
+) -> Result<ModuleRequirement, ManifestError> {
     let mut table = match value {
         toml::Value::String(req) => {
-            return Ok(ModRequirement {
+            return Ok(ModuleRequirement {
                 version: parse_req(key, &req)?,
-                source: ModSource::Registry,
+                source: ModuleSource::Registry,
             });
         }
         toml::Value::Table(table) => table,
@@ -216,7 +233,7 @@ fn parse_mod_requirement(key: &str, value: toml::Value) -> Result<ModRequirement
         return Err(ManifestError::invalid(
             format!("{key}.{unknown}"),
             "",
-            "unknown key (a mod entry has `version`, `path` or `file`)",
+            "unknown key (a module entry has `version`, `path` or `file`)",
         ));
     }
     let mut string = |field: &str| -> Result<Option<String>, ManifestError> {
@@ -246,8 +263,8 @@ fn parse_mod_requirement(key: &str, value: toml::Value) -> Result<ModRequirement
                 "has both `path` and `file`; give exactly one source",
             ));
         }
-        (Some(path), None) => ModSource::Path(PathBuf::from(path)),
-        (None, Some(file)) => ModSource::File(PathBuf::from(file)),
+        (Some(path), None) => ModuleSource::Path(PathBuf::from(path)),
+        (None, Some(file)) => ModuleSource::File(PathBuf::from(file)),
         (None, None) if version.is_none() => {
             return Err(ManifestError::invalid(
                 key,
@@ -255,13 +272,13 @@ fn parse_mod_requirement(key: &str, value: toml::Value) -> Result<ModRequirement
                 "needs a source: `version`, `path` or `file`",
             ));
         }
-        (None, None) => ModSource::Registry,
+        (None, None) => ModuleSource::Registry,
     };
     let version = match version {
         None => VersionReq::STAR,
         Some(req) => parse_req(&format!("{key}.version"), &req)?,
     };
-    Ok(ModRequirement { version, source })
+    Ok(ModuleRequirement { version, source })
 }
 
 #[cfg(test)]
@@ -273,10 +290,10 @@ name = "survival"
 description = "PWC with the essentials and better caves"   # optional
 pwc = "^2.0"                                                # requirement on the PWC version
 
-[mods]
+[modules]
 "pwc.essentials" = "^1.0"                                   # from a repository or the store
 "gusahlg.better-caves" = { path = "../../dev/better-caves" } # local mutable source tree
-"foo.seasons" = { file = "/downloads/foo.seasons-2.3.1.pwcmod" }
+"foo.seasons" = { file = "/downloads/foo.seasons-2.3.1.pwcmodule" }
 "foo.noise" = { version = "^2.0" }
 
 [build]
@@ -315,33 +332,33 @@ profile = "release"                                         # "release" (default
         );
         assert_eq!(m.pwc, req("^2.0"));
         assert_eq!(m.profile, BuildProfile::Release);
-        assert_eq!(m.mods.len(), 4);
+        assert_eq!(m.modules.len(), 4);
         assert_eq!(
-            m.mods[&id("pwc.essentials")],
-            ModRequirement {
+            m.modules[&id("pwc.essentials")],
+            ModuleRequirement {
                 version: req("^1.0"),
-                source: ModSource::Registry
+                source: ModuleSource::Registry
             }
         );
         assert_eq!(
-            m.mods[&id("gusahlg.better-caves")],
-            ModRequirement {
+            m.modules[&id("gusahlg.better-caves")],
+            ModuleRequirement {
                 version: VersionReq::STAR,
-                source: ModSource::Path("../../dev/better-caves".into())
+                source: ModuleSource::Path("../../dev/better-caves".into())
             }
         );
         assert_eq!(
-            m.mods[&id("foo.seasons")],
-            ModRequirement {
+            m.modules[&id("foo.seasons")],
+            ModuleRequirement {
                 version: VersionReq::STAR,
-                source: ModSource::File("/downloads/foo.seasons-2.3.1.pwcmod".into())
+                source: ModuleSource::File("/downloads/foo.seasons-2.3.1.pwcmodule".into())
             }
         );
         assert_eq!(
-            m.mods[&id("foo.noise")],
-            ModRequirement {
+            m.modules[&id("foo.noise")],
+            ModuleRequirement {
                 version: req("^2.0"),
-                source: ModSource::Registry
+                source: ModuleSource::Registry
             }
         );
         assert_round_trip(&m);
@@ -355,9 +372,9 @@ name = "survival"
 description = "PWC with the essentials and better caves"
 pwc = "^2.0"
 
-[mods]
+[modules]
 "foo.noise" = "^2.0"
-"foo.seasons" = { file = "/downloads/foo.seasons-2.3.1.pwcmod" }
+"foo.seasons" = { file = "/downloads/foo.seasons-2.3.1.pwcmodule" }
 "gusahlg.better-caves" = { path = "../../dev/better-caves" }
 "pwc.essentials" = "^1.0"
 
@@ -376,31 +393,31 @@ profile = "release"
         );
         assert_eq!(m.pwc, VersionReq::STAR);
         assert_eq!(m.profile, BuildProfile::Release);
-        assert!(m.mods.is_empty() && m.description.is_none());
+        assert!(m.modules.is_empty() && m.description.is_none());
         assert_round_trip(&m);
 
         let mut dev = InstanceManifest::new(InstanceName::parse("dev").unwrap(), req(">=2.0, <3"));
         dev.profile = BuildProfile::Dev;
         dev.description = Some("Line \"one\"\nline two".into());
-        dev.mods.insert(
+        dev.modules.insert(
             id("a.b"),
-            ModRequirement {
+            ModuleRequirement {
                 version: req("=1.2.3"),
-                source: ModSource::Path("/x/y z".into()),
+                source: ModuleSource::Path("/x/y z".into()),
             },
         );
-        dev.mods.insert(
+        dev.modules.insert(
             id("c.d"),
-            ModRequirement {
+            ModuleRequirement {
                 version: req("^0.3"),
-                source: ModSource::File("rel/c.d-0.3.0.pwcmod".into()),
+                source: ModuleSource::File("rel/c.d-0.3.0.pwcmodule".into()),
             },
         );
-        dev.mods.insert(
+        dev.modules.insert(
             id("e.f"),
-            ModRequirement {
+            ModuleRequirement {
                 version: VersionReq::STAR,
-                source: ModSource::Registry,
+                source: ModuleSource::Registry,
             },
         );
         assert_round_trip(&dev);
@@ -413,46 +430,46 @@ profile = "release"
 
     #[test]
     fn mod_entries() {
-        let doc = |entry: &str| format!("format = 1\nname = \"x\"\n[mods]\n{entry}\n");
+        let doc = |entry: &str| format!("format = 1\nname = \"x\"\n[modules]\n{entry}\n");
         let parse = |entry: &str| {
-            InstanceManifest::parse(&doc(entry)).map(|m| m.mods.into_values().next().unwrap())
+            InstanceManifest::parse(&doc(entry)).map(|m| m.modules.into_values().next().unwrap())
         };
         assert_eq!(
             parse("\"a.b\" = { path = \"p\", version = \"^1\" }").unwrap(),
-            ModRequirement {
+            ModuleRequirement {
                 version: req("^1"),
-                source: ModSource::Path("p".into())
+                source: ModuleSource::Path("p".into())
             }
         );
         assert_eq!(
-            parse("\"a.b\" = { file = \"f.pwcmod\", version = \"=2.0.0\" }").unwrap(),
-            ModRequirement {
+            parse("\"a.b\" = { file = \"f.pwcmodule\", version = \"=2.0.0\" }").unwrap(),
+            ModuleRequirement {
                 version: req("=2.0.0"),
-                source: ModSource::File("f.pwcmod".into())
+                source: ModuleSource::File("f.pwcmodule".into())
             }
         );
         assert_invalid(
             &doc("\"a.b\" = { path = \"p\", file = \"f\" }"),
-            "mods.\"a.b\"",
+            "modules.\"a.b\"",
         );
-        assert_invalid(&doc("\"a.b\" = {}"), "mods.\"a.b\"");
+        assert_invalid(&doc("\"a.b\" = {}"), "modules.\"a.b\"");
         assert_invalid(
             &doc("\"a.b\" = { git = \"https://x\" }"),
-            "mods.\"a.b\".git",
+            "modules.\"a.b\".git",
         );
-        assert_invalid(&doc("\"a.b\" = { path = \"\" }"), "mods.\"a.b\".path");
-        assert_invalid(&doc("\"a.b\" = { path = 3 }"), "mods.\"a.b\".path");
+        assert_invalid(&doc("\"a.b\" = { path = \"\" }"), "modules.\"a.b\".path");
+        assert_invalid(&doc("\"a.b\" = { path = 3 }"), "modules.\"a.b\".path");
         assert_invalid(
             &doc("\"a.b\" = { version = \"nope\" }"),
-            "mods.\"a.b\".version",
+            "modules.\"a.b\".version",
         );
         assert_invalid(
             &doc("\"a.b\" = { path = \"p\", version = \"nope\" }"),
-            "mods.\"a.b\".version",
+            "modules.\"a.b\".version",
         );
-        assert_invalid(&doc("\"a.b\" = \"nope\""), "mods.\"a.b\"");
-        assert_invalid(&doc("\"a.b\" = 1"), "mods.\"a.b\"");
-        assert_invalid(&doc("\"ab\" = \"1\""), "mods.\"ab\"");
+        assert_invalid(&doc("\"a.b\" = \"nope\""), "modules.\"a.b\"");
+        assert_invalid(&doc("\"a.b\" = 1"), "modules.\"a.b\"");
+        assert_invalid(&doc("\"ab\" = \"1\""), "modules.\"ab\"");
     }
 
     #[test]
@@ -485,5 +502,26 @@ profile = "release"
                 "{err}"
             );
         }
+    }
+
+    #[test]
+    fn the_older_mods_table_is_still_read_and_never_written() {
+        let old = "format = 1\nname = \"x\"\n[mods]\n\"a.b\" = \"^1\"\n";
+        let m = InstanceManifest::parse(old).unwrap();
+        assert_eq!(m.modules.len(), 1);
+        let written = m.to_toml_string();
+        assert!(written.contains("[modules]") && !written.contains("[mods]"));
+        assert_eq!(InstanceManifest::parse(&written).unwrap(), m);
+        assert_invalid(
+            "format = 1\nname = \"x\"\n[mods]\n\"ab\" = \"1\"\n",
+            "mods.\"ab\"",
+        );
+    }
+
+    #[test]
+    fn both_module_tables_are_an_error_naming_both() {
+        let both = "format = 1\nname = \"x\"\n[mods]\n[modules]\n";
+        let err = InstanceManifest::parse(both).unwrap_err().to_string();
+        assert!(err.contains("[modules]") && err.contains("[mods]"), "{err}");
     }
 }

@@ -9,14 +9,14 @@ use sha2::{Digest, Sha256};
 use crate::InstanceError;
 use crate::fsutil::{canonicalize, io};
 
-/// A PWC source checkout: its version, mod API version and git state.
+/// A PWC source checkout: its version, module API version and git state.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PwcSource {
-    /// Root directory (contains the runtime `Cargo.toml` and `crates/pwc-mod-api`).
+    /// Root directory (contains the runtime `Cargo.toml` and `crates/pwc-module-api`).
     pub dir: PathBuf,
     /// `[package] version` of the root `Cargo.toml`.
     pub version: Version,
-    /// `[package] version` of `crates/pwc-mod-api/Cargo.toml`.
+    /// `[package] version` of `crates/pwc-module-api/Cargo.toml`.
     pub api: Version,
     /// `git rev-parse HEAD`, or `unknown`.
     pub revision: String,
@@ -28,7 +28,7 @@ pub struct PwcSource {
 pub const UNKNOWN_REVISION: &str = "unknown";
 
 impl PwcSource {
-    /// Inspect a checkout (errors if it is not a PWC source providing `crates/pwc-mod-api`).
+    /// Inspect a checkout (errors if it is not a PWC source providing `crates/pwc-module-api`).
     ///
     /// `dir` is canonicalised. Versions may be inherited with `version.workspace = true` from the
     /// root manifest's `[workspace.package]`.
@@ -36,7 +36,15 @@ impl PwcSource {
         let dir = canonicalize(dir)
             .map_err(|e| InstanceError::PwcSource(format!("{}: {e}", dir.display())))?;
         let root_manifest = dir.join("Cargo.toml");
-        let api_manifest = dir.join("crates/pwc-mod-api/Cargo.toml");
+        // The API crate is `pwc-module-api`; a checkout from before the rename has `pwc-mod-api`.
+        let api_manifest = [
+            "crates/pwc-module-api/Cargo.toml",
+            "crates/pwc-mod-api/Cargo.toml",
+        ]
+        .into_iter()
+        .map(|p| dir.join(p))
+        .find(|p| p.is_file())
+        .unwrap_or_else(|| dir.join("crates/pwc-module-api/Cargo.toml"));
         if !root_manifest.is_file() {
             return Err(InstanceError::PwcSource(format!(
                 "{} is not a PWC source checkout (no Cargo.toml)",
@@ -45,8 +53,8 @@ impl PwcSource {
         }
         if !api_manifest.is_file() {
             return Err(InstanceError::PwcSource(format!(
-                "{} does not provide the mod API (no crates/pwc-mod-api/Cargo.toml); \
-                 this PWC version predates mod packages",
+                "{} does not provide the module API (no crates/pwc-module-api/Cargo.toml); \
+                 this PWC version predates module packages",
                 dir.display()
             )));
         }
@@ -418,12 +426,12 @@ mod tests {
         std::fs::write(
             dir.join("Cargo.toml"),
             "[package]\nname = \"project_watt_cubed\"\nversion.workspace = true\n\n\
-             [workspace]\nmembers = [\"crates/pwc-mod-api\"]\n[workspace.package]\nversion = \"3.0.0-rc.1\"\n",
+             [workspace]\nmembers = [\"crates/pwc-module-api\"]\n[workspace.package]\nversion = \"3.0.0-rc.1\"\n",
         )
         .unwrap();
         std::fs::write(
-            dir.join("crates/pwc-mod-api/Cargo.toml"),
-            "[package]\nname = \"pwc-mod-api\"\nversion = { workspace = true }\n",
+            dir.join("crates/pwc-module-api/Cargo.toml"),
+            "[package]\nname = \"pwc-module-api\"\nversion = { workspace = true }\n",
         )
         .unwrap();
         let src = PwcSource::open(&dir).unwrap();
@@ -476,7 +484,7 @@ mod tests {
         let dir = fake_pwc(tmp.path(), "1.0.0", "1.0.0");
         std::fs::remove_dir_all(dir.join("crates")).unwrap();
         let e = PwcSource::open(&dir).unwrap_err().to_string();
-        assert!(e.contains("pwc-mod-api"), "{e}");
+        assert!(e.contains("pwc-module-api"), "{e}");
 
         let dir = fake_pwc(&tmp.path().join("b"), "1.0.0", "1.0.0");
         std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"x\"\n").unwrap();
@@ -544,5 +552,18 @@ mod tests {
         run_git(&dir, &["checkout", "-q", "--", "src/lib.rs"]);
         assert_eq!(src.dirty_digest().unwrap(), "clean");
         assert!(!PwcSource::open(&dir).unwrap().dirty);
+    }
+
+    #[test]
+    fn a_checkout_from_before_the_rename_has_pwc_mod_api() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = fake_pwc(tmp.path(), "1.0.0", "1.0.0");
+        std::fs::rename(
+            dir.join("crates/pwc-module-api"),
+            dir.join("crates/pwc-mod-api"),
+        )
+        .unwrap();
+        let src = PwcSource::open(&dir).unwrap();
+        assert_eq!(src.api, Version::parse("1.0.0").unwrap());
     }
 }

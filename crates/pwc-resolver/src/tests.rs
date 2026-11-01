@@ -50,9 +50,9 @@ impl P {
             id: id(pkg),
             version: v(version),
             kind: if api.is_some() {
-                ModKind::Mod
+                PackageKind::Module
             } else {
-                ModKind::Bundle
+                PackageKind::Bundle
             },
             hash: PackageHash::from_digest(digest),
             pwc_api: api.map(req),

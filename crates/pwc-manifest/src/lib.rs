@@ -1,7 +1,7 @@
-//! The PWC manifest formats: what a mod package declares (`mod.toml`), what an instance wants
+//! The PWC manifest formats: what a module package declares (`module.toml`), what an instance wants
 //! (`instance.toml`) and what it resolved to (`pwc.lock`).
 //!
-//! Specifications: `docs/spec/mod-manifest.md`, `docs/spec/instances.md`. This crate parses,
+//! Specifications: `docs/spec/module-manifest.md`, `docs/spec/instances.md`. This crate parses,
 //! validates and serialises; it touches no filesystem except through the `*_file` helpers, and it
 //! knows nothing about stores, resolution or Cargo.
 //!
@@ -15,13 +15,18 @@ mod manifest;
 mod text;
 
 pub use id::{InstanceName, PackageId};
-pub use instance::{BuildProfile, InstanceManifest, ModRequirement, ModSource};
+pub use instance::{BuildProfile, InstanceManifest, ModuleRequirement, ModuleSource};
 pub use license::{
     ALLOWED_EXCEPTIONS, CONTENT_LICENSES, LicenseError, SOFTWARE_LICENSES,
     check_license_expression, check_package_license,
 };
 pub use lock::{LOCK_HEADER, LockedPackage, LockedPwc, Lockfile, PackageSource, environment_hash};
-pub use manifest::{Category, Edition, ModKind, ModManifest, PackageMetadata};
+pub use manifest::{
+    Category, Edition, LEGACY_MANIFEST_FILE, MANIFEST_FILE, PackageKind, PackageManifest,
+    PackageMetadata, find_manifest_file,
+};
+#[doc(hidden)]
+pub use manifest::{ModKind, ModManifest};
 pub use text::{MAX_PATH_BYTES, check_package_path, is_reserved_windows_device};
 
 /// Re-exported so every crate names versions with the same types.
@@ -127,6 +132,9 @@ pub enum ManifestError {
     /// The licence expression breaks the licence policy.
     #[error("licence policy: {0}")]
     License(#[from] LicenseError),
+    /// A package directory has both `module.toml` and the older `module.toml`.
+    #[error("{} has both module.toml and mod.toml; keep only module.toml", .0.display())]
+    BothManifests(std::path::PathBuf),
     /// Reading or writing a file failed.
     #[error("{path}: {source}")]
     Io {

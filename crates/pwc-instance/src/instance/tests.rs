@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use pwc_manifest::{ModKind, ModRequirement, VersionReq};
+use pwc_manifest::{ModuleRequirement, PackageKind, VersionReq};
 use pwc_package::Package;
 
 use super::*;
@@ -67,11 +67,11 @@ impl Env {
     fn manifest(&self, instance: &str, mods: &[(&str, &str)]) -> InstanceManifest {
         let mut m = InstanceManifest::new(name(instance), req("^2.1"));
         for (id, r) in mods {
-            m.mods.insert(
+            m.modules.insert(
                 pid(id),
-                ModRequirement {
+                ModuleRequirement {
                     version: req(r),
-                    source: ModSource::Registry,
+                    source: ModuleSource::Registry,
                 },
             );
         }
@@ -144,11 +144,11 @@ fn create_open_list_save_remove() {
 
     let mut opened = Instance::open(&e.dirs, &name("survival")).unwrap();
     assert_eq!(opened.manifest, survival.manifest);
-    opened.manifest.mods.insert(
+    opened.manifest.modules.insert(
         pid("t.hotbar"),
-        ModRequirement {
+        ModuleRequirement {
             version: req("^1.0"),
-            source: ModSource::Registry,
+            source: ModuleSource::Registry,
         },
     );
     opened.manifest.description = Some("with a hotbar".into());
@@ -245,7 +245,7 @@ fn scan_reads_repositories_and_the_store() {
         Package::from_dir(&Pkg::new("t.archived", "0.1.0").write(&e.root.join("src/archived")))
             .unwrap();
     let archive = pkg.write_archive(&e.repo).unwrap();
-    // Silently ignored: files, hidden entries, directories without mod.toml.
+    // Silently ignored: files, hidden entries, directories without module.toml.
     std::fs::write(e.repo.join("README.md"), "# repo").unwrap();
     std::fs::create_dir_all(e.repo.join("docs")).unwrap();
     Pkg::new("t.hidden", "1.0.0").write(&e.repo.join(".hidden"));
@@ -378,7 +378,7 @@ fn lock_end_to_end() {
     Pkg::new("t.hotbar", "1.1.0").write_into(&e.repo);
     Pkg::new("t.hotbar", "2.0.0")
         .api("^2.0")
-        .write_into(&e.repo); // needs another mod API
+        .write_into(&e.repo); // needs another module API
     Pkg::new("t.inventory", "1.0.0")
         .deps(&[("t.hotbar", "^1.0")])
         .write_into(&e.repo);
@@ -402,7 +402,7 @@ fn lock_end_to_end() {
     assert_eq!(report.warnings.len(), 1, "{:?}", report.warnings);
 
     let hotbar = report.lock.package(&pid("t.hotbar")).unwrap();
-    assert_eq!(hotbar.kind, ModKind::Mod);
+    assert_eq!(hotbar.kind, PackageKind::Module);
     assert_eq!(
         hotbar.source,
         PackageSource::Repository(e.repo.join("t.hotbar-1.1.0"))
@@ -495,7 +495,7 @@ fn removing_a_mod_drops_its_dependencies() {
     let first = e.lock(&inst);
     assert_eq!(first.lock.packages.len(), 3);
 
-    inst.manifest.mods.remove(&pid("t.inventory"));
+    inst.manifest.modules.remove(&pid("t.inventory"));
     inst.save().unwrap();
     let reason = inst.stale_reason(&first.lock, &e.pwc).unwrap().unwrap();
     assert!(reason.contains("no longer required"), "{reason}");
@@ -523,11 +523,11 @@ fn path_entries_are_pinned_and_mutable() {
         .deps(&[("t.hotbar", "*")])
         .write(&e.root.join("dev/caves"));
     let mut inst = e.instance("dev", &[]);
-    inst.manifest.mods.insert(
+    inst.manifest.modules.insert(
         pid("t.caves"),
-        ModRequirement {
+        ModuleRequirement {
             version: req("*"),
-            source: ModSource::Path(PathBuf::from("../../../../dev/caves")),
+            source: ModuleSource::Path(PathBuf::from("../../../../dev/caves")),
         },
     );
     inst.save().unwrap();
@@ -564,11 +564,11 @@ fn path_entries_are_pinned_and_mutable() {
     assert_ne!(second.lock.environment, first.lock.environment);
 
     // Switching the entry to the registry: a published version replaces the dev snapshot.
-    inst.manifest.mods.insert(
+    inst.manifest.modules.insert(
         pid("t.caves"),
-        ModRequirement {
+        ModuleRequirement {
             version: req("*"),
-            source: ModSource::Registry,
+            source: ModuleSource::Registry,
         },
     );
     inst.save().unwrap();
@@ -593,11 +593,11 @@ fn path_and_file_entries_are_checked() {
     let mut inst = e.instance("dev", &[]);
 
     // Wrong id.
-    inst.manifest.mods.insert(
+    inst.manifest.modules.insert(
         pid("t.other"),
-        ModRequirement {
+        ModuleRequirement {
             version: req("*"),
-            source: ModSource::Path(dev.clone()),
+            source: ModuleSource::Path(dev.clone()),
         },
     );
     let err = e
@@ -605,17 +605,17 @@ fn path_and_file_entries_are_checked() {
         .unwrap_err()
         .to_string();
     assert!(
-        err.contains("t.caves") && err.contains("mods.t.other"),
+        err.contains("t.caves") && err.contains("modules.t.other"),
         "{err}"
     );
 
     // Asserted version.
-    inst.manifest.mods.clear();
-    inst.manifest.mods.insert(
+    inst.manifest.modules.clear();
+    inst.manifest.modules.insert(
         pid("t.caves"),
-        ModRequirement {
+        ModuleRequirement {
             version: req("^2"),
-            source: ModSource::Path(dev.clone()),
+            source: ModuleSource::Path(dev.clone()),
         },
     );
     let err = e
@@ -625,11 +625,11 @@ fn path_and_file_entries_are_checked() {
     assert!(err.contains("version 1.5.0"), "{err}");
 
     // Missing tree.
-    inst.manifest.mods.insert(
+    inst.manifest.modules.insert(
         pid("t.caves"),
-        ModRequirement {
+        ModuleRequirement {
             version: req("*"),
-            source: ModSource::Path(e.root.join("nowhere")),
+            source: ModuleSource::Path(e.root.join("nowhere")),
         },
     );
     assert!(e.lock_with(&inst, &LockOptions::default()).is_err());
@@ -649,11 +649,11 @@ fn file_entries() {
     std::fs::create_dir_all(&downloads).unwrap();
     let file = pkg.write_archive(&downloads).unwrap();
     let mut inst = e.instance("files", &[]);
-    inst.manifest.mods.insert(
+    inst.manifest.modules.insert(
         pid("t.seasons"),
-        ModRequirement {
+        ModuleRequirement {
             version: req("^2"),
-            source: ModSource::File(file.clone()),
+            source: ModuleSource::File(file.clone()),
         },
     );
     inst.save().unwrap();
@@ -778,7 +778,7 @@ fn bundles_pull_in_their_dependencies() {
         ]
     );
     let bundle = report.lock.package(&pid("t.essentials")).unwrap();
-    assert_eq!(bundle.kind, ModKind::Bundle);
+    assert_eq!(bundle.kind, PackageKind::Bundle);
     assert_eq!(bundle.dependencies, [pid("t.hotbar"), pid("t.inventory")]);
 }
 
@@ -865,11 +865,11 @@ fn stale_when_the_pwc_source_changes() {
 
     // A new requirement.
     let mut inst = inst;
-    inst.manifest.mods.insert(
+    inst.manifest.modules.insert(
         pid("t.x"),
-        ModRequirement {
+        ModuleRequirement {
             version: req("*"),
-            source: ModSource::Registry,
+            source: ModuleSource::Registry,
         },
     );
     assert!(
@@ -938,4 +938,46 @@ fn relock_reinstalls_a_collected_package() {
     let again = e.lock(&inst).lock;
     assert_eq!(again, lock);
     assert!(store.verify(&lock.packages[0].hash).unwrap());
+}
+
+#[test]
+fn older_package_layouts_are_still_discovered() {
+    let e = env();
+    // A directory with the older `mod.toml`, and an archive with the older `.pwcmod` extension.
+    let old_dir = Pkg::new("t.olddir", "1.0.0").write_into(&e.repo);
+    std::fs::rename(old_dir.join("module.toml"), old_dir.join("mod.toml")).unwrap();
+    let (pkg, _) =
+        Package::from_dir(&Pkg::new("t.oldzip", "1.0.0").write(&e.root.join("src/oldzip")))
+            .unwrap();
+    std::fs::write(e.repo.join("t.oldzip-1.0.0.pwcmod"), pkg.to_archive_bytes()).unwrap();
+    // Both manifests in one directory is a warning, not a package.
+    let both = Pkg::new("t.both", "1.0.0").write_into(&e.repo);
+    std::fs::write(both.join("mod.toml"), "x").unwrap();
+
+    let a = Available::scan(&e.config, &e.store()).unwrap();
+    let ids: Vec<String> = a
+        .packages
+        .iter()
+        .map(|p| p.manifest.id().to_string())
+        .collect();
+    assert_eq!(ids, ["t.olddir", "t.oldzip"]);
+    assert!(
+        a.warnings.iter().any(|w| w.contains("t.both")),
+        "{:?}",
+        a.warnings
+    );
+}
+
+#[test]
+fn a_repository_configured_as_mods_follows_the_rename_to_modules() {
+    let mut e = env();
+    let modules = e.root.join("tooling/modules");
+    Pkg::new("t.moved", "1.0.0").write_into(&modules);
+    e.config.repositories = vec![RepositoryConfig {
+        name: "first-party".into(),
+        path: e.root.join("tooling/mods"),
+    }];
+    let a = Available::scan(&e.config, &e.store()).unwrap();
+    assert_eq!(a.packages.len(), 1, "{:?}", a.warnings);
+    assert!(a.warnings.is_empty(), "{:?}", a.warnings);
 }

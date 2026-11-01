@@ -1,6 +1,6 @@
 [package]
 name = "pwc-manifest"
-description = "The PWC mod manifest (mod.toml), instance manifest (instance.toml) and lockfile (pwc.lock) formats, with validation and the licence policy."
+description = "The PWC module manifest (module.toml), instance manifest (instance.toml) and lockfile (pwc.lock) formats, with validation and the licence policy."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

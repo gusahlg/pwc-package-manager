@@ -1,8 +1,8 @@
-//! The `.pwcmod` package format (docs/spec/package-format.md): which files form a package, the
+//! The `.pwcmodule` package format (docs/spec/package-format.md; `.pwcmod` archives are still read): which files form a package, the
 //! canonical (deterministic) tar, Zstandard compression, the package hash and verification.
 //!
 //! A package can be read from a **source directory** (an author's tree or a repository entry) or
-//! from a **`.pwcmod` archive**; both give the same [`Package`] and the same hash.
+//! from a **`.pwcmodule` archive**; both give the same [`Package`] and the same hash.
 //!
 //! Every constructor validates completely (manifest, licence policy, contents rules, limits), so a
 //! [`Package`] value is always a valid package. Reading an archive never panics, whatever the
@@ -19,10 +19,10 @@ use std::fs;
 use std::io::{self, Read, Write};
 use std::path::{Component, Path, PathBuf};
 
-use pwc_manifest::{ManifestError, ModManifest, PackageHash};
+use pwc_manifest::{ManifestError, PackageHash, PackageManifest};
 use sha2::{Digest, Sha256};
 
-/// Largest file in a package (docs/spec/mod-manifest.md, "Package contents").
+/// Largest file in a package (docs/spec/module-manifest.md, "Package contents").
 pub const MAX_FILE_BYTES: u64 = 32 * 1024 * 1024;
 /// Most files in one package.
 pub const MAX_FILES: usize = 4096;
@@ -34,7 +34,7 @@ pub const MAX_TOTAL_BYTES: u64 = 256 * 1024 * 1024;
 /// stops beyond this.
 const MAX_TAR_BYTES: u64 = MAX_TOTAL_BYTES + MAX_FILES as u64 * 4096 + 1024;
 
-/// Largest `.pwcmod` file read: Zstandard's worst-case expansion of the largest tar is far below
+/// Largest `.pwcmodule` file read: Zstandard's worst-case expansion of the largest tar is far below
 /// this.
 const MAX_ARCHIVE_BYTES: u64 = MAX_TAR_BYTES + MAX_TAR_BYTES / 64 + 1024 * 1024;
 
@@ -50,7 +50,7 @@ pub struct PackageFile {
 /// A validated package held in memory: manifest, files (sorted by path) and hash.
 #[derive(Clone)]
 pub struct Package {
-    manifest: ModManifest,
+    manifest: PackageManifest,
     files: Vec<PackageFile>,
     hash: PackageHash,
 }
@@ -89,7 +89,7 @@ impl Package {
     /// policy, contents rules) and compute the hash. Ignored paths are reported, not errors;
     /// forbidden ones (build.rs, symlinks, …) are errors.
     ///
-    /// The package is `mod.toml`, the readme and licence files it names, `CHANGELOG.md`, `NOTICE`
+    /// The package is `module.toml` (or the older `mod.toml`), the readme and licence files it names, `CHANGELOG.md`, `NOTICE`
     /// and the `src/`, `assets/` and `data/` trees. Everything else in the directory (`target/`,
     /// `dist/`, `.git/`, a development `Cargo.toml`, …) is returned in the second value, sorted,
     /// directories with a trailing `/` and not descended into. Symlinks are never followed.
@@ -98,7 +98,7 @@ impl Package {
         Ok((Self::from_files(files)?, ignored))
     }
 
-    /// Read and fully verify a `.pwcmod` file.
+    /// Read and fully verify a `.pwcmodule` file.
     pub fn from_archive_file(path: &Path) -> Result<Self, PackageError> {
         let io_error = |source| PackageError::Io {
             path: path.to_path_buf(),
@@ -118,7 +118,7 @@ impl Package {
         Self::from_archive_bytes(&bytes)
     }
 
-    /// Read and fully verify `.pwcmod` bytes (docs/spec/package-format.md, "Reading and
+    /// Read and fully verify `.pwcmodule` bytes (docs/spec/package-format.md, "Reading and
     /// verification"): decompress exactly one Zstandard frame; parse the tar, rejecting anything
     /// but sorted, unique regular files with canonical headers (the parsed files must re-serialise
     /// to exactly the decompressed bytes); validate the manifest and the contents rules; hash.
@@ -185,7 +185,7 @@ impl Package {
     }
 
     /// The manifest.
-    pub fn manifest(&self) -> &ModManifest {
+    pub fn manifest(&self) -> &PackageManifest {
         &self.manifest
     }
 
@@ -199,10 +199,10 @@ impl Package {
         &self.hash
     }
 
-    /// `<id>-<version>.pwcmod`.
+    /// `<id>-<version>.pwcmodule`.
     pub fn file_name(&self) -> String {
         format!(
-            "{}-{}.pwcmod",
+            "{}-{}.pwcmodule",
             self.manifest.package.id, self.manifest.package.version
         )
     }
@@ -212,7 +212,7 @@ impl Package {
         ustar::to_vec(&self.files)
     }
 
-    /// The `.pwcmod` bytes (Zstandard-compressed canonical tar).
+    /// The `.pwcmodule` bytes (Zstandard-compressed canonical tar).
     pub fn to_archive_bytes(&self) -> Vec<u8> {
         zstd::compress(&self.canonical_tar())
     }
@@ -221,8 +221,8 @@ impl Package {
     /// written under a temporary name and renamed into place, so it is never seen half-written.
     pub fn write_archive(&self, out_dir: &Path) -> Result<PathBuf, PackageError> {
         let name = self.file_name();
-        // The archive name is one path component (`<id>-<version>.pwcmod`). Reject a reserved
-        // device stem (`con.foo-1.0.0.pwcmod`) before it becomes a file.
+        // The archive name is one path component (`<id>-<version>.pwcmodule`). Reject a reserved
+        // device stem (`con.foo-1.0.0.pwcmodule`) before it becomes a file.
         let path = contained_path(out_dir, &name)?;
         fs::create_dir_all(out_dir).map_err(|source| PackageError::Io {
             path: out_dir.to_path_buf(),
@@ -330,9 +330,9 @@ pub(crate) fn contained_path(root: &Path, relative: &str) -> Result<PathBuf, Pac
 #[derive(Debug, thiserror::Error)]
 pub enum PackageError {
     /// The manifest is invalid (includes licence policy failures).
-    #[error("mod.toml: {0}")]
+    #[error("module.toml: {0}")]
     Manifest(#[from] ManifestError),
-    /// A required file is missing (`mod.toml`, README, licence file, `src/lib.rs`).
+    /// A required file is missing (`module.toml`, README, licence file, `src/lib.rs`).
     #[error("missing required file `{0}`")]
     MissingFile(String),
     /// A forbidden path (build.rs, Cargo.toml, hidden file, symlink, src/ in a bundle, …).
@@ -347,7 +347,7 @@ pub enum PackageError {
     #[error("package too large: {0}")]
     TooLarge(String),
     /// The archive is malformed or not canonical.
-    #[error("malformed .pwcmod: {0}")]
+    #[error("malformed .pwcmodule: {0}")]
     Archive(String),
     /// The contents do not match an expected hash.
     #[error("hash mismatch: expected {expected}, found {found}")]

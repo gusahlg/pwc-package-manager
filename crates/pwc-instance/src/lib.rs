@@ -40,7 +40,7 @@ pub enum InstanceError {
     /// The package at a path is invalid.
     #[error("{path}: {source}")]
     PackageAt {
-        /// The source directory or `.pwcmod`.
+        /// The source directory or `.pwcmodule`.
         path: std::path::PathBuf,
         /// Why it was rejected.
         source: pwc_package::PackageError,

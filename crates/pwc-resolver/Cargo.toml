@@ -1,6 +1,6 @@
 [package]
 name = "pwc-resolver"
-description = "Deterministic dependency resolution for PWC mod packages."
+description = "Deterministic dependency resolution for PWC module packages."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

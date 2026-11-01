@@ -4,8 +4,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use pwc_manifest::{
-    InstanceManifest, InstanceName, LockedPackage, Lockfile, ManifestError, ModManifest, ModSource,
-    PackageHash, PackageId, PackageSource, Version,
+    InstanceManifest, InstanceName, LockedPackage, Lockfile, ManifestError, ModuleSource,
+    PackageHash, PackageId, PackageManifest, PackageSource, Version,
 };
 use pwc_resolver::{Candidate, Problem, Requirement};
 use pwc_store::Store;
@@ -158,7 +158,7 @@ impl Instance {
     /// Why `lock` no longer describes this instance built against `pwc`, or `None` if it does.
     ///
     /// Stale when: the PWC source differs from `[pwc]` (directory, version, API, revision or
-    /// dirty state); a `[mods]` entry is missing from the lock, no longer matches its locked
+    /// dirty state); a `[modules]` entry is missing from the lock, no longer matches its locked
     /// version, or changed source kind; a `path`/`file` entry's contents changed (re-packaged and
     /// re-hashed now); or the lock holds packages nothing requires any more.
     pub fn stale_reason(
@@ -187,7 +187,7 @@ impl Instance {
                 if pwc.dirty { " dirty" } else { "" }
             )));
         }
-        for (id, req) in &self.manifest.mods {
+        for (id, req) in &self.manifest.modules {
             let Some(package) = lock.package(id) else {
                 return Ok(Some(format!("{id} is not locked yet")));
             };
@@ -198,8 +198,8 @@ impl Instance {
                 )));
             }
             match (&req.source, &package.source) {
-                (ModSource::Registry, PackageSource::Repository(_) | PackageSource::Store) => {}
-                (ModSource::Path(p), PackageSource::Path(locked_path))
+                (ModuleSource::Registry, PackageSource::Repository(_) | PackageSource::Store) => {}
+                (ModuleSource::Path(p), PackageSource::Path(locked_path))
                     if self.source_path(p) == *locked_path =>
                 {
                     let now = AvailableSource::Path(locked_path.clone()).read_package()?;
@@ -207,7 +207,7 @@ impl Instance {
                         return Ok(Some(format!("{id} changed in {}", locked_path.display())));
                     }
                 }
-                (ModSource::File(p), PackageSource::File(locked_path))
+                (ModuleSource::File(p), PackageSource::File(locked_path))
                     if self.source_path(p) == *locked_path =>
                 {
                     let now = AvailableSource::File(locked_path.clone()).read_package()?;
@@ -220,7 +220,7 @@ impl Instance {
         }
         // Everything locked must still be needed.
         let mut needed: BTreeSet<&PackageId> = BTreeSet::new();
-        let mut queue: Vec<&PackageId> = self.manifest.mods.keys().collect();
+        let mut queue: Vec<&PackageId> = self.manifest.modules.keys().collect();
         while let Some(id) = queue.pop() {
             if needed.insert(id)
                 && let Some(package) = lock.package(id)
@@ -305,28 +305,28 @@ pub fn lock_instance(
     };
 
     let mut roots = BTreeMap::new();
-    for (id, req) in &manifest.mods {
+    for (id, req) in &manifest.modules {
         let source = match &req.source {
-            ModSource::Registry => {
+            ModuleSource::Registry => {
                 roots.insert(id.clone(), Requirement::Version(req.version.clone()));
                 continue;
             }
-            ModSource::Path(p) => AvailableSource::Path(instance.source_path(p)),
-            ModSource::File(p) => AvailableSource::File(instance.source_path(p)),
+            ModuleSource::Path(p) => AvailableSource::Path(instance.source_path(p)),
+            ModuleSource::File(p) => AvailableSource::File(instance.source_path(p)),
         };
         let index = available.add_explicit(source)?;
         let found = &available.packages[index];
         let where_ = found.source.to_string();
         if found.manifest.id() != id {
             return Err(InstanceError::Manifest(ManifestError::invalid(
-                format!("mods.{id}"),
+                format!("modules.{id}"),
                 where_,
                 format!("the package there is `{}`, not `{id}`", found.manifest.id()),
             )));
         }
         if !req.version.matches(found.manifest.version()) {
             return Err(InstanceError::Manifest(ManifestError::invalid(
-                format!("mods.{id}.version"),
+                format!("modules.{id}.version"),
                 req.version.to_string(),
                 format!(
                     "the package at {where_} is version {}",
@@ -506,7 +506,7 @@ pub fn referenced_hashes(dirs: &Dirs) -> Result<BTreeSet<PackageHash>, InstanceE
 pub fn installed_packages(
     store: &Store,
     lock: &Lockfile,
-) -> Result<BTreeMap<PackageId, (PathBuf, ModManifest)>, InstanceError> {
+) -> Result<BTreeMap<PackageId, (PathBuf, PackageManifest)>, InstanceError> {
     let mut out = BTreeMap::new();
     for package in &lock.packages {
         let entry = store

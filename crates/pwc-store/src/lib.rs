@@ -17,7 +17,7 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-use pwc_manifest::{ModManifest, PackageHash};
+use pwc_manifest::{PackageHash, PackageManifest};
 use pwc_package::{Package, PackageError};
 
 /// One installed package.
@@ -28,7 +28,7 @@ pub struct StoreEntry {
     /// Its directory.
     pub dir: PathBuf,
     /// Its manifest.
-    pub manifest: ModManifest,
+    pub manifest: PackageManifest,
 }
 
 /// What [`Store::gc_report`] removed (or, in a dry run, would remove).
@@ -159,8 +159,11 @@ impl Store {
         if !dir.is_dir() {
             return Ok(None);
         }
+        let manifest_path = pwc_manifest::find_manifest_file(&dir)
+            .map_err(PackageError::Manifest)?
+            .unwrap_or_else(|| dir.join(pwc_manifest::MANIFEST_FILE));
         let manifest =
-            ModManifest::from_file(&dir.join("mod.toml")).map_err(PackageError::Manifest)?;
+            PackageManifest::from_file(&manifest_path).map_err(PackageError::Manifest)?;
         Ok(Some(StoreEntry {
             hash: hash.clone(),
             dir,

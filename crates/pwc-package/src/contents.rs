@@ -1,9 +1,9 @@
-//! The package contents rules (docs/spec/mod-manifest.md, "Package contents"): which paths form a
+//! The package contents rules (docs/spec/module-manifest.md, "Package contents"): which paths form a
 //! package, which are forbidden, which are required, and the size limits.
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use pwc_manifest::{ManifestError, ModManifest, check_package_path};
+use pwc_manifest::{ManifestError, PackageManifest, check_package_path};
 
 use crate::{MAX_FILE_BYTES, MAX_FILES, MAX_TOTAL_BYTES, PackageError, PackageFile};
 
@@ -14,7 +14,22 @@ pub(crate) const TREES: [&str; 3] = ["src", "assets", "data"];
 pub(crate) const OPTIONAL_FILES: [&str; 2] = ["CHANGELOG.md", "NOTICE"];
 
 /// The manifest's path.
-pub(crate) const MANIFEST: &str = "mod.toml";
+pub(crate) const MANIFEST: &str = pwc_manifest::MANIFEST_FILE;
+
+/// The older manifest path, still accepted.
+pub(crate) const LEGACY_MANIFEST: &str = pwc_manifest::LEGACY_MANIFEST_FILE;
+
+/// Which manifest file a package has: `module.toml`, or the older `mod.toml`; both is an error.
+pub(crate) fn manifest_name(has: impl Fn(&str) -> bool) -> Result<&'static str, PackageError> {
+    match (has(MANIFEST), has(LEGACY_MANIFEST)) {
+        (true, true) => Err(forbidden(
+            LEGACY_MANIFEST,
+            "both module.toml and mod.toml are present; keep only module.toml",
+        )),
+        (false, true) => Ok(LEGACY_MANIFEST),
+        _ => Ok(MANIFEST),
+    }
+}
 
 /// The tree a path belongs to (`src` for `src/lib.rs`), if any.
 pub(crate) fn tree_of(path: &str) -> Option<&'static str> {
@@ -24,10 +39,13 @@ pub(crate) fn tree_of(path: &str) -> Option<&'static str> {
     })
 }
 
-/// The individually named files of a package: `mod.toml`, the readme, the licence files and the
+/// The individually named files of a package: `module.toml` (or the older `mod.toml`), the readme, the licence files and the
 /// optional top-level files.
-pub(crate) fn named_files(manifest: &ModManifest) -> BTreeSet<&str> {
-    let mut named: BTreeSet<&str> = [MANIFEST, manifest.package.readme.as_str()].into();
+pub(crate) fn named_files<'a>(
+    manifest: &'a PackageManifest,
+    manifest_name: &'a str,
+) -> BTreeSet<&'a str> {
+    let mut named: BTreeSet<&str> = [manifest_name, manifest.package.readme.as_str()].into();
     named.extend(manifest.package.license_files.iter().map(String::as_str));
     named.extend(OPTIONAL_FILES);
     named
@@ -51,7 +69,7 @@ pub(crate) fn forbidden_reason(path: &str) -> Option<&'static str> {
         } else if component.eq_ignore_ascii_case("Cargo.toml")
             || component.eq_ignore_ascii_case("Cargo.lock")
         {
-            Some("packages do not ship Cargo manifests (the builder generates them from mod.toml)")
+            Some("packages do not ship Cargo manifests (the builder generates them from module.toml)")
         } else {
             None
         }
@@ -105,15 +123,15 @@ fn reject_case_collisions(files: &[PackageFile]) -> Result<(), PackageError> {
     Ok(())
 }
 
-/// Parse `mod.toml` bytes.
-pub(crate) fn parse_manifest(bytes: &[u8]) -> Result<ModManifest, PackageError> {
+/// Parse manifest bytes (`name` is the file's name, for messages).
+pub(crate) fn parse_manifest(bytes: &[u8], name: &str) -> Result<PackageManifest, PackageError> {
     let text = std::str::from_utf8(bytes)
-        .map_err(|_| ManifestError::Toml("mod.toml is not valid UTF-8".into()))?;
-    Ok(ModManifest::parse(text)?)
+        .map_err(|_| ManifestError::Toml(format!("{name} is not valid UTF-8")))?;
+    Ok(PackageManifest::parse(text)?)
 }
 
 /// Sort `files` by path and apply every contents rule; returns the manifest.
-pub(crate) fn validate(files: &mut [PackageFile]) -> Result<ModManifest, PackageError> {
+pub(crate) fn validate(files: &mut [PackageFile]) -> Result<PackageManifest, PackageError> {
     check_sizes(files)?;
     files.sort_unstable_by(|a, b| a.path.cmp(&b.path));
     for file in files.iter() {
@@ -126,18 +144,19 @@ pub(crate) fn validate(files: &mut [PackageFile]) -> Result<ModManifest, Package
     // a directory ignoring case (`src/A` and `src/a/b.rs`) are rejected before any byte is written.
     reject_case_collisions(files)?;
 
+    let manifest_name = manifest_name(|n| files.iter().any(|f| f.path == n))?;
     let manifest_file = files
         .iter()
-        .find(|f| f.path == MANIFEST)
+        .find(|f| f.path == manifest_name)
         .ok_or_else(|| PackageError::MissingFile(MANIFEST.into()))?;
-    let manifest = parse_manifest(&manifest_file.bytes)?;
-    let named = named_files(&manifest);
+    let manifest = parse_manifest(&manifest_file.bytes, manifest_name)?;
+    let named = named_files(&manifest, manifest_name);
     let kind = manifest.kind();
     for file in files.iter() {
         if !is_package_path(&file.path, &named) {
             return Err(forbidden(
                 &file.path,
-                "not part of the package contents (mod.toml, the readme, the licence files, CHANGELOG.md, NOTICE, src/, assets/ and data/)",
+                "not part of the package contents (module.toml, the readme, the licence files, CHANGELOG.md, NOTICE, src/, assets/ and data/)",
             ));
         }
         if !kind.has_code() && tree_of(&file.path) == Some("src") {

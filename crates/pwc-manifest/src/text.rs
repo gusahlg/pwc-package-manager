@@ -139,7 +139,7 @@ pub(crate) fn check_portable_component(component: &str) -> Result<(), &'static s
 /// and without a Windows reserved device name, at most [`MAX_PATH_BYTES`] bytes. The same rules
 /// apply on every platform, so a package that extracts on Windows cannot escape the destination
 /// with a drive prefix (`C:/...`) or an alternate data stream (`file:stream`). This is the path
-/// rule of both `mod.toml` path keys and `.pwcmod` entries (docs/spec/package-format.md); it does
+/// rule of both `module.toml` path keys and `.pwcmodule` entries (docs/spec/package-format.md); it does
 /// not decide whether the path is *part of* a package (that is `pwc-package`'s contents rule).
 pub fn check_package_path(path: &str) -> Result<(), &'static str> {
     if path.is_empty() {

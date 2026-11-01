@@ -325,7 +325,7 @@ active-instance = "survival"                             # set by `pwc instance 
 
 [[repository]]
 name = "first-party"
-path = "/home/alice/src/pwc-package-manager/mods"
+path = "/home/alice/src/pwc-package-manager/modules"
 
 [build]
 wrapper = "auto"
@@ -344,7 +344,7 @@ jobs = 0                                                  # 0 = Cargo's default
             c.repositories,
             [RepositoryConfig {
                 name: "first-party".into(),
-                path: "/home/alice/src/pwc-package-manager/mods".into()
+                path: "/home/alice/src/pwc-package-manager/modules".into()
             }]
         );
         assert_eq!(c.wrapper, Wrapper::Auto);
@@ -359,7 +359,7 @@ jobs = 0                                                  # 0 = Cargo's default
         assert_eq!(
             text,
             "format = 1\npwc-source = \"/home/alice/src/project_watt_cubed\"\nactive-instance = \"survival\"\n\n\
-             [[repository]]\nname = \"first-party\"\npath = \"/home/alice/src/pwc-package-manager/mods\"\n\n\
+             [[repository]]\nname = \"first-party\"\npath = \"/home/alice/src/pwc-package-manager/modules\"\n\n\
              [build]\nwrapper = \"auto\"\njobs = 0\n"
         );
 

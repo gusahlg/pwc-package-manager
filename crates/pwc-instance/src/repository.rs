@@ -1,10 +1,10 @@
-//! Candidate discovery: configured repositories (source dirs and `.pwcmod` files), the store, and
+//! Candidate discovery: configured repositories (source dirs and `.pwcmodule` files), the store, and
 //! explicit `path`/`file` entries (docs/spec/filesystem.md, "Repositories").
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use pwc_manifest::{ModManifest, PackageHash, PackageId, Version};
+use pwc_manifest::{PackageHash, PackageId, PackageManifest, Version};
 use pwc_package::Package;
 
 use crate::{Config, InstanceError};
@@ -14,11 +14,11 @@ use crate::{Config, InstanceError};
 pub enum AvailableSource {
     /// A source directory inside a repository.
     RepositoryDir(PathBuf),
-    /// A `.pwcmod` inside a repository.
+    /// A `.pwcmodule` inside a repository.
     RepositoryFile(PathBuf),
     /// An explicit local source tree.
     Path(PathBuf),
-    /// An explicit `.pwcmod`.
+    /// An explicit `.pwcmodule`.
     File(PathBuf),
     /// Installed in the store.
     Store,
@@ -74,7 +74,7 @@ impl std::fmt::Display for AvailableSource {
 #[derive(Clone, Debug)]
 pub struct AvailablePackage {
     /// Manifest.
-    pub manifest: ModManifest,
+    pub manifest: PackageManifest,
     /// Hash (computed by packaging the source).
     pub hash: PackageHash,
     /// Where it is.
@@ -90,12 +90,25 @@ pub struct Available {
     pub warnings: Vec<String>,
 }
 
+/// A repository configured as `.../mods` before the rename, whose directory is now `.../modules`.
+fn current_repository_path(path: &std::path::Path) -> PathBuf {
+    if !path.exists()
+        && path.file_name().is_some_and(|n| n == "mods")
+        && let Some(parent) = path.parent()
+        && parent.join("modules").is_dir()
+    {
+        return parent.join("modules");
+    }
+    path.to_path_buf()
+}
+
 impl Available {
     /// Scan every configured repository and the store.
     ///
     /// Repositories are scanned in configuration order, each one's children sorted by name: a
-    /// directory containing `mod.toml` is packaged on the fly, a `*.pwcmod` file is read and
-    /// verified, anything else (hidden entries, READMEs, directories without `mod.toml`) is
+    /// directory containing `module.toml` (or the older `mod.toml`) is packaged on the fly, a
+    /// `*.pwcmodule` (or older `*.pwcmod`) file is read and
+    /// verified, anything else (hidden entries, READMEs, directories without a manifest) is
     /// ignored. Store entries come last. Invalid packages and missing repositories become
     /// warnings. The same hash found twice is kept once (the first, so a repository wins over the
     /// store); the same id and version with *different* contents is kept once too (the first),
@@ -103,7 +116,8 @@ impl Available {
     pub fn scan(config: &Config, store: &pwc_store::Store) -> Result<Self, InstanceError> {
         let mut scan = Scan::default();
         for repo in &config.repositories {
-            let children = match std::fs::read_dir(&repo.path) {
+            let path = current_repository_path(&repo.path);
+            let children = match std::fs::read_dir(&path) {
                 Ok(items) => {
                     let mut children: Vec<PathBuf> =
                         items.filter_map(|i| i.ok().map(|i| i.path())).collect();
@@ -127,9 +141,16 @@ impl Available {
                 {
                     continue;
                 }
-                let source = if child.is_dir() && child.join("mod.toml").is_file() {
+                let source = if child.is_dir()
+                    && (child.join(pwc_manifest::MANIFEST_FILE).is_file()
+                        || child.join(pwc_manifest::LEGACY_MANIFEST_FILE).is_file())
+                {
                     AvailableSource::RepositoryDir(child)
-                } else if child.is_file() && child.extension().is_some_and(|e| e == "pwcmod") {
+                } else if child.is_file()
+                    && child
+                        .extension()
+                        .is_some_and(|e| e == "pwcmodule" || e == "pwcmod")
+                {
                     AvailableSource::RepositoryFile(child)
                 } else {
                     continue;
@@ -161,7 +182,7 @@ impl Available {
         Ok(scan.available)
     }
 
-    /// Add one explicit local source tree or `.pwcmod`, returning its index in `packages`.
+    /// Add one explicit local source tree or `.pwcmodule`, returning its index in `packages`.
     ///
     /// Always appended (even when the same hash is already known) so the caller can pin exactly
     /// this source. `RepositoryDir`/`RepositoryFile` are read like `Path`/`File`; `Store` is

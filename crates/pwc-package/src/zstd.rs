@@ -45,7 +45,7 @@ pub(crate) fn decompress(data: &[u8], limit: usize) -> Result<Vec<u8>, String> {
         return Err("Zstandard checksum mismatch".into());
     }
     if !source.is_empty() {
-        return Err("data after the Zstandard frame (a .pwcmod is exactly one frame)".into());
+        return Err("data after the Zstandard frame (a .pwcmodule is exactly one frame)".into());
     }
     Ok(out)
 }

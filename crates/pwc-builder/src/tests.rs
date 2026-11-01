@@ -575,7 +575,7 @@ fn mod_crates_depend_on_the_api_and_their_code_dependencies() {
     );
     assert_eq!(deps["pwc_hotbar"]["path"].as_str(), Some("../pwc_hotbar"));
 
-    // A mod depending on a bundle gets no crate dependency for it (bundles have no code).
+    // A module depending on a bundle gets no crate dependency for it (bundles have no code).
     let alpha: toml::Table = ws.files["modules/pwc_alpha/Cargo.toml"].parse().unwrap();
     assert_eq!(
         alpha["dependencies"]
@@ -586,7 +586,7 @@ fn mod_crates_depend_on_the_api_and_their_code_dependencies() {
         ["pwc-mod-api"]
     );
 
-    // The bundle crate depends on the API and every mod (not on libraries).
+    // The bundle crate depends on the API and every module (not on libraries).
     let bundle: toml::Table = ws.files["bundle/Cargo.toml"].parse().unwrap();
     assert_eq!(bundle["package"]["name"].as_str(), Some(BUNDLE_PACKAGE));
     assert_eq!(bundle["lib"]["name"].as_str(), Some("pwc_bundle"));

@@ -498,7 +498,7 @@ fn bin_main(entry: &str) -> String {
     format!("//! {HEADER}\n\nfn main() {{\n    {entry}(pwc_bundle::game_build());\n}}\n")
 }
 
-/// Every mod/library store directory must hold its `src/lib.rs`.
+/// Every module/library store directory must hold its `src/lib.rs`.
 pub(crate) fn check_store_dirs(request: &BuildRequest) -> Result<(), BuildError> {
     for package in &request.lock.packages {
         let Some((dir, _)) = request.packages.get(&package.id) else {

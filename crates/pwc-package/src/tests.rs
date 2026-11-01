@@ -51,7 +51,7 @@ fn file(path: &str, bytes: &[u8]) -> PackageFile {
     }
 }
 
-/// The package files of the sample mod.
+/// The package files of the sample module.
 fn sample_files() -> Vec<PackageFile> {
     vec![
         file("CHANGELOG.md", b"# 1.2.3\n"),
@@ -77,7 +77,7 @@ fn sample_files() -> Vec<PackageFile> {
     ]
 }
 
-/// A source directory with the sample mod plus everything a development tree has around it.
+/// A source directory with the sample module plus everything a development tree has around it.
 fn sample_dir() -> TempDir {
     let dir = TempDir::new().unwrap();
     for f in sample_files() {

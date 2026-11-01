@@ -45,7 +45,7 @@ The packages are listed in the [repository README](../README.md#first-party-pack
 hand, or to a configuration written without it:
 
 ```sh
-pwc repo add <path-to-pwc-package-manager>/mods
+pwc repo add <path-to-pwc-package-manager>/modules
 ```
 
 `pwc module add pwc.essentials` then finds the packages here. `pwc` packages a selected source

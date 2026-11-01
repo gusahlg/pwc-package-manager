@@ -1,7 +1,7 @@
 //! The PWC builder (docs/spec/build.md): given an exact lockfile and the store directories of its
-//! packages, generate a Cargo workspace (the instance crate and the mod bundle), compute the Build
+//! packages, generate a Cargo workspace (the instance crate and the module bundle), compute the Build
 //! ID, invoke Cargo, and keep the result in the build cache. It never chooses versions and never
-//! reads mod code.
+//! reads module code.
 //!
 //! The pipeline is split so front ends can report progress between the steps:
 //!
@@ -31,7 +31,7 @@ pub const BUILDER_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// cannot be confused with the tooling crate `pwc-instance`.
 pub const INSTANCE_PACKAGE: &str = "pwc-game-instance";
 
-/// Cargo package name of the generated mod bundle (library `pwc_bundle`).
+/// Cargo package name of the generated module bundle (library `pwc_bundle`).
 pub const BUNDLE_PACKAGE: &str = "pwc-bundle";
 
 /// The game executable's name (without the platform suffix).

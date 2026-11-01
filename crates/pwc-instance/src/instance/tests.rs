@@ -64,9 +64,9 @@ fn env() -> Env {
 }
 
 impl Env {
-    fn manifest(&self, instance: &str, mods: &[(&str, &str)]) -> InstanceManifest {
+    fn manifest(&self, instance: &str, modules: &[(&str, &str)]) -> InstanceManifest {
         let mut m = InstanceManifest::new(name(instance), req("^2.1"));
-        for (id, r) in mods {
+        for (id, r) in modules {
             m.modules.insert(
                 pid(id),
                 ModuleRequirement {
@@ -78,8 +78,8 @@ impl Env {
         m
     }
 
-    fn instance(&self, instance: &str, mods: &[(&str, &str)]) -> Instance {
-        Instance::create(&self.dirs, self.manifest(instance, mods)).unwrap()
+    fn instance(&self, instance: &str, modules: &[(&str, &str)]) -> Instance {
+        Instance::create(&self.dirs, self.manifest(instance, modules)).unwrap()
     }
 
     fn lock_with(
@@ -762,7 +762,7 @@ fn bundles_pull_in_their_dependencies() {
         .bundle()
         .deps(&[("t.inventory", "^1"), ("t.hotbar", "^1")])
         .write_into(&e.repo);
-    // A mod depending on the bundle.
+    // A module depending on the bundle.
     Pkg::new("t.extra", "1.0.0")
         .deps(&[("t.essentials", "^1")])
         .write_into(&e.repo);

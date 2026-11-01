@@ -15,7 +15,7 @@ From the package-manager checkout, use an isolated manager home for the whole co
 
 ```sh
 export PWC_HOME=/tmp/pwc-physics-managed
-pwc setup --pwc ../project_watt_cubed --repository ./mods
+pwc setup --pwc ../project_watt_cubed --repository ./modules
 pwc instance create physics-lab
 pwc --instance physics-lab module add ./modules/physics-lab
 pwc --instance physics-lab build --profile dev --print-dir
